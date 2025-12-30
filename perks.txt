@@ -1,0 +1,59 @@
+vetted projects only
+
+vote up or down and earn via web3
+
+100% of marketing income and listing upgrades is converted and sent to ICO pool
+-the more the site makes the more voters make
+-the more votes submitted, the more tokens ditributed on a non-linear scale compared from the previous day
+
+10% distributed daily to holders, 90% distributed to voters
+
+downvote threshold flags project as potential scam, threshold met will distribute bonus to voters only
+
+One vote per user; This will be enforced by several layers to avoid voting abuse
+
+Votes are stored in an IPFS database which are imutable unless you are the address holder
+
+downvoted projects will fall in trust score:
+
+
+Trusted
+Neutral
+Suspicious
+Suspected Scam
+Probable Scam
+- Moved to the "black" list with collected data publicized
+
+Brand new projects will begin as "New Listing" until enough data has been collected to fairly score
+
+Trust Score is based on: 
+User Votes
+Audit Completion
+Internal Contract Audit by our own developers
+Liquidity Locking period
+Team Vesting period
+Token Sale Method
+Project Information
+Social Media Activity
+
+
+
+
+tokenomics
+
+Token allocation
+
+40% liquidity
+40% voting pool
+5%  airdrop
+5%  development
+5%  marketing
+5%  team
+
+
+Funds Distribution
+
+80% listing fees
+10% marketing
+5%  Development
+5%  Team
