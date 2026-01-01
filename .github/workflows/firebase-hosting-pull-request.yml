@@ -36,6 +36,8 @@ jobs:
 
       - name: Deploy Preview to Firebase
         working-directory: ./dappscore
-        run: npx firebase hosting:channel:deploy pr-${{ github.event.pull_request.number }} --expires 7d
+        run: |
+          echo '${{ secrets.FIREBASE_SERVICE_ACCOUNT }}' > sa.json
+          npx firebase hosting:channel:deploy pr-${{ github.event.pull_request.number }} --expires 7d --project dappscore-io
         env:
-          FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
+          GOOGLE_APPLICATION_CREDENTIALS: sa.json
