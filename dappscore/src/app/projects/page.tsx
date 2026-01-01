@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { Search, Filter, SortAsc } from 'lucide-react';
 import { ProjectCard, Project, TrustLevel } from '@/components/ProjectCard';
 
-// Mock data
+// Mock data - Premium projects appear first, then sorted by community score
 const allProjects: Project[] = [
   {
     id: 1,
@@ -18,7 +18,8 @@ const allProjects: Project[] = [
     startDate: Math.floor(Date.now() / 1000) - 86400,
     endDate: Math.floor(Date.now() / 1000) + 86400 * 14,
     trustLevel: 'Trusted',
-    premiumTier: 'gold',
+    isPremium: true,
+    premiumExpiresAt: Math.floor(Date.now() / 1000) + 86400 * 5,
     upvotes: 245,
     downvotes: 12,
     verified: true,
@@ -36,7 +37,8 @@ const allProjects: Project[] = [
     startDate: Math.floor(Date.now() / 1000) + 86400 * 2,
     endDate: Math.floor(Date.now() / 1000) + 86400 * 30,
     trustLevel: 'NewListing',
-    premiumTier: 'silver',
+    isPremium: true,
+    premiumExpiresAt: Math.floor(Date.now() / 1000) + 86400 * 3,
     upvotes: 89,
     downvotes: 23,
     verified: false,
@@ -54,7 +56,7 @@ const allProjects: Project[] = [
     startDate: Math.floor(Date.now() / 1000) - 86400 * 3,
     endDate: Math.floor(Date.now() / 1000) + 86400 * 21,
     trustLevel: 'Neutral',
-    premiumTier: 'none',
+    isPremium: false,
     upvotes: 156,
     downvotes: 45,
     verified: true,
@@ -72,7 +74,7 @@ const allProjects: Project[] = [
     startDate: Math.floor(Date.now() / 1000) - 86400 * 5,
     endDate: Math.floor(Date.now() / 1000) + 86400 * 10,
     trustLevel: 'Suspicious',
-    premiumTier: 'none',
+    isPremium: false,
     upvotes: 12,
     downvotes: 89,
     verified: false,
@@ -90,7 +92,7 @@ const allProjects: Project[] = [
     startDate: Math.floor(Date.now() / 1000) + 86400 * 5,
     endDate: Math.floor(Date.now() / 1000) + 86400 * 35,
     trustLevel: 'NewListing',
-    premiumTier: 'bronze',
+    isPremium: false,
     upvotes: 34,
     downvotes: 8,
     verified: false,
@@ -108,7 +110,7 @@ const allProjects: Project[] = [
     startDate: Math.floor(Date.now() / 1000) - 86400 * 2,
     endDate: Math.floor(Date.now() / 1000) + 86400 * 18,
     trustLevel: 'Trusted',
-    premiumTier: 'none',
+    isPremium: false,
     upvotes: 312,
     downvotes: 28,
     verified: true,
@@ -126,7 +128,7 @@ const allProjects: Project[] = [
     startDate: Math.floor(Date.now() / 1000) - 86400 * 10,
     endDate: Math.floor(Date.now() / 1000) + 86400 * 5,
     trustLevel: 'SuspectedScam',
-    premiumTier: 'none',
+    isPremium: false,
     upvotes: 5,
     downvotes: 234,
     verified: false,
@@ -144,7 +146,7 @@ const allProjects: Project[] = [
     startDate: Math.floor(Date.now() / 1000) + 86400 * 7,
     endDate: Math.floor(Date.now() / 1000) + 86400 * 37,
     trustLevel: 'NewListing',
-    premiumTier: 'none',
+    isPremium: false,
     upvotes: 67,
     downvotes: 12,
     verified: false,
@@ -172,6 +174,11 @@ export default function ProjectsPage() {
       return matchesSearch && matchesCategory && matchesTrust;
     })
     .sort((a, b) => {
+      // Premium projects always appear first
+      if (a.isPremium && !b.isPremium) return -1;
+      if (!a.isPremium && b.isPremium) return 1;
+
+      // Then sort by selected criteria
       switch (sortBy) {
         case 'Most Trusted':
           return b.upvotes / (b.upvotes + b.downvotes) - a.upvotes / (a.upvotes + a.downvotes);

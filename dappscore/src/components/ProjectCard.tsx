@@ -1,11 +1,10 @@
 'use client';
 
 import Link from 'next/link';
-import { ThumbsUp, ThumbsDown, Clock, Shield, AlertTriangle, ExternalLink } from 'lucide-react';
+import { ThumbsUp, ThumbsDown, Clock, Shield, AlertTriangle, Crown } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 
 export type TrustLevel = 'NewListing' | 'Trusted' | 'Neutral' | 'Suspicious' | 'SuspectedScam' | 'ProbableScam';
-export type PremiumTier = 'none' | 'bronze' | 'silver' | 'gold' | 'platinum' | 'diamond';
 
 export interface Project {
   id: number;
@@ -21,7 +20,8 @@ export interface Project {
   startDate: number;
   endDate: number;
   trustLevel: TrustLevel;
-  premiumTier: PremiumTier;
+  isPremium: boolean;
+  premiumExpiresAt?: number;
   upvotes: number;
   downvotes: number;
   verified: boolean;
@@ -37,29 +37,9 @@ const trustLevelConfig: Record<TrustLevel, { label: string; color: string; icon:
   ProbableScam: { label: 'Probable Scam', color: 'bg-red-500', icon: AlertTriangle },
 };
 
-const premiumTierColors: Record<PremiumTier, string> = {
-  none: '',
-  bronze: 'border-amber-600',
-  silver: 'border-gray-400',
-  gold: 'border-yellow-500',
-  platinum: 'border-cyan-400',
-  diamond: 'border-purple-400',
-};
-
-const premiumTierBadge: Record<PremiumTier, { label: string; bg: string } | null> = {
-  none: null,
-  bronze: { label: 'Bronze', bg: 'bg-amber-600' },
-  silver: { label: 'Silver', bg: 'bg-gray-400' },
-  gold: { label: 'Gold', bg: 'bg-yellow-500' },
-  platinum: { label: 'Platinum', bg: 'bg-cyan-400' },
-  diamond: { label: 'Diamond', bg: 'bg-purple-400' },
-};
-
 export function ProjectCard({ project }: { project: Project }) {
   const trustConfig = trustLevelConfig[project.trustLevel];
   const TrustIcon = trustConfig.icon;
-  const premiumBadge = premiumTierBadge[project.premiumTier];
-  const isPremium = project.premiumTier !== 'none';
 
   const saleStatus = () => {
     const now = Date.now() / 1000;
@@ -74,13 +54,14 @@ export function ProjectCard({ project }: { project: Project }) {
     <Link href={`/projects/${project.id}`}>
       <div
         className={`bg-gray-800 rounded-lg overflow-hidden hover:bg-gray-750 transition-all cursor-pointer border-2 ${
-          isPremium ? premiumTierColors[project.premiumTier] : 'border-transparent'
+          project.isPremium ? 'border-yellow-500' : 'border-transparent'
         } hover:border-yellow-500/50`}
       >
         {/* Premium Badge */}
-        {premiumBadge && (
-          <div className={`${premiumBadge.bg} text-black text-xs font-bold text-center py-1`}>
-            {premiumBadge.label} Featured
+        {project.isPremium && (
+          <div className="bg-yellow-500 text-black text-xs font-bold text-center py-1 flex items-center justify-center space-x-1">
+            <Crown className="h-3 w-3" />
+            <span>FEATURED</span>
           </div>
         )}
 
