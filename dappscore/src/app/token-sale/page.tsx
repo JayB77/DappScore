@@ -10,7 +10,7 @@ const salePhases = [
     name: 'Private Sale',
     status: 'completed',
     price: '$0.005',
-    allocation: '10M TRUST',
+    allocation: '10M SCORE',
     sold: '10M',
     progress: 100,
   },
@@ -18,7 +18,7 @@ const salePhases = [
     name: 'Presale',
     status: 'active',
     price: '$0.008',
-    allocation: '15M TRUST',
+    allocation: '15M SCORE',
     sold: '8.5M',
     progress: 57,
   },
@@ -26,7 +26,7 @@ const salePhases = [
     name: 'Public Sale',
     status: 'upcoming',
     price: '$0.01',
-    allocation: '15M TRUST',
+    allocation: '15M SCORE',
     sold: '0',
     progress: 0,
   },
@@ -94,10 +94,10 @@ export default function TokenSalePage() {
         {/* Header */}
         <div className="text-center mb-12">
           <h1 className="text-4xl font-bold mb-4">
-            <span className="text-yellow-500">$TRUST</span> Token Sale
+            <span className="text-yellow-500">$SCORE</span> Token Sale
           </h1>
           <p className="text-gray-400 max-w-2xl mx-auto">
-            Join the ICOTrust community and earn rewards for helping vet crypto projects.
+            Join the DappScore community and earn rewards for helping vet crypto projects.
             Early participants get the best prices.
           </p>
         </div>
@@ -116,7 +116,7 @@ export default function TokenSalePage() {
         <div className="grid lg:grid-cols-2 gap-8">
           {/* Purchase Card */}
           <div className="bg-gray-800 rounded-xl p-6">
-            <h2 className="text-xl font-bold mb-4">Buy $TRUST Tokens</h2>
+            <h2 className="text-xl font-bold mb-4">Buy $SCORE Tokens</h2>
 
             {/* Countdown */}
             <div className="mb-6">
@@ -178,7 +178,7 @@ export default function TokenSalePage() {
                     <div className="flex justify-between items-center">
                       <span className="text-gray-400">You will receive</span>
                       <span className="text-xl font-bold text-white">
-                        {parseInt(tokensToReceive).toLocaleString()} TRUST
+                        {parseInt(tokensToReceive).toLocaleString()} SCORE
                       </span>
                     </div>
                   </div>

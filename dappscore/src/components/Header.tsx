@@ -25,7 +25,7 @@ export function Header() {
           <Link href="/" className="flex items-center space-x-2">
             <Shield className="h-8 w-8 text-yellow-500" />
             <span className="text-xl font-bold text-white">
-              ICO<span className="text-yellow-500">Trust</span>
+              Dapp<span className="text-yellow-500">Score</span>
             </span>
           </Link>
 

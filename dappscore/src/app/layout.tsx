@@ -5,9 +5,9 @@ import { Header } from '@/components/Header';
 import { Footer } from '@/components/Footer';
 
 export const metadata: Metadata = {
-  title: 'ICOTrust - Community-Driven Crypto Project Vetting',
-  description: 'Vote, comment, and help separate legitimate crypto projects from scams. Earn $TRUST tokens for contributing to the community.',
-  keywords: ['ICO', 'crypto', 'blockchain', 'trust', 'voting', 'DeFi', 'token sale'],
+  title: 'DappScore - Community-Driven Crypto Project Vetting',
+  description: 'Vote, comment, and help separate legitimate crypto projects from scams. Earn $SCORE tokens for contributing to the community.',
+  keywords: ['dapp', 'crypto', 'blockchain', 'score', 'voting', 'DeFi', 'token sale', 'vetting'],
 };
 
 export default function RootLayout({

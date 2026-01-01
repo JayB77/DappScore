@@ -13,12 +13,12 @@ export function Footer() {
             <Link href="/" className="flex items-center space-x-2 mb-4">
               <Shield className="h-8 w-8 text-yellow-500" />
               <span className="text-xl font-bold text-white">
-                ICO<span className="text-yellow-500">Trust</span>
+                Dapp<span className="text-yellow-500">Score</span>
               </span>
             </Link>
             <p className="text-gray-400 mb-4 max-w-md">
               Community-driven crypto project vetting platform. Vote, comment, and help separate
-              legitimate projects from scams. Earn $TRUST tokens for contributing.
+              legitimate projects from scams. Earn $SCORE tokens for contributing.
             </p>
             <div className="flex space-x-4">
               <a href="#" className="text-gray-400 hover:text-yellow-500 transition-colors">
@@ -90,7 +90,7 @@ export function Footer() {
 
         <div className="border-t border-gray-800 mt-8 pt-8 flex flex-col md:flex-row justify-between items-center">
           <p className="text-gray-500 text-sm">
-            © 2024 ICOTrust. Built on Base.
+            © 2024 DappScore. Built on Base.
           </p>
           <p className="text-gray-500 text-sm mt-2 md:mt-0">
             Powered by community trust.

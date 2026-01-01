@@ -354,7 +354,7 @@ export default function ProjectDetail() {
 
               {userVote && (
                 <p className="text-center text-sm text-gray-400 mt-4">
-                  You will earn 10 $TRUST for voting
+                  You will earn 10 $SCORE for voting
                 </p>
               )}
             </div>

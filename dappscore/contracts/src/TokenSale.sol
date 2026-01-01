@@ -4,11 +4,11 @@ pragma solidity ^0.8.24;
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import "./TrustToken.sol";
+import "./ScoreToken.sol";
 
 /**
  * @title TokenSale
- * @notice ICOTrust's own token sale contract
+ * @notice DappScore's own token sale contract
  * @dev Multi-phase sale with whitelist and public rounds
  *
  * Sale Phases:
@@ -38,7 +38,7 @@ contract TokenSale is Ownable, ReentrancyGuard {
     }
 
     // Token
-    TrustToken public trustToken;
+    ScoreToken public scoreToken;
     IERC20 public usdc;
 
     // Sale state
@@ -80,11 +80,11 @@ contract TokenSale is Ownable, ReentrancyGuard {
 
     constructor(
         address _initialOwner,
-        address _trustToken,
+        address _scoreToken,
         address _usdc,
         address _treasury
     ) Ownable(_initialOwner) {
-        trustToken = TrustToken(_trustToken);
+        scoreToken = ScoreToken(_scoreToken);
         usdc = IERC20(_usdc);
         treasury = _treasury;
         currentPhase = SalePhase.NotStarted;
@@ -183,7 +183,7 @@ contract TokenSale is Ownable, ReentrancyGuard {
 
         // For simplicity, we release all at once after vesting
         // In production, implement proper vesting schedule
-        trustToken.transfer(msg.sender, claimable);
+        scoreToken.transfer(msg.sender, claimable);
 
         emit TokensClaimed(msg.sender, claimable);
     }
@@ -350,12 +350,12 @@ contract TokenSale is Ownable, ReentrancyGuard {
     function withdrawUnsoldTokens() external onlyOwner {
         require(currentPhase == SalePhase.Ended, "Sale not ended");
 
-        uint256 balance = trustToken.balanceOf(address(this));
+        uint256 balance = scoreToken.balanceOf(address(this));
         uint256 reserved = totalSold;  // Tokens owed to buyers
 
         require(balance > reserved, "No excess tokens");
 
-        trustToken.transfer(treasury, balance - reserved);
+        scoreToken.transfer(treasury, balance - reserved);
     }
 
     // View functions
