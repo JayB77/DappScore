@@ -15,6 +15,11 @@ import {
   AlertTriangle,
   CheckCircle,
   Send,
+  Image,
+  X,
+  Crown,
+  ChevronUp,
+  ChevronDown,
 } from 'lucide-react';
 
 // Mock project data
@@ -33,15 +38,16 @@ const mockProject = {
   startDate: Math.floor(Date.now() / 1000) - 86400,
   endDate: Math.floor(Date.now() / 1000) + 86400 * 14,
   trustLevel: 'Trusted',
-  premiumTier: 'gold',
+  isPremium: true,
+  premiumExpiresAt: Math.floor(Date.now() / 1000) + 86400 * 5, // 5 days left
   upvotes: 245,
   downvotes: 12,
   verified: true,
   createdAt: Math.floor(Date.now() / 1000) - 86400 * 7,
   team: [
-    { name: 'John Doe', role: 'CEO & Founder', linkedin: '#' },
-    { name: 'Jane Smith', role: 'CTO', linkedin: '#' },
-    { name: 'Bob Johnson', role: 'Lead Developer', linkedin: '#' },
+    { name: 'John Doe', role: 'CEO & Founder', linkedin: '#', bio: 'Serial entrepreneur with 10+ years in fintech' },
+    { name: 'Jane Smith', role: 'CTO', linkedin: '#', bio: 'Former Google engineer, blockchain expert' },
+    { name: 'Bob Johnson', role: 'Lead Developer', linkedin: '#', bio: 'Full-stack developer, Solidity specialist' },
   ],
   milestones: [
     { date: 'Q1 2024', event: 'Project Launch', completed: true },
@@ -57,27 +63,49 @@ const mockProject = {
   },
 };
 
-const mockComments = [
+interface Comment {
+  id: number;
+  address: string;
+  content: string;
+  imageUrl?: string;
+  timestamp: number;
+  voteType: 'up' | 'down';
+  upvotes: number;
+  downvotes: number;
+  userReputation: number; // User's reputation score
+}
+
+const mockComments: Comment[] = [
   {
     id: 1,
     address: '0x1234...5678',
-    content: 'Great project! The team is very responsive and the technology looks solid.',
+    content: 'Great project! The team is very responsive and the technology looks solid. I\'ve been following their development for months.',
     timestamp: Date.now() - 86400000 * 2,
     voteType: 'up',
+    upvotes: 45,
+    downvotes: 3,
+    userReputation: 850,
   },
   {
     id: 2,
     address: '0xabcd...efgh',
-    content: 'I have some concerns about the tokenomics. 40% for liquidity seems high.',
+    content: 'I have some concerns about the tokenomics. 40% for liquidity seems high. Here\'s proof from their old whitepaper:',
+    imageUrl: 'https://placehold.co/600x400/1f2937/ffffff?text=Evidence+Screenshot',
     timestamp: Date.now() - 86400000,
     voteType: 'down',
+    upvotes: 12,
+    downvotes: 28,
+    userReputation: 120,
   },
   {
     id: 3,
     address: '0x9876...4321',
-    content: 'Verified the smart contracts myself. Code looks clean and well-audited.',
+    content: 'Verified the smart contracts myself. Code looks clean and well-audited. The audit report from CertiK checks out.',
     timestamp: Date.now() - 3600000,
     voteType: 'up',
+    upvotes: 89,
+    downvotes: 2,
+    userReputation: 1250,
   },
 ];
 
@@ -86,7 +114,9 @@ export default function ProjectDetail() {
   const { isConnected } = useAccount();
   const [userVote, setUserVote] = useState<'up' | 'down' | null>(null);
   const [comment, setComment] = useState('');
+  const [commentImage, setCommentImage] = useState<string>('');
   const [showCommentForm, setShowCommentForm] = useState(false);
+  const [commentVotes, setCommentVotes] = useState<Record<number, 'up' | 'down' | null>>({});
 
   const project = mockProject;
   const trustScore = Math.round((project.upvotes / (project.upvotes + project.downvotes)) * 100);
@@ -101,7 +131,31 @@ export default function ProjectDetail() {
     if (!comment.trim()) return;
     // Would call contract here
     setComment('');
+    setCommentImage('');
     setShowCommentForm(false);
+  };
+
+  const handleCommentVote = (commentId: number, type: 'up' | 'down') => {
+    if (!isConnected) return;
+    setCommentVotes(prev => ({
+      ...prev,
+      [commentId]: prev[commentId] === type ? null : type
+    }));
+    // Would call contract here
+  };
+
+  const getReputationBadge = (reputation: number) => {
+    if (reputation >= 1000) return { label: 'Trusted', color: 'text-green-400 bg-green-500/20' };
+    if (reputation >= 500) return { label: 'Active', color: 'text-blue-400 bg-blue-500/20' };
+    if (reputation >= 100) return { label: 'Member', color: 'text-gray-400 bg-gray-500/20' };
+    return { label: 'New', color: 'text-gray-500 bg-gray-600/20' };
+  };
+
+  const getVoteWeight = (reputation: number) => {
+    // Higher reputation = more vote weight
+    if (reputation >= 1000) return '3x';
+    if (reputation >= 500) return '2x';
+    return '1x';
   };
 
   return (
@@ -110,9 +164,11 @@ export default function ProjectDetail() {
         {/* Header */}
         <div className="bg-gray-800 rounded-xl p-6 mb-8">
           {/* Premium Badge */}
-          {project.premiumTier !== 'none' && (
-            <div className="bg-yellow-500 text-black text-sm font-bold text-center py-1 -mt-6 -mx-6 mb-6 rounded-t-xl">
-              GOLD FEATURED PROJECT
+          {project.isPremium && (
+            <div className="bg-yellow-500 text-black text-sm font-bold text-center py-1 -mt-6 -mx-6 mb-6 rounded-t-xl flex items-center justify-center space-x-2">
+              <Crown className="h-4 w-4" />
+              <span>FEATURED PROJECT</span>
+              <span className="text-yellow-800">• {Math.ceil((project.premiumExpiresAt - Date.now() / 1000) / 86400)} days left</span>
             </div>
           )}
 
@@ -179,10 +235,11 @@ export default function ProjectDetail() {
               <h2 className="text-xl font-bold mb-4">Team</h2>
               <div className="space-y-4">
                 {project.team.map((member) => (
-                  <div key={member.name} className="flex items-center justify-between">
+                  <div key={member.name} className="flex items-start justify-between p-3 bg-gray-700/50 rounded-lg">
                     <div>
                       <div className="font-medium">{member.name}</div>
-                      <div className="text-sm text-gray-400">{member.role}</div>
+                      <div className="text-sm text-yellow-500">{member.role}</div>
+                      <div className="text-sm text-gray-400 mt-1">{member.bio}</div>
                     </div>
                     <a
                       href={member.linkedin}
@@ -223,7 +280,7 @@ export default function ProjectDetail() {
               </div>
             </div>
 
-            {/* Comments */}
+            {/* Comments with voting and image support */}
             <div className="bg-gray-800 rounded-xl p-6">
               <div className="flex items-center justify-between mb-4">
                 <h2 className="text-xl font-bold flex items-center">
@@ -240,16 +297,49 @@ export default function ProjectDetail() {
                 )}
               </div>
 
+              {/* Comment Form */}
               {showCommentForm && (
                 <div className="mb-6 p-4 bg-gray-700 rounded-lg">
                   <textarea
                     value={comment}
                     onChange={(e) => setComment(e.target.value)}
-                    placeholder="Share your thoughts about this project..."
+                    placeholder="Share your thoughts about this project. Be specific and provide evidence where possible..."
                     className="w-full bg-gray-600 border border-gray-500 rounded-lg p-3 text-white resize-none focus:border-yellow-500 focus:outline-none"
                     rows={3}
                   />
-                  <div className="flex justify-end mt-2">
+
+                  {/* Image URL input */}
+                  <div className="mt-3">
+                    <label className="text-sm text-gray-400 mb-1 block">Add evidence image (optional)</label>
+                    <div className="flex space-x-2">
+                      <input
+                        type="url"
+                        value={commentImage}
+                        onChange={(e) => setCommentImage(e.target.value)}
+                        placeholder="https://example.com/screenshot.png"
+                        className="flex-1 bg-gray-600 border border-gray-500 rounded-lg px-3 py-2 text-sm focus:border-yellow-500 focus:outline-none"
+                      />
+                      <button className="px-3 py-2 bg-gray-600 border border-gray-500 rounded-lg hover:border-yellow-500 transition-colors">
+                        <Image className="h-5 w-5" />
+                      </button>
+                    </div>
+                    {commentImage && (
+                      <div className="mt-2 relative inline-block">
+                        <img src={commentImage} alt="Preview" className="h-20 rounded border border-gray-500" />
+                        <button
+                          onClick={() => setCommentImage('')}
+                          className="absolute -top-2 -right-2 bg-red-500 rounded-full p-1"
+                        >
+                          <X className="h-3 w-3" />
+                        </button>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="flex justify-between items-center mt-3">
+                    <p className="text-xs text-gray-400">
+                      Your vote weight: {getVoteWeight(850)} based on reputation
+                    </p>
                     <button
                       onClick={handleComment}
                       disabled={!comment.trim()}
@@ -262,29 +352,104 @@ export default function ProjectDetail() {
                 </div>
               )}
 
+              {/* Comments List */}
               <div className="space-y-4">
-                {mockComments.map((c) => (
-                  <div key={c.id} className="p-4 bg-gray-700/50 rounded-lg">
-                    <div className="flex items-center justify-between mb-2">
-                      <div className="flex items-center space-x-2">
-                        <span className="text-sm font-mono text-gray-400">{c.address}</span>
-                        <span
-                          className={`px-2 py-0.5 rounded text-xs ${
-                            c.voteType === 'up'
-                              ? 'bg-green-500/20 text-green-400'
-                              : 'bg-red-500/20 text-red-400'
-                          }`}
-                        >
-                          {c.voteType === 'up' ? 'Upvoted' : 'Downvoted'}
-                        </span>
+                {mockComments.map((c) => {
+                  const repBadge = getReputationBadge(c.userReputation);
+                  const currentVote = commentVotes[c.id];
+
+                  return (
+                    <div key={c.id} className="p-4 bg-gray-700/50 rounded-lg">
+                      <div className="flex items-start space-x-3">
+                        {/* Vote buttons for comment */}
+                        <div className="flex flex-col items-center space-y-1">
+                          <button
+                            onClick={() => handleCommentVote(c.id, 'up')}
+                            className={`p-1 rounded transition-colors ${
+                              currentVote === 'up'
+                                ? 'text-green-400 bg-green-500/20'
+                                : 'text-gray-500 hover:text-green-400'
+                            }`}
+                          >
+                            <ChevronUp className="h-5 w-5" />
+                          </button>
+                          <span className={`text-sm font-medium ${
+                            c.upvotes - c.downvotes > 0 ? 'text-green-400' :
+                            c.upvotes - c.downvotes < 0 ? 'text-red-400' : 'text-gray-400'
+                          }`}>
+                            {c.upvotes - c.downvotes}
+                          </span>
+                          <button
+                            onClick={() => handleCommentVote(c.id, 'down')}
+                            className={`p-1 rounded transition-colors ${
+                              currentVote === 'down'
+                                ? 'text-red-400 bg-red-500/20'
+                                : 'text-gray-500 hover:text-red-400'
+                            }`}
+                          >
+                            <ChevronDown className="h-5 w-5" />
+                          </button>
+                        </div>
+
+                        {/* Comment content */}
+                        <div className="flex-1">
+                          <div className="flex items-center justify-between mb-2">
+                            <div className="flex items-center space-x-2">
+                              <span className="text-sm font-mono text-gray-400">{c.address}</span>
+                              <span className={`px-2 py-0.5 rounded text-xs ${repBadge.color}`}>
+                                {repBadge.label}
+                              </span>
+                              <span className="text-xs text-gray-500">
+                                {getVoteWeight(c.userReputation)} weight
+                              </span>
+                              <span
+                                className={`px-2 py-0.5 rounded text-xs ${
+                                  c.voteType === 'up'
+                                    ? 'bg-green-500/20 text-green-400'
+                                    : 'bg-red-500/20 text-red-400'
+                                }`}
+                              >
+                                {c.voteType === 'up' ? 'Upvoted' : 'Downvoted'}
+                              </span>
+                            </div>
+                            <span className="text-xs text-gray-500">
+                              {new Date(c.timestamp).toLocaleDateString()}
+                            </span>
+                          </div>
+                          <p className="text-gray-300">{c.content}</p>
+
+                          {/* Image attachment */}
+                          {c.imageUrl && (
+                            <div className="mt-3">
+                              <a href={c.imageUrl} target="_blank" rel="noopener noreferrer">
+                                <img
+                                  src={c.imageUrl}
+                                  alt="Evidence"
+                                  className="max-h-64 rounded-lg border border-gray-600 hover:border-yellow-500 transition-colors"
+                                />
+                              </a>
+                              <p className="text-xs text-gray-500 mt-1 flex items-center">
+                                <Image className="h-3 w-3 mr-1" />
+                                Click to view full size
+                              </p>
+                            </div>
+                          )}
+                        </div>
                       </div>
-                      <span className="text-xs text-gray-500">
-                        {new Date(c.timestamp).toLocaleDateString()}
-                      </span>
                     </div>
-                    <p className="text-gray-300">{c.content}</p>
-                  </div>
-                ))}
+                  );
+                })}
+              </div>
+
+              {/* Reputation Info */}
+              <div className="mt-6 p-4 bg-gray-700/30 rounded-lg">
+                <h4 className="text-sm font-medium mb-2">How reputation works</h4>
+                <ul className="text-xs text-gray-400 space-y-1">
+                  <li>• Earn reputation by making quality comments that get upvoted</li>
+                  <li>• Higher reputation = more weight on your project votes (1x → 2x → 3x)</li>
+                  <li>• Downvoted comments reduce your reputation</li>
+                  <li>• Attach images as evidence to strengthen your feedback</li>
+                </ul>
               </div>
             </div>
           </div>

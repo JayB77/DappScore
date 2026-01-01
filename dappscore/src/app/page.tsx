@@ -19,7 +19,8 @@ const mockProjects: Project[] = [
     startDate: Math.floor(Date.now() / 1000) - 86400,
     endDate: Math.floor(Date.now() / 1000) + 86400 * 14,
     trustLevel: 'Trusted',
-    premiumTier: 'gold',
+    isPremium: true,
+    premiumExpiresAt: Math.floor(Date.now() / 1000) + 86400 * 5,
     upvotes: 245,
     downvotes: 12,
     verified: true,
@@ -37,7 +38,8 @@ const mockProjects: Project[] = [
     startDate: Math.floor(Date.now() / 1000) + 86400 * 2,
     endDate: Math.floor(Date.now() / 1000) + 86400 * 30,
     trustLevel: 'NewListing',
-    premiumTier: 'silver',
+    isPremium: true,
+    premiumExpiresAt: Math.floor(Date.now() / 1000) + 86400 * 3,
     upvotes: 89,
     downvotes: 23,
     verified: false,
@@ -55,7 +57,7 @@ const mockProjects: Project[] = [
     startDate: Math.floor(Date.now() / 1000) - 86400 * 3,
     endDate: Math.floor(Date.now() / 1000) + 86400 * 21,
     trustLevel: 'Neutral',
-    premiumTier: 'none',
+    isPremium: false,
     upvotes: 156,
     downvotes: 45,
     verified: true,
@@ -73,7 +75,7 @@ const mockProjects: Project[] = [
     startDate: Math.floor(Date.now() / 1000) - 86400 * 5,
     endDate: Math.floor(Date.now() / 1000) + 86400 * 10,
     trustLevel: 'Suspicious',
-    premiumTier: 'none',
+    isPremium: false,
     upvotes: 12,
     downvotes: 89,
     verified: false,
@@ -91,7 +93,7 @@ const mockProjects: Project[] = [
     startDate: Math.floor(Date.now() / 1000) + 86400 * 5,
     endDate: Math.floor(Date.now() / 1000) + 86400 * 35,
     trustLevel: 'NewListing',
-    premiumTier: 'bronze',
+    isPremium: false,
     upvotes: 34,
     downvotes: 8,
     verified: false,
@@ -109,7 +111,7 @@ const mockProjects: Project[] = [
     startDate: Math.floor(Date.now() / 1000) - 86400 * 2,
     endDate: Math.floor(Date.now() / 1000) + 86400 * 18,
     trustLevel: 'Trusted',
-    premiumTier: 'none',
+    isPremium: false,
     upvotes: 312,
     downvotes: 28,
     verified: true,
@@ -123,7 +125,6 @@ const featuredProject = {
   symbol: 'DPX',
   description: 'Revolutionary decentralized exchange with zero-slippage trades',
   endDate: Math.floor(Date.now() / 1000) + 86400 * 14,
-  premiumTier: 'platinum',
 };
 
 const stats = [
@@ -260,12 +261,6 @@ export default function HomePage() {
               className="px-8 py-3 bg-yellow-500 text-black font-semibold rounded-lg hover:bg-yellow-400 transition-colors"
             >
               Submit Your Project
-            </Link>
-            <Link
-              href="/premium"
-              className="px-8 py-3 border border-yellow-500 text-yellow-500 font-semibold rounded-lg hover:bg-yellow-500/10 transition-colors"
-            >
-              View Premium Plans
             </Link>
           </div>
         </div>

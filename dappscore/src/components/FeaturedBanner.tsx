@@ -11,7 +11,6 @@ interface FeaturedProject {
   description: string;
   logoUrl?: string;
   endDate: number;
-  premiumTier: string;
 }
 
 function CountdownTimer({ endDate }: { endDate: number }) {
@@ -74,7 +73,7 @@ export function FeaturedBanner({ project }: { project: FeaturedProject | null })
   return (
     <div className="bg-gradient-to-r from-gray-800 to-gray-900 border-2 border-yellow-500 rounded-lg overflow-hidden mb-8">
       <div className="bg-yellow-500 text-black text-center text-sm font-bold py-1">
-        PLATINUM FEATURED PROJECT
+        FEATURED PROJECT
       </div>
       <div className="p-6">
         <div className="flex flex-col md:flex-row items-center justify-between">

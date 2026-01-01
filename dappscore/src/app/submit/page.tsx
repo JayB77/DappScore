@@ -3,72 +3,121 @@
 import { useState } from 'react';
 import { useAccount } from 'wagmi';
 import { ConnectButton } from '@rainbow-me/rainbowkit';
-import { Check, ChevronLeft, ChevronRight, Wallet, Upload, AlertCircle } from 'lucide-react';
+import { Check, ChevronLeft, ChevronRight, Wallet, Upload, AlertCircle, Plus, Trash2, Crown } from 'lucide-react';
 
 const steps = [
   { id: 1, name: 'General', description: 'Basic project info' },
   { id: 2, name: 'Details', description: 'Token & sale details' },
-  { id: 3, name: 'Team', description: 'Team information' },
-  { id: 4, name: 'Links', description: 'Social & resources' },
-  { id: 5, name: 'Payment', description: 'Listing fee' },
+  { id: 3, name: 'Links', description: 'Social & resources' },
+  { id: 4, name: 'Team', description: 'Team information' },
+  { id: 5, name: 'Payment', description: 'Listing option' },
 ];
 
-const categories = ['DeFi', 'Gaming', 'AI', 'NFT', 'Social', 'Infrastructure', 'DAO', 'Other'];
+const categories = [
+  'DeFi', 'Gaming', 'AI', 'NFT', 'Social', 'Infrastructure',
+  'DAO', 'Metaverse', 'Privacy', 'Storage', 'Identity',
+  'Oracle', 'Bridge', 'DEX', 'Lending', 'Yield', 'Other'
+];
+
+const blockchains = [
+  'Base', 'Ethereum', 'Arbitrum', 'Optimism', 'Polygon',
+  'BNB Chain', 'Avalanche', 'Solana', 'Fantom', 'zkSync',
+  'Linea', 'Scroll', 'Other'
+];
+
+const platformTypes = [
+  'New Token Launch', 'Existing Token', 'NFT Collection',
+  'DeFi Protocol', 'Gaming Platform', 'Other'
+];
+
+interface TeamMember {
+  name: string;
+  role: string;
+  bio: string;
+  photoUrl: string;
+  linkedin: string;
+  twitter: string;
+}
 
 export default function SubmitProjectPage() {
   const { isConnected } = useAccount();
   const [currentStep, setCurrentStep] = useState(1);
+  const [isOwnProject, setIsOwnProject] = useState(false);
   const [formData, setFormData] = useState({
-    // General
-    name: '',
-    symbol: '',
-    description: '',
+    // General (only name, symbol, category, description are required)
+    submitterName: '',
+    submitterEmail: '',
+    projectName: '',
+    tokenSymbol: '',
     category: '',
-    // Details
-    chain: 'Base',
+    description: '',
+
+    // Details (all optional)
+    blockchain: '',
+    platformType: '',
+    tokenName: '',
     totalSupply: '',
     hardCap: '',
+    softCap: '',
+    tokenPrice: '',
     startDate: '',
     endDate: '',
-    // Team
-    teamMembers: [{ name: '', role: '', linkedin: '' }],
-    // Links
+    logoUrl: '',
+
+    // Links (all optional)
     website: '',
     whitepaper: '',
+    pitchDeck: '',
     twitter: '',
     telegram: '',
     discord: '',
+    reddit: '',
+    medium: '',
+    youtube: '',
     github: '',
+    facebook: '',
+    blog: '',
+
     // Payment
-    listingTier: 'basic',
+    listingType: 'free',
+    paymentMethod: 'eth',
   });
 
-  const updateFormData = (field: string, value: string | object[]) => {
+  const [teamMembers, setTeamMembers] = useState<TeamMember[]>([
+    { name: '', role: '', bio: '', photoUrl: '', linkedin: '', twitter: '' }
+  ]);
+
+  const updateFormData = (field: string, value: string) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
   };
 
   const addTeamMember = () => {
-    setFormData((prev) => ({
-      ...prev,
-      teamMembers: [...prev.teamMembers, { name: '', role: '', linkedin: '' }],
-    }));
+    setTeamMembers((prev) => [...prev, { name: '', role: '', bio: '', photoUrl: '', linkedin: '', twitter: '' }]);
   };
 
-  const updateTeamMember = (index: number, field: string, value: string) => {
-    const updated = [...formData.teamMembers];
-    updated[index] = { ...updated[index], [field]: value };
-    updateFormData('teamMembers', updated);
+  const removeTeamMember = (index: number) => {
+    if (teamMembers.length > 1) {
+      setTeamMembers((prev) => prev.filter((_, i) => i !== index));
+    }
+  };
+
+  const updateTeamMember = (index: number, field: keyof TeamMember, value: string) => {
+    setTeamMembers((prev) => {
+      const updated = [...prev];
+      updated[index] = { ...updated[index], [field]: value };
+      return updated;
+    });
   };
 
   const nextStep = () => setCurrentStep((prev) => Math.min(prev + 1, 5));
   const prevStep = () => setCurrentStep((prev) => Math.max(prev - 1, 1));
 
-  const listingTiers = [
-    { id: 'basic', name: 'Basic Listing', price: '0.01 ETH', features: ['Standard visibility', 'Community voting', 'Basic support'] },
-    { id: 'bronze', name: 'Bronze', price: '0.05 ETH', features: ['1 day featured', 'Bronze badge', 'Priority support'] },
-    { id: 'silver', name: 'Silver', price: '0.12 ETH', features: ['3 days featured', 'Silver badge', 'Social promotion'] },
-    { id: 'gold', name: 'Gold', price: '0.25 ETH', features: ['7 days featured', 'Gold badge', 'Newsletter feature'] },
-  ];
+  const isStepValid = () => {
+    if (currentStep === 1) {
+      return formData.projectName && formData.tokenSymbol && formData.category && formData.description;
+    }
+    return true; // All other steps are optional
+  };
 
   if (!isConnected) {
     return (
@@ -85,10 +134,10 @@ export default function SubmitProjectPage() {
 
   return (
     <div className="min-h-screen py-8">
-      <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
         <h1 className="text-3xl font-bold text-center mb-2">Submit Your Project</h1>
         <p className="text-gray-400 text-center mb-8">
-          Get your project listed on ICOTrust and reach thousands of investors
+          Get your project listed on DappScore and let the community evaluate it
         </p>
 
         {/* Progress Steps */}
@@ -124,48 +173,71 @@ export default function SubmitProjectPage() {
 
         {/* Form */}
         <div className="bg-gray-800 rounded-xl p-6">
-          {/* Step 1: General */}
+          {/* Step 1: General Information */}
           {currentStep === 1 && (
             <div className="space-y-6">
               <h2 className="text-xl font-bold">General Information</h2>
+              <p className="text-gray-400 text-sm">Fields marked with * are required</p>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm text-gray-400 mb-2">Your Name</label>
+                  <input
+                    type="text"
+                    value={formData.submitterName}
+                    onChange={(e) => updateFormData('submitterName', e.target.value)}
+                    placeholder="Your name (optional)"
+                    className="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-3 focus:border-yellow-500 focus:outline-none"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm text-gray-400 mb-2">Your Email</label>
+                  <input
+                    type="email"
+                    value={formData.submitterEmail}
+                    onChange={(e) => updateFormData('submitterEmail', e.target.value)}
+                    placeholder="your@email.com (optional)"
+                    className="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-3 focus:border-yellow-500 focus:outline-none"
+                  />
+                </div>
+              </div>
 
               <div>
                 <label className="block text-sm text-gray-400 mb-2">Project Name *</label>
                 <input
                   type="text"
-                  value={formData.name}
-                  onChange={(e) => updateFormData('name', e.target.value)}
+                  value={formData.projectName}
+                  onChange={(e) => updateFormData('projectName', e.target.value)}
                   placeholder="e.g., DeFi Protocol X"
                   className="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-3 focus:border-yellow-500 focus:outline-none"
                 />
               </div>
 
-              <div>
-                <label className="block text-sm text-gray-400 mb-2">Token Symbol *</label>
-                <input
-                  type="text"
-                  value={formData.symbol}
-                  onChange={(e) => updateFormData('symbol', e.target.value.toUpperCase())}
-                  placeholder="e.g., DPX"
-                  maxLength={10}
-                  className="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-3 focus:border-yellow-500 focus:outline-none"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm text-gray-400 mb-2">Category *</label>
-                <select
-                  value={formData.category}
-                  onChange={(e) => updateFormData('category', e.target.value)}
-                  className="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-3 focus:border-yellow-500 focus:outline-none"
-                >
-                  <option value="">Select a category</option>
-                  {categories.map((cat) => (
-                    <option key={cat} value={cat}>
-                      {cat}
-                    </option>
-                  ))}
-                </select>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm text-gray-400 mb-2">Token Symbol *</label>
+                  <input
+                    type="text"
+                    value={formData.tokenSymbol}
+                    onChange={(e) => updateFormData('tokenSymbol', e.target.value.toUpperCase())}
+                    placeholder="e.g., DPX"
+                    maxLength={10}
+                    className="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-3 focus:border-yellow-500 focus:outline-none"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm text-gray-400 mb-2">Category *</label>
+                  <select
+                    value={formData.category}
+                    onChange={(e) => updateFormData('category', e.target.value)}
+                    className="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-3 focus:border-yellow-500 focus:outline-none"
+                  >
+                    <option value="">Select a category</option>
+                    {categories.map((cat) => (
+                      <option key={cat} value={cat}>{cat}</option>
+                    ))}
+                  </select>
+                </div>
               </div>
 
               <div>
@@ -173,34 +245,74 @@ export default function SubmitProjectPage() {
                 <textarea
                   value={formData.description}
                   onChange={(e) => updateFormData('description', e.target.value)}
-                  placeholder="Describe your project..."
-                  rows={4}
+                  placeholder="Describe your project in detail. What problem does it solve? What makes it unique?"
+                  rows={5}
                   className="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-3 focus:border-yellow-500 focus:outline-none resize-none"
                 />
+                <p className="text-xs text-gray-500 mt-1">{formData.description.length}/2000 characters</p>
+              </div>
+
+              <div className="flex items-center space-x-3 p-4 bg-gray-700/50 rounded-lg">
+                <input
+                  type="checkbox"
+                  id="isOwnProject"
+                  checked={isOwnProject}
+                  onChange={(e) => setIsOwnProject(e.target.checked)}
+                  className="w-5 h-5 rounded border-gray-600 bg-gray-700 text-yellow-500 focus:ring-yellow-500"
+                />
+                <label htmlFor="isOwnProject" className="text-sm">
+                  I am a team member of this project and want to claim ownership
+                </label>
               </div>
             </div>
           )}
 
-          {/* Step 2: Details */}
+          {/* Step 2: Token & Sale Details */}
           {currentStep === 2 && (
             <div className="space-y-6">
               <h2 className="text-xl font-bold">Token & Sale Details</h2>
+              <p className="text-gray-400 text-sm">All fields are optional - fill out what you know</p>
 
-              <div>
-                <label className="block text-sm text-gray-400 mb-2">Blockchain</label>
-                <select
-                  value={formData.chain}
-                  onChange={(e) => updateFormData('chain', e.target.value)}
-                  className="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-3 focus:border-yellow-500 focus:outline-none"
-                >
-                  <option value="Base">Base</option>
-                  <option value="Ethereum">Ethereum</option>
-                  <option value="Arbitrum">Arbitrum</option>
-                  <option value="Optimism">Optimism</option>
-                </select>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm text-gray-400 mb-2">Blockchain</label>
+                  <select
+                    value={formData.blockchain}
+                    onChange={(e) => updateFormData('blockchain', e.target.value)}
+                    className="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-3 focus:border-yellow-500 focus:outline-none"
+                  >
+                    <option value="">Select blockchain</option>
+                    {blockchains.map((chain) => (
+                      <option key={chain} value={chain}>{chain}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm text-gray-400 mb-2">Platform Type</label>
+                  <select
+                    value={formData.platformType}
+                    onChange={(e) => updateFormData('platformType', e.target.value)}
+                    className="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-3 focus:border-yellow-500 focus:outline-none"
+                  >
+                    <option value="">Select type</option>
+                    {platformTypes.map((type) => (
+                      <option key={type} value={type}>{type}</option>
+                    ))}
+                  </select>
+                </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm text-gray-400 mb-2">Token Name (if different from project)</label>
+                  <input
+                    type="text"
+                    value={formData.tokenName}
+                    onChange={(e) => updateFormData('tokenName', e.target.value)}
+                    placeholder="e.g., Protocol X Token"
+                    className="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-3 focus:border-yellow-500 focus:outline-none"
+                  />
+                </div>
                 <div>
                   <label className="block text-sm text-gray-400 mb-2">Total Supply</label>
                   <input
@@ -211,6 +323,9 @@ export default function SubmitProjectPage() {
                     className="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-3 focus:border-yellow-500 focus:outline-none"
                   />
                 </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div>
                   <label className="block text-sm text-gray-400 mb-2">Hard Cap (USD)</label>
                   <input
@@ -221,13 +336,33 @@ export default function SubmitProjectPage() {
                     className="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-3 focus:border-yellow-500 focus:outline-none"
                   />
                 </div>
+                <div>
+                  <label className="block text-sm text-gray-400 mb-2">Soft Cap (USD)</label>
+                  <input
+                    type="text"
+                    value={formData.softCap}
+                    onChange={(e) => updateFormData('softCap', e.target.value)}
+                    placeholder="e.g., 500,000"
+                    className="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-3 focus:border-yellow-500 focus:outline-none"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm text-gray-400 mb-2">Token Price (USD)</label>
+                  <input
+                    type="text"
+                    value={formData.tokenPrice}
+                    onChange={(e) => updateFormData('tokenPrice', e.target.value)}
+                    placeholder="e.g., 0.05"
+                    className="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-3 focus:border-yellow-500 focus:outline-none"
+                  />
+                </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm text-gray-400 mb-2">Sale Start Date</label>
                   <input
-                    type="date"
+                    type="datetime-local"
                     value={formData.startDate}
                     onChange={(e) => updateFormData('startDate', e.target.value)}
                     className="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-3 focus:border-yellow-500 focus:outline-none"
@@ -236,68 +371,42 @@ export default function SubmitProjectPage() {
                 <div>
                   <label className="block text-sm text-gray-400 mb-2">Sale End Date</label>
                   <input
-                    type="date"
+                    type="datetime-local"
                     value={formData.endDate}
                     onChange={(e) => updateFormData('endDate', e.target.value)}
                     className="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-3 focus:border-yellow-500 focus:outline-none"
                   />
                 </div>
               </div>
-            </div>
-          )}
-
-          {/* Step 3: Team */}
-          {currentStep === 3 && (
-            <div className="space-y-6">
-              <h2 className="text-xl font-bold">Team Information</h2>
-
-              {formData.teamMembers.map((member, index) => (
-                <div key={index} className="p-4 bg-gray-700 rounded-lg space-y-4">
-                  <div className="flex justify-between items-center">
-                    <span className="font-medium">Team Member {index + 1}</span>
-                  </div>
-                  <div className="grid grid-cols-2 gap-4">
-                    <input
-                      type="text"
-                      value={member.name}
-                      onChange={(e) => updateTeamMember(index, 'name', e.target.value)}
-                      placeholder="Name"
-                      className="w-full bg-gray-600 border border-gray-500 rounded-lg px-4 py-2 focus:border-yellow-500 focus:outline-none"
-                    />
-                    <input
-                      type="text"
-                      value={member.role}
-                      onChange={(e) => updateTeamMember(index, 'role', e.target.value)}
-                      placeholder="Role"
-                      className="w-full bg-gray-600 border border-gray-500 rounded-lg px-4 py-2 focus:border-yellow-500 focus:outline-none"
-                    />
-                  </div>
-                  <input
-                    type="text"
-                    value={member.linkedin}
-                    onChange={(e) => updateTeamMember(index, 'linkedin', e.target.value)}
-                    placeholder="LinkedIn URL"
-                    className="w-full bg-gray-600 border border-gray-500 rounded-lg px-4 py-2 focus:border-yellow-500 focus:outline-none"
-                  />
-                </div>
-              ))}
-
-              <button
-                onClick={addTeamMember}
-                className="w-full py-3 border border-dashed border-gray-600 rounded-lg text-gray-400 hover:border-yellow-500 hover:text-yellow-500 transition-colors"
-              >
-                + Add Team Member
-              </button>
-            </div>
-          )}
-
-          {/* Step 4: Links */}
-          {currentStep === 4 && (
-            <div className="space-y-6">
-              <h2 className="text-xl font-bold">Links & Resources</h2>
 
               <div>
-                <label className="block text-sm text-gray-400 mb-2">Website *</label>
+                <label className="block text-sm text-gray-400 mb-2">Logo URL</label>
+                <div className="flex space-x-4">
+                  <input
+                    type="url"
+                    value={formData.logoUrl}
+                    onChange={(e) => updateFormData('logoUrl', e.target.value)}
+                    placeholder="https://yourproject.com/logo.png"
+                    className="flex-1 bg-gray-700 border border-gray-600 rounded-lg px-4 py-3 focus:border-yellow-500 focus:outline-none"
+                  />
+                  <button className="px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg hover:border-yellow-500 transition-colors flex items-center space-x-2">
+                    <Upload className="h-5 w-5" />
+                    <span>Upload</span>
+                  </button>
+                </div>
+                <p className="text-xs text-gray-500 mt-1">Recommended: 200x200px, PNG or JPG</p>
+              </div>
+            </div>
+          )}
+
+          {/* Step 3: Links & Resources */}
+          {currentStep === 3 && (
+            <div className="space-y-6">
+              <h2 className="text-xl font-bold">Links & Resources</h2>
+              <p className="text-gray-400 text-sm">All fields are optional - add as many as you have</p>
+
+              <div>
+                <label className="block text-sm text-gray-400 mb-2">Website</label>
                 <input
                   type="url"
                   value={formData.website}
@@ -307,25 +416,39 @@ export default function SubmitProjectPage() {
                 />
               </div>
 
-              <div>
-                <label className="block text-sm text-gray-400 mb-2">Whitepaper</label>
-                <input
-                  type="url"
-                  value={formData.whitepaper}
-                  onChange={(e) => updateFormData('whitepaper', e.target.value)}
-                  placeholder="https://yourproject.com/whitepaper.pdf"
-                  className="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-3 focus:border-yellow-500 focus:outline-none"
-                />
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm text-gray-400 mb-2">Whitepaper</label>
+                  <input
+                    type="url"
+                    value={formData.whitepaper}
+                    onChange={(e) => updateFormData('whitepaper', e.target.value)}
+                    placeholder="https://yourproject.com/whitepaper.pdf"
+                    className="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-3 focus:border-yellow-500 focus:outline-none"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm text-gray-400 mb-2">Pitch Deck</label>
+                  <input
+                    type="url"
+                    value={formData.pitchDeck}
+                    onChange={(e) => updateFormData('pitchDeck', e.target.value)}
+                    placeholder="https://yourproject.com/pitch.pdf"
+                    className="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-3 focus:border-yellow-500 focus:outline-none"
+                  />
+                </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <h3 className="text-lg font-semibold pt-4 border-t border-gray-700">Social Media</h3>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm text-gray-400 mb-2">Twitter</label>
+                  <label className="block text-sm text-gray-400 mb-2">Twitter / X</label>
                   <input
                     type="url"
                     value={formData.twitter}
                     onChange={(e) => updateFormData('twitter', e.target.value)}
-                    placeholder="https://twitter.com/..."
+                    placeholder="https://twitter.com/yourproject"
                     className="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-3 focus:border-yellow-500 focus:outline-none"
                   />
                 </div>
@@ -335,7 +458,76 @@ export default function SubmitProjectPage() {
                     type="url"
                     value={formData.telegram}
                     onChange={(e) => updateFormData('telegram', e.target.value)}
-                    placeholder="https://t.me/..."
+                    placeholder="https://t.me/yourproject"
+                    className="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-3 focus:border-yellow-500 focus:outline-none"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm text-gray-400 mb-2">Discord</label>
+                  <input
+                    type="url"
+                    value={formData.discord}
+                    onChange={(e) => updateFormData('discord', e.target.value)}
+                    placeholder="https://discord.gg/yourproject"
+                    className="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-3 focus:border-yellow-500 focus:outline-none"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm text-gray-400 mb-2">Reddit</label>
+                  <input
+                    type="url"
+                    value={formData.reddit}
+                    onChange={(e) => updateFormData('reddit', e.target.value)}
+                    placeholder="https://reddit.com/r/yourproject"
+                    className="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-3 focus:border-yellow-500 focus:outline-none"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm text-gray-400 mb-2">Medium / Blog</label>
+                  <input
+                    type="url"
+                    value={formData.medium}
+                    onChange={(e) => updateFormData('medium', e.target.value)}
+                    placeholder="https://medium.com/@yourproject"
+                    className="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-3 focus:border-yellow-500 focus:outline-none"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm text-gray-400 mb-2">YouTube</label>
+                  <input
+                    type="url"
+                    value={formData.youtube}
+                    onChange={(e) => updateFormData('youtube', e.target.value)}
+                    placeholder="https://youtube.com/@yourproject"
+                    className="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-3 focus:border-yellow-500 focus:outline-none"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm text-gray-400 mb-2">GitHub</label>
+                  <input
+                    type="url"
+                    value={formData.github}
+                    onChange={(e) => updateFormData('github', e.target.value)}
+                    placeholder="https://github.com/yourproject"
+                    className="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-3 focus:border-yellow-500 focus:outline-none"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm text-gray-400 mb-2">Facebook</label>
+                  <input
+                    type="url"
+                    value={formData.facebook}
+                    onChange={(e) => updateFormData('facebook', e.target.value)}
+                    placeholder="https://facebook.com/yourproject"
                     className="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-3 focus:border-yellow-500 focus:outline-none"
                   />
                 </div>
@@ -343,43 +535,241 @@ export default function SubmitProjectPage() {
             </div>
           )}
 
+          {/* Step 4: Team */}
+          {currentStep === 4 && (
+            <div className="space-y-6">
+              <h2 className="text-xl font-bold">Team Information</h2>
+              <p className="text-gray-400 text-sm">Add team members - all fields are optional</p>
+
+              {teamMembers.map((member, index) => (
+                <div key={index} className="p-4 bg-gray-700 rounded-lg space-y-4">
+                  <div className="flex justify-between items-center">
+                    <span className="font-medium">Team Member #{index + 1}</span>
+                    {teamMembers.length > 1 && (
+                      <button
+                        onClick={() => removeTeamMember(index)}
+                        className="text-red-400 hover:text-red-300 p-1"
+                      >
+                        <Trash2 className="h-5 w-5" />
+                      </button>
+                    )}
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm text-gray-400 mb-2">Full Name</label>
+                      <input
+                        type="text"
+                        value={member.name}
+                        onChange={(e) => updateTeamMember(index, 'name', e.target.value)}
+                        placeholder="John Doe"
+                        className="w-full bg-gray-600 border border-gray-500 rounded-lg px-4 py-2 focus:border-yellow-500 focus:outline-none"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm text-gray-400 mb-2">Position / Role</label>
+                      <input
+                        type="text"
+                        value={member.role}
+                        onChange={(e) => updateTeamMember(index, 'role', e.target.value)}
+                        placeholder="e.g., CEO, CTO, Lead Developer"
+                        className="w-full bg-gray-600 border border-gray-500 rounded-lg px-4 py-2 focus:border-yellow-500 focus:outline-none"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm text-gray-400 mb-2">Short Bio</label>
+                    <textarea
+                      value={member.bio}
+                      onChange={(e) => updateTeamMember(index, 'bio', e.target.value)}
+                      placeholder="Brief background and experience..."
+                      rows={2}
+                      className="w-full bg-gray-600 border border-gray-500 rounded-lg px-4 py-2 focus:border-yellow-500 focus:outline-none resize-none"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm text-gray-400 mb-2">Photo URL</label>
+                    <input
+                      type="url"
+                      value={member.photoUrl}
+                      onChange={(e) => updateTeamMember(index, 'photoUrl', e.target.value)}
+                      placeholder="https://example.com/photo.jpg"
+                      className="w-full bg-gray-600 border border-gray-500 rounded-lg px-4 py-2 focus:border-yellow-500 focus:outline-none"
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm text-gray-400 mb-2">LinkedIn</label>
+                      <input
+                        type="url"
+                        value={member.linkedin}
+                        onChange={(e) => updateTeamMember(index, 'linkedin', e.target.value)}
+                        placeholder="https://linkedin.com/in/..."
+                        className="w-full bg-gray-600 border border-gray-500 rounded-lg px-4 py-2 focus:border-yellow-500 focus:outline-none"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm text-gray-400 mb-2">Twitter / X</label>
+                      <input
+                        type="url"
+                        value={member.twitter}
+                        onChange={(e) => updateTeamMember(index, 'twitter', e.target.value)}
+                        placeholder="https://twitter.com/..."
+                        className="w-full bg-gray-600 border border-gray-500 rounded-lg px-4 py-2 focus:border-yellow-500 focus:outline-none"
+                      />
+                    </div>
+                  </div>
+                </div>
+              ))}
+
+              <button
+                onClick={addTeamMember}
+                className="w-full py-3 border border-dashed border-gray-600 rounded-lg text-gray-400 hover:border-yellow-500 hover:text-yellow-500 transition-colors flex items-center justify-center space-x-2"
+              >
+                <Plus className="h-5 w-5" />
+                <span>Add Team Member</span>
+              </button>
+            </div>
+          )}
+
           {/* Step 5: Payment */}
           {currentStep === 5 && (
             <div className="space-y-6">
-              <h2 className="text-xl font-bold">Select Listing Package</h2>
+              <h2 className="text-xl font-bold">Listing Options</h2>
+              <p className="text-gray-400 text-sm">Choose how you want your project listed</p>
 
-              <div className="grid grid-cols-2 gap-4">
-                {listingTiers.map((tier) => (
-                  <div
-                    key={tier.id}
-                    onClick={() => updateFormData('listingTier', tier.id)}
-                    className={`p-4 rounded-lg cursor-pointer border-2 transition-all ${
-                      formData.listingTier === tier.id
-                        ? 'border-yellow-500 bg-yellow-500/10'
-                        : 'border-gray-600 hover:border-gray-500'
-                    }`}
-                  >
-                    <div className="font-bold mb-1">{tier.name}</div>
-                    <div className="text-xl text-yellow-500 mb-3">{tier.price}</div>
-                    <ul className="text-sm text-gray-400 space-y-1">
-                      {tier.features.map((f) => (
-                        <li key={f} className="flex items-center">
-                          <Check className="h-4 w-4 text-green-500 mr-1" />
-                          {f}
+              <div className="space-y-4">
+                {/* Free Listing */}
+                <div
+                  onClick={() => updateFormData('listingType', 'free')}
+                  className={`p-6 rounded-lg cursor-pointer border-2 transition-all ${
+                    formData.listingType === 'free'
+                      ? 'border-yellow-500 bg-yellow-500/10'
+                      : 'border-gray-600 hover:border-gray-500'
+                  }`}
+                >
+                  <div className="flex justify-between items-start">
+                    <div>
+                      <div className="font-bold text-lg mb-1">Free Listing</div>
+                      <div className="text-2xl text-green-400 mb-3">$0</div>
+                      <ul className="text-sm text-gray-400 space-y-2">
+                        <li className="flex items-center">
+                          <Check className="h-4 w-4 text-green-500 mr-2 flex-shrink-0" />
+                          Listed in the directory
                         </li>
-                      ))}
-                    </ul>
+                        <li className="flex items-center">
+                          <Check className="h-4 w-4 text-green-500 mr-2 flex-shrink-0" />
+                          Community voting enabled
+                        </li>
+                        <li className="flex items-center">
+                          <Check className="h-4 w-4 text-green-500 mr-2 flex-shrink-0" />
+                          Comments and feedback
+                        </li>
+                        <li className="flex items-center">
+                          <Check className="h-4 w-4 text-green-500 mr-2 flex-shrink-0" />
+                          Position based on community score
+                        </li>
+                      </ul>
+                    </div>
+                    <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center ${
+                      formData.listingType === 'free' ? 'border-yellow-500 bg-yellow-500' : 'border-gray-500'
+                    }`}>
+                      {formData.listingType === 'free' && <Check className="h-4 w-4 text-black" />}
+                    </div>
                   </div>
-                ))}
+                </div>
+
+                {/* Premium Listing */}
+                <div
+                  onClick={() => updateFormData('listingType', 'premium')}
+                  className={`p-6 rounded-lg cursor-pointer border-2 transition-all relative overflow-hidden ${
+                    formData.listingType === 'premium'
+                      ? 'border-yellow-500 bg-yellow-500/10'
+                      : 'border-gray-600 hover:border-gray-500'
+                  }`}
+                >
+                  <div className="absolute top-0 right-0 bg-yellow-500 text-black text-xs font-bold px-3 py-1 rounded-bl-lg">
+                    FEATURED
+                  </div>
+                  <div className="flex justify-between items-start">
+                    <div>
+                      <div className="font-bold text-lg mb-1 flex items-center">
+                        <Crown className="h-5 w-5 text-yellow-500 mr-2" />
+                        Premium Listing
+                      </div>
+                      <div className="text-2xl text-yellow-500 mb-3">0.05 ETH or 100 USDC</div>
+                      <ul className="text-sm text-gray-400 space-y-2">
+                        <li className="flex items-center">
+                          <Check className="h-4 w-4 text-green-500 mr-2 flex-shrink-0" />
+                          Everything in Free
+                        </li>
+                        <li className="flex items-center">
+                          <Check className="h-4 w-4 text-yellow-500 mr-2 flex-shrink-0" />
+                          Featured at top of listings for 7 days
+                        </li>
+                        <li className="flex items-center">
+                          <Check className="h-4 w-4 text-yellow-500 mr-2 flex-shrink-0" />
+                          Premium badge on your listing
+                        </li>
+                        <li className="flex items-center">
+                          <Check className="h-4 w-4 text-yellow-500 mr-2 flex-shrink-0" />
+                          Priority review and approval
+                        </li>
+                        <li className="flex items-center">
+                          <Check className="h-4 w-4 text-yellow-500 mr-2 flex-shrink-0" />
+                          Position maintained by community score after
+                        </li>
+                      </ul>
+                    </div>
+                    <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center ${
+                      formData.listingType === 'premium' ? 'border-yellow-500 bg-yellow-500' : 'border-gray-500'
+                    }`}>
+                      {formData.listingType === 'premium' && <Check className="h-4 w-4 text-black" />}
+                    </div>
+                  </div>
+                </div>
               </div>
 
-              <div className="p-4 bg-yellow-500/10 border border-yellow-500/50 rounded-lg">
+              {formData.listingType === 'premium' && (
+                <div className="space-y-4 pt-4 border-t border-gray-700">
+                  <h3 className="font-semibold">Payment Method</h3>
+                  <div className="flex space-x-4">
+                    <button
+                      onClick={() => updateFormData('paymentMethod', 'eth')}
+                      className={`flex-1 py-3 px-4 rounded-lg border-2 font-medium transition-all ${
+                        formData.paymentMethod === 'eth'
+                          ? 'border-yellow-500 bg-yellow-500/10 text-yellow-500'
+                          : 'border-gray-600 hover:border-gray-500'
+                      }`}
+                    >
+                      Pay with ETH
+                    </button>
+                    <button
+                      onClick={() => updateFormData('paymentMethod', 'usdc')}
+                      className={`flex-1 py-3 px-4 rounded-lg border-2 font-medium transition-all ${
+                        formData.paymentMethod === 'usdc'
+                          ? 'border-yellow-500 bg-yellow-500/10 text-yellow-500'
+                          : 'border-gray-600 hover:border-gray-500'
+                      }`}
+                    >
+                      Pay with USDC
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              <div className="p-4 bg-blue-500/10 border border-blue-500/50 rounded-lg">
                 <div className="flex items-start space-x-3">
-                  <AlertCircle className="h-5 w-5 text-yellow-500 flex-shrink-0 mt-0.5" />
+                  <AlertCircle className="h-5 w-5 text-blue-400 flex-shrink-0 mt-0.5" />
                   <div className="text-sm">
-                    <p className="font-medium text-yellow-500">Payment Required</p>
-                    <p className="text-gray-400">
-                      Your listing will be submitted for review after payment. We accept ETH on Base.
+                    <p className="font-medium text-blue-400">How it works</p>
+                    <p className="text-gray-400 mt-1">
+                      {formData.listingType === 'free'
+                        ? 'Your project will be listed and the community will vote on it. Projects rise or fall based on their community score.'
+                        : 'Your project will be featured at the top for 7 days. After that, position is determined by community score - just like free listings.'}
                     </p>
                   </div>
                 </div>
@@ -401,14 +791,15 @@ export default function SubmitProjectPage() {
             {currentStep < 5 ? (
               <button
                 onClick={nextStep}
-                className="flex items-center space-x-2 px-6 py-3 bg-yellow-500 text-black font-semibold rounded-lg hover:bg-yellow-400 transition-colors"
+                disabled={!isStepValid()}
+                className="flex items-center space-x-2 px-6 py-3 bg-yellow-500 text-black font-semibold rounded-lg hover:bg-yellow-400 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
               >
                 <span>Continue</span>
                 <ChevronRight className="h-5 w-5" />
               </button>
             ) : (
               <button className="flex items-center space-x-2 px-6 py-3 bg-yellow-500 text-black font-semibold rounded-lg hover:bg-yellow-400 transition-colors">
-                <span>Submit & Pay</span>
+                <span>{formData.listingType === 'free' ? 'Submit Project' : 'Submit & Pay'}</span>
               </button>
             )}
           </div>
