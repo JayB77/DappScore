@@ -35,6 +35,6 @@ jobs:
         working-directory: ./dappscore
         run: |
           echo '${{ secrets.FIREBASE_SERVICE_ACCOUNT_DAPPSCORE_IO }}' > sa.json
-          npx firebase deploy --only hosting --project dappscore-io
+          npx firebase deploy --only hosting --project dappscore
         env:
           GOOGLE_APPLICATION_CREDENTIALS: sa.json
