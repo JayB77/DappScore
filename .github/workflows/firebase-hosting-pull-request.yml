@@ -31,6 +31,9 @@ jobs:
         working-directory: ./dappscore
         run: npm run build
 
+      - name: Install Firebase CLI
+        run: npm install -g firebase-tools
+
       - name: Deploy Preview to Firebase
         working-directory: ./dappscore
         run: npx firebase hosting:channel:deploy pr-${{ github.event.pull_request.number }} --expires 7d
