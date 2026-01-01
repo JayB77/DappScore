@@ -31,9 +31,8 @@ jobs:
         working-directory: ./dappscore
         run: npm run build
 
-      - uses: FirebaseExtended/action-hosting-deploy@v0
-        with:
-          repoToken: ${{ secrets.GITHUB_TOKEN }}
-          firebaseServiceAccount: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_DAPPSCORE_IO }}
-          projectId: dappscore-io
-          entryPoint: ./dappscore
+      - name: Deploy Preview to Firebase
+        working-directory: ./dappscore
+        run: npx firebase hosting:channel:deploy pr-${{ github.event.pull_request.number }} --expires 7d
+        env:
+          FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
