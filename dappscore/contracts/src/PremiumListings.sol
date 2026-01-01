@@ -8,7 +8,7 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 /**
  * @title PremiumListings
  * @notice Handles premium/featured placement for projects
- * @dev Projects can pay in ETH or TRUST for premium placement
+ * @dev Projects can pay in ETH or SCORE for premium placement
  *
  * Tiers: Bronze (1d), Silver (3d), Gold (7d), Platinum (14d), Diamond (30d)
  */
@@ -30,7 +30,7 @@ contract PremiumListings is Ownable, ReentrancyGuard {
     }
 
     // Contracts
-    IERC20 public trustToken;
+    IERC20 public scoreToken;
     address public projectRegistry;
 
     // State
@@ -53,12 +53,12 @@ contract PremiumListings is Ownable, ReentrancyGuard {
 
     constructor(
         address _initialOwner,
-        address _trustToken,
+        address _scoreToken,
         address _projectRegistry,
         address _treasury,
         address _rewardsPool
     ) Ownable(_initialOwner) {
-        trustToken = IERC20(_trustToken);
+        scoreToken = IERC20(_scoreToken);
         projectRegistry = _projectRegistry;
         treasury = _treasury;
         rewardsPool = _rewardsPool;

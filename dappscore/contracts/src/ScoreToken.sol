@@ -6,8 +6,8 @@ import "@openzeppelin/contracts/token/ERC20/extensions/ERC20Burnable.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 
 /**
- * @title TrustToken
- * @notice The native token of ICOTrust platform
+ * @title ScoreToken
+ * @notice The native token of DappScore platform
  * @dev Fixed supply of 100M tokens with burn capability
  *
  * Token Allocation:
@@ -18,7 +18,7 @@ import "@openzeppelin/contracts/access/Ownable.sol";
  * - 5%  (5M)  - Marketing
  * - 5%  (5M)  - Team (vested)
  */
-contract TrustToken is ERC20, ERC20Burnable, Ownable {
+contract ScoreToken is ERC20, ERC20Burnable, Ownable {
     uint256 public constant MAX_SUPPLY = 100_000_000 * 10**18; // 100M tokens
 
     // Allocation addresses
@@ -34,7 +34,7 @@ contract TrustToken is ERC20, ERC20Burnable, Ownable {
 
     constructor(
         address _initialOwner
-    ) ERC20("ICOTrust", "TRUST") Ownable(_initialOwner) {
+    ) ERC20("DappScore", "SCORE") Ownable(_initialOwner) {
         // Initial mint to deployer for distribution
         // Will be distributed according to tokenomics
     }

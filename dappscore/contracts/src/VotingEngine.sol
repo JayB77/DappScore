@@ -3,7 +3,7 @@ pragma solidity ^0.8.24;
 
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
-import "./TrustToken.sol";
+import "./ScoreToken.sol";
 import "./ProjectRegistry.sol";
 
 /**
@@ -32,7 +32,7 @@ contract VotingEngine is Ownable, ReentrancyGuard {
     }
 
     // Contracts
-    TrustToken public trustToken;
+    ScoreToken public scoreToken;
     ProjectRegistry public projectRegistry;
 
     // State
@@ -42,11 +42,11 @@ contract VotingEngine is Ownable, ReentrancyGuard {
     mapping(address => uint256) public pendingRewards;
 
     // Reward configuration
-    uint256 public rewardPerVote = 10 * 10**18;  // 10 TRUST per vote
+    uint256 public rewardPerVote = 10 * 10**18;  // 10 SCORE per vote
     uint256 public downvoteThreshold = 100;       // Votes needed to flag
     uint256 public scamThreshold = 500;           // Votes needed to mark as scam
 
-    // Staking boost (users can stake TRUST to boost voting power)
+    // Staking boost (users can stake SCORE to boost voting power)
     mapping(address => uint256) public stakedBalance;
     uint256 public totalStaked;
 
@@ -66,10 +66,10 @@ contract VotingEngine is Ownable, ReentrancyGuard {
 
     constructor(
         address _initialOwner,
-        address _trustToken,
+        address _scoreToken,
         address _projectRegistry
     ) Ownable(_initialOwner) {
-        trustToken = TrustToken(_trustToken);
+        scoreToken = ScoreToken(_scoreToken);
         projectRegistry = ProjectRegistry(_projectRegistry);
         lastDistributionTime = block.timestamp;
     }
@@ -148,7 +148,7 @@ contract VotingEngine is Ownable, ReentrancyGuard {
         }
 
         // Boost: up to 2x for large stakers
-        // sqrt(staked / 1000 TRUST) as multiplier, capped at 2x
+        // sqrt(staked / 1000 SCORE) as multiplier, capped at 2x
         uint256 boost = sqrt(staked / (1000 * 10**18));
         if (boost > 100) boost = 100; // Cap at 2x
 
@@ -165,18 +165,18 @@ contract VotingEngine is Ownable, ReentrancyGuard {
         pendingRewards[msg.sender] = 0;
 
         // Mint rewards from token
-        trustToken.mintRewards(msg.sender, amount);
+        scoreToken.mintRewards(msg.sender, amount);
 
         emit RewardsClaimed(msg.sender, amount);
     }
 
     /**
-     * @notice Stake TRUST tokens for voting boost
+     * @notice Stake SCORE tokens for voting boost
      * @param _amount Amount to stake
      */
     function stake(uint256 _amount) external nonReentrant {
         require(_amount > 0, "Amount must be > 0");
-        require(trustToken.transferFrom(msg.sender, address(this), _amount), "Transfer failed");
+        require(scoreToken.transferFrom(msg.sender, address(this), _amount), "Transfer failed");
 
         stakedBalance[msg.sender] += _amount;
         totalStaked += _amount;
@@ -185,7 +185,7 @@ contract VotingEngine is Ownable, ReentrancyGuard {
     }
 
     /**
-     * @notice Unstake TRUST tokens
+     * @notice Unstake SCORE tokens
      * @param _amount Amount to unstake
      */
     function unstake(uint256 _amount) external nonReentrant {
@@ -195,7 +195,7 @@ contract VotingEngine is Ownable, ReentrancyGuard {
         stakedBalance[msg.sender] -= _amount;
         totalStaked -= _amount;
 
-        require(trustToken.transfer(msg.sender, _amount), "Transfer failed");
+        require(scoreToken.transfer(msg.sender, _amount), "Transfer failed");
 
         emit Unstaked(msg.sender, _amount);
     }
