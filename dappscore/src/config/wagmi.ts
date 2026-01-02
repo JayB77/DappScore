@@ -8,10 +8,17 @@ export const config = getDefaultConfig({
   ssr: true,
 });
 
+// Premium listing price in USDC (6 decimals)
+export const PREMIUM_LISTING_PRICE = BigInt(100_000000); // 100 USDC
+
+// Payment receiver address (your wallet to receive payments)
+export const PAYMENT_RECEIVER = '0x0000000000000000000000000000000000000000'; // TODO: Set your address
+
 // Contract addresses (update after deployment)
 export const CONTRACT_ADDRESSES = {
   // Base Mainnet
   [base.id]: {
+    usdc: '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913', // Official Base USDC
     scoreToken: '0x0000000000000000000000000000000000000000',
     projectRegistry: '0x0000000000000000000000000000000000000000',
     votingEngine: '0x0000000000000000000000000000000000000000',
@@ -20,6 +27,7 @@ export const CONTRACT_ADDRESSES = {
   },
   // Base Sepolia (testnet)
   [baseSepolia.id]: {
+    usdc: '0x036CbD53842c5426634e7929541eC2318f3dCF7e', // Base Sepolia USDC
     scoreToken: '0x0000000000000000000000000000000000000000',
     projectRegistry: '0x0000000000000000000000000000000000000000',
     votingEngine: '0x0000000000000000000000000000000000000000',
@@ -27,3 +35,58 @@ export const CONTRACT_ADDRESSES = {
     tokenSale: '0x0000000000000000000000000000000000000000',
   },
 } as const;
+
+// ERC20 ABI for USDC transfers
+export const ERC20_ABI = [
+  {
+    name: 'transfer',
+    type: 'function',
+    stateMutability: 'nonpayable',
+    inputs: [
+      { name: 'to', type: 'address' },
+      { name: 'amount', type: 'uint256' },
+    ],
+    outputs: [{ name: '', type: 'bool' }],
+  },
+  {
+    name: 'approve',
+    type: 'function',
+    stateMutability: 'nonpayable',
+    inputs: [
+      { name: 'spender', type: 'address' },
+      { name: 'amount', type: 'uint256' },
+    ],
+    outputs: [{ name: '', type: 'bool' }],
+  },
+  {
+    name: 'allowance',
+    type: 'function',
+    stateMutability: 'view',
+    inputs: [
+      { name: 'owner', type: 'address' },
+      { name: 'spender', type: 'address' },
+    ],
+    outputs: [{ name: '', type: 'uint256' }],
+  },
+  {
+    name: 'balanceOf',
+    type: 'function',
+    stateMutability: 'view',
+    inputs: [{ name: 'account', type: 'address' }],
+    outputs: [{ name: '', type: 'uint256' }],
+  },
+  {
+    name: 'decimals',
+    type: 'function',
+    stateMutability: 'view',
+    inputs: [],
+    outputs: [{ name: '', type: 'uint8' }],
+  },
+  {
+    name: 'symbol',
+    type: 'function',
+    stateMutability: 'view',
+    inputs: [],
+    outputs: [{ name: '', type: 'string' }],
+  },
+] as const;
