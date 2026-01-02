@@ -13,6 +13,7 @@ const allProjects: Project[] = [
     description: 'Revolutionary decentralized exchange with zero-slippage trades and MEV protection.',
     category: 'DeFi',
     chain: 'Base',
+    contractAddresses: [{ chain: 'Base', address: '0x1234567890abcdef1234567890abcdef12345678' }],
     totalSupply: '100,000,000',
     hardCap: '$2,000,000',
     startDate: Math.floor(Date.now() / 1000) - 86400,
@@ -32,6 +33,7 @@ const allProjects: Project[] = [
     description: 'Play-to-earn gaming platform with NFT integration.',
     category: 'Gaming',
     chain: 'Base',
+    contractAddresses: [{ chain: 'Base', address: '0xabcdef1234567890abcdef1234567890abcdef12' }],
     totalSupply: '500,000,000',
     hardCap: '$5,000,000',
     startDate: Math.floor(Date.now() / 1000) + 86400 * 2,
@@ -51,6 +53,7 @@ const allProjects: Project[] = [
     description: 'Decentralized AI training data marketplace.',
     category: 'AI',
     chain: 'Base',
+    contractAddresses: [{ chain: 'Base', address: '0x9876543210fedcba9876543210fedcba98765432' }],
     totalSupply: '200,000,000',
     hardCap: '$3,500,000',
     startDate: Math.floor(Date.now() / 1000) - 86400 * 3,
@@ -105,6 +108,7 @@ const allProjects: Project[] = [
     description: 'Premium NFT marketplace with AI pricing.',
     category: 'NFT',
     chain: 'Base',
+    contractAddresses: [{ chain: 'Base', address: '0xfedcba0987654321fedcba0987654321fedcba09' }],
     totalSupply: '150,000,000',
     hardCap: '$2,500,000',
     startDate: Math.floor(Date.now() / 1000) - 86400 * 2,
@@ -141,6 +145,7 @@ const allProjects: Project[] = [
     description: 'Cross-chain bridge for L2 solutions.',
     category: 'Infrastructure',
     chain: 'Base',
+    contractAddresses: [{ chain: 'Base', address: '0x0123456789abcdef0123456789abcdef01234567' }],
     totalSupply: '80,000,000',
     hardCap: '$4,000,000',
     startDate: Math.floor(Date.now() / 1000) + 86400 * 7,
@@ -166,9 +171,13 @@ export default function ProjectsPage() {
 
   const filteredProjects = allProjects
     .filter((p) => {
-      const matchesSearch =
-        p.name.toLowerCase().includes(search.toLowerCase()) ||
-        p.symbol.toLowerCase().includes(search.toLowerCase());
+      const searchLower = search.toLowerCase();
+      const matchesName = p.name.toLowerCase().includes(searchLower);
+      const matchesSymbol = p.symbol.toLowerCase().includes(searchLower);
+      const matchesContract = p.contractAddresses?.some(
+        (c) => c.address.toLowerCase().includes(searchLower)
+      );
+      const matchesSearch = matchesName || matchesSymbol || matchesContract;
       const matchesCategory = category === 'All' || p.category === category;
       const matchesTrust = trustFilter === 'All' || p.trustLevel === trustFilter;
       return matchesSearch && matchesCategory && matchesTrust;
@@ -206,7 +215,7 @@ export default function ProjectsPage() {
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
               <input
                 type="text"
-                placeholder="Search projects..."
+                placeholder="Search by name, symbol, or contract..."
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 className="w-full pl-10 pr-4 py-2 bg-gray-700 border border-gray-600 rounded-lg focus:border-yellow-500 focus:outline-none"

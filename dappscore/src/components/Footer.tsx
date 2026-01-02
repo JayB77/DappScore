@@ -21,13 +21,13 @@ export function Footer() {
               legitimate projects from scams. Earn $SCORE tokens for contributing.
             </p>
             <div className="flex space-x-4">
-              <a href="#" className="text-gray-400 hover:text-yellow-500 transition-colors">
+              <a href="#" target="_blank" rel="noopener noreferrer" className="text-gray-400 hover:text-yellow-500 transition-colors">
                 <Twitter className="h-5 w-5" />
               </a>
-              <a href="#" className="text-gray-400 hover:text-yellow-500 transition-colors">
+              <a href="#" target="_blank" rel="noopener noreferrer" className="text-gray-400 hover:text-yellow-500 transition-colors">
                 <MessageCircle className="h-5 w-5" />
               </a>
-              <a href="#" className="text-gray-400 hover:text-yellow-500 transition-colors">
+              <a href="#" target="_blank" rel="noopener noreferrer" className="text-gray-400 hover:text-yellow-500 transition-colors">
                 <Github className="h-5 w-5" />
               </a>
             </div>
@@ -65,22 +65,22 @@ export function Footer() {
             <h3 className="text-white font-semibold mb-4">Resources</h3>
             <ul className="space-y-2">
               <li>
-                <a href="#" className="text-gray-400 hover:text-yellow-500 transition-colors">
+                <a href="#" target="_blank" rel="noopener noreferrer" className="text-gray-400 hover:text-yellow-500 transition-colors">
                   Documentation
                 </a>
               </li>
               <li>
-                <a href="#" className="text-gray-400 hover:text-yellow-500 transition-colors">
+                <a href="#" target="_blank" rel="noopener noreferrer" className="text-gray-400 hover:text-yellow-500 transition-colors">
                   Tokenomics
                 </a>
               </li>
               <li>
-                <a href="#" className="text-gray-400 hover:text-yellow-500 transition-colors">
+                <a href="#" target="_blank" rel="noopener noreferrer" className="text-gray-400 hover:text-yellow-500 transition-colors">
                   Whitepaper
                 </a>
               </li>
               <li>
-                <a href="#" className="text-gray-400 hover:text-yellow-500 transition-colors">
+                <a href="#" target="_blank" rel="noopener noreferrer" className="text-gray-400 hover:text-yellow-500 transition-colors">
                   Smart Contracts
                 </a>
               </li>
