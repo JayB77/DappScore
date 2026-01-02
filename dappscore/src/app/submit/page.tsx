@@ -34,7 +34,16 @@ const saleTypes = [
   { value: 'ido', label: 'IDO (Initial DEX Offering)' },
   { value: 'fair_launch', label: 'Fair Launch' },
   { value: 'presale', label: 'Presale' },
-  { value: 'none', label: 'No Active Sale' },
+];
+
+const projectStages = [
+  { value: 'concept', label: 'Concept / Idea' },
+  { value: 'development', label: 'In Development' },
+  { value: 'testnet', label: 'Testnet Live' },
+  { value: 'mainnet_beta', label: 'Mainnet Beta' },
+  { value: 'mainnet', label: 'Mainnet Live' },
+  { value: 'launched', label: 'Fully Launched' },
+  { value: 'discontinued', label: 'Discontinued' },
 ];
 
 interface ContractAddress {
@@ -62,6 +71,7 @@ export default function SubmitProjectPage() {
   const { signMessageAsync } = useSignMessage();
   const [currentStep, setCurrentStep] = useState(1);
   const [isOwnProject, setIsOwnProject] = useState(false);
+  const [hasTokenSale, setHasTokenSale] = useState(false);
   const [ownershipVerified, setOwnershipVerified] = useState(false);
   const [verifying, setVerifying] = useState(false);
   const [duplicateWarning, setDuplicateWarning] = useState<string | null>(null);
@@ -77,6 +87,7 @@ export default function SubmitProjectPage() {
 
     // Details (all optional)
     blockchain: '',
+    projectStage: '',
     saleType: '',
     tokenName: '',
     totalSupply: '',
@@ -389,11 +400,76 @@ export default function SubmitProjectPage() {
             </div>
           )}
 
-          {/* Step 2: Token & Sale Details */}
+          {/* Step 2: Project Details */}
           {currentStep === 2 && (
             <div className="space-y-6">
-              <h2 className="text-xl font-bold">Token & Sale Details</h2>
+              <h2 className="text-xl font-bold">Project Details</h2>
               <p className="text-gray-400 text-sm">All fields are optional - fill out what you know</p>
+
+              {/* Images */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm text-gray-400 mb-2">Project Logo</label>
+                  <div className="flex space-x-2">
+                    <input
+                      type="url"
+                      value={formData.projectImageUrl}
+                      onChange={(e) => updateFormData('projectImageUrl', e.target.value)}
+                      placeholder="https://yourproject.com/logo.png"
+                      className="flex-1 bg-gray-700 border border-gray-600 rounded-lg px-4 py-3 focus:border-yellow-500 focus:outline-none"
+                    />
+                    <button type="button" className="px-3 py-3 bg-gray-700 border border-gray-600 rounded-lg hover:border-yellow-500 transition-colors">
+                      <Upload className="h-5 w-5" />
+                    </button>
+                  </div>
+                  <p className="text-xs text-gray-500 mt-1">200x200px, PNG or JPG</p>
+                </div>
+                <div>
+                  <label className="block text-sm text-gray-400 mb-2">Token Icon</label>
+                  <div className="flex space-x-2">
+                    <input
+                      type="url"
+                      value={formData.tokenImageUrl}
+                      onChange={(e) => updateFormData('tokenImageUrl', e.target.value)}
+                      placeholder="https://yourproject.com/token.png"
+                      className="flex-1 bg-gray-700 border border-gray-600 rounded-lg px-4 py-3 focus:border-yellow-500 focus:outline-none"
+                    />
+                    <button type="button" className="px-3 py-3 bg-gray-700 border border-gray-600 rounded-lg hover:border-yellow-500 transition-colors">
+                      <Upload className="h-5 w-5" />
+                    </button>
+                  </div>
+                  <p className="text-xs text-gray-500 mt-1">100x100px, PNG with transparency</p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm text-gray-400 mb-2">Primary Blockchain</label>
+                  <select
+                    value={formData.blockchain}
+                    onChange={(e) => updateFormData('blockchain', e.target.value)}
+                    className="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-3 focus:border-yellow-500 focus:outline-none"
+                  >
+                    <option value="">Select blockchain</option>
+                    {blockchains.map((chain) => (
+                      <option key={chain} value={chain}>{chain}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm text-gray-400 mb-2">Project Stage</label>
+                  <select
+                    value={formData.projectStage}
+                    onChange={(e) => updateFormData('projectStage', e.target.value)}
+                    className="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-3 focus:border-yellow-500 focus:outline-none"
+                  >
+                    <option value="">Select stage</option>
+                    {projectStages.map((stage) => (
+                      <option key={stage.value} value={stage.value}>{stage.label}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
 
               {/* Contract Addresses */}
               <div className="space-y-3">
@@ -419,6 +495,7 @@ export default function SubmitProjectPage() {
                     />
                     {contractAddresses.length > 1 && (
                       <button
+                        type="button"
                         onClick={() => removeContractAddress(index)}
                         className="p-2 text-red-400 hover:text-red-300"
                       >
@@ -428,41 +505,13 @@ export default function SubmitProjectPage() {
                   </div>
                 ))}
                 <button
+                  type="button"
                   onClick={addContractAddress}
                   className="text-yellow-500 hover:text-yellow-400 text-sm flex items-center space-x-1"
                 >
                   <Plus className="h-4 w-4" />
                   <span>Add Another Contract</span>
                 </button>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm text-gray-400 mb-2">Blockchain</label>
-                  <select
-                    value={formData.blockchain}
-                    onChange={(e) => updateFormData('blockchain', e.target.value)}
-                    className="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-3 focus:border-yellow-500 focus:outline-none"
-                  >
-                    <option value="">Select blockchain</option>
-                    {blockchains.map((chain) => (
-                      <option key={chain} value={chain}>{chain}</option>
-                    ))}
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm text-gray-400 mb-2">Sale Type</label>
-                  <select
-                    value={formData.saleType}
-                    onChange={(e) => updateFormData('saleType', e.target.value)}
-                    className="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-3 focus:border-yellow-500 focus:outline-none"
-                  >
-                    <option value="">Select sale type</option>
-                    {saleTypes.map((type) => (
-                      <option key={type.value} value={type.value}>{type.label}</option>
-                    ))}
-                  </select>
-                </div>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -488,94 +537,92 @@ export default function SubmitProjectPage() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div>
-                  <label className="block text-sm text-gray-400 mb-2">Hard Cap (USD)</label>
+              {/* Token Sale Section */}
+              <div className="pt-4 border-t border-gray-700">
+                <div className="flex items-center space-x-3 mb-4">
                   <input
-                    type="text"
-                    value={formData.hardCap}
-                    onChange={(e) => updateFormData('hardCap', e.target.value)}
-                    placeholder="e.g., 2,000,000"
-                    className="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-3 focus:border-yellow-500 focus:outline-none"
+                    type="checkbox"
+                    id="hasTokenSale"
+                    checked={hasTokenSale}
+                    onChange={(e) => setHasTokenSale(e.target.checked)}
+                    className="w-5 h-5 rounded border-gray-600 bg-gray-700 text-yellow-500 focus:ring-yellow-500"
                   />
+                  <label htmlFor="hasTokenSale" className="text-sm font-medium">
+                    This project has an active or upcoming token sale
+                  </label>
                 </div>
-                <div>
-                  <label className="block text-sm text-gray-400 mb-2">Soft Cap (USD)</label>
-                  <input
-                    type="text"
-                    value={formData.softCap}
-                    onChange={(e) => updateFormData('softCap', e.target.value)}
-                    placeholder="e.g., 500,000"
-                    className="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-3 focus:border-yellow-500 focus:outline-none"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm text-gray-400 mb-2">Token Price (USD)</label>
-                  <input
-                    type="text"
-                    value={formData.tokenPrice}
-                    onChange={(e) => updateFormData('tokenPrice', e.target.value)}
-                    placeholder="e.g., 0.05"
-                    className="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-3 focus:border-yellow-500 focus:outline-none"
-                  />
-                </div>
-              </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm text-gray-400 mb-2">Sale Start Date</label>
-                  <input
-                    type="datetime-local"
-                    value={formData.startDate}
-                    onChange={(e) => updateFormData('startDate', e.target.value)}
-                    className="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-3 focus:border-yellow-500 focus:outline-none"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm text-gray-400 mb-2">Sale End Date</label>
-                  <input
-                    type="datetime-local"
-                    value={formData.endDate}
-                    onChange={(e) => updateFormData('endDate', e.target.value)}
-                    className="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-3 focus:border-yellow-500 focus:outline-none"
-                  />
-                </div>
-              </div>
+                {hasTokenSale && (
+                  <div className="space-y-4 pl-8 border-l-2 border-yellow-500/30">
+                    <div>
+                      <label className="block text-sm text-gray-400 mb-2">Sale Type</label>
+                      <select
+                        value={formData.saleType}
+                        onChange={(e) => updateFormData('saleType', e.target.value)}
+                        className="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-3 focus:border-yellow-500 focus:outline-none"
+                      >
+                        <option value="">Select sale type</option>
+                        {saleTypes.map((type) => (
+                          <option key={type.value} value={type.value}>{type.label}</option>
+                        ))}
+                      </select>
+                    </div>
 
-              {/* Images */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm text-gray-400 mb-2">Project Logo</label>
-                  <div className="flex space-x-2">
-                    <input
-                      type="url"
-                      value={formData.projectImageUrl}
-                      onChange={(e) => updateFormData('projectImageUrl', e.target.value)}
-                      placeholder="https://yourproject.com/logo.png"
-                      className="flex-1 bg-gray-700 border border-gray-600 rounded-lg px-4 py-3 focus:border-yellow-500 focus:outline-none"
-                    />
-                    <button className="px-3 py-3 bg-gray-700 border border-gray-600 rounded-lg hover:border-yellow-500 transition-colors">
-                      <Upload className="h-5 w-5" />
-                    </button>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <div>
+                        <label className="block text-sm text-gray-400 mb-2">Hard Cap (USD)</label>
+                        <input
+                          type="text"
+                          value={formData.hardCap}
+                          onChange={(e) => updateFormData('hardCap', e.target.value)}
+                          placeholder="e.g., 2,000,000"
+                          className="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-3 focus:border-yellow-500 focus:outline-none"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm text-gray-400 mb-2">Soft Cap (USD)</label>
+                        <input
+                          type="text"
+                          value={formData.softCap}
+                          onChange={(e) => updateFormData('softCap', e.target.value)}
+                          placeholder="e.g., 500,000"
+                          className="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-3 focus:border-yellow-500 focus:outline-none"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm text-gray-400 mb-2">Token Price (USD)</label>
+                        <input
+                          type="text"
+                          value={formData.tokenPrice}
+                          onChange={(e) => updateFormData('tokenPrice', e.target.value)}
+                          placeholder="e.g., 0.05"
+                          className="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-3 focus:border-yellow-500 focus:outline-none"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-sm text-gray-400 mb-2">Sale Start Date</label>
+                        <input
+                          type="datetime-local"
+                          value={formData.startDate}
+                          onChange={(e) => updateFormData('startDate', e.target.value)}
+                          className="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-3 focus:border-yellow-500 focus:outline-none"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm text-gray-400 mb-2">Sale End Date</label>
+                        <input
+                          type="datetime-local"
+                          value={formData.endDate}
+                          onChange={(e) => updateFormData('endDate', e.target.value)}
+                          className="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-3 focus:border-yellow-500 focus:outline-none"
+                        />
+                      </div>
+                    </div>
                   </div>
-                  <p className="text-xs text-gray-500 mt-1">200x200px, PNG or JPG</p>
-                </div>
-                <div>
-                  <label className="block text-sm text-gray-400 mb-2">Token Icon</label>
-                  <div className="flex space-x-2">
-                    <input
-                      type="url"
-                      value={formData.tokenImageUrl}
-                      onChange={(e) => updateFormData('tokenImageUrl', e.target.value)}
-                      placeholder="https://yourproject.com/token.png"
-                      className="flex-1 bg-gray-700 border border-gray-600 rounded-lg px-4 py-3 focus:border-yellow-500 focus:outline-none"
-                    />
-                    <button className="px-3 py-3 bg-gray-700 border border-gray-600 rounded-lg hover:border-yellow-500 transition-colors">
-                      <Upload className="h-5 w-5" />
-                    </button>
-                  </div>
-                  <p className="text-xs text-gray-500 mt-1">100x100px, PNG with transparency</p>
-                </div>
+                )}
               </div>
             </div>
           )}
