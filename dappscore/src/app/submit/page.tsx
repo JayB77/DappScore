@@ -1,9 +1,12 @@
 'use client';
 
-import { useState } from 'react';
-import { useAccount } from 'wagmi';
+import { useState, useEffect } from 'react';
+import { useAccount, useSignMessage } from 'wagmi';
 import { ConnectButton } from '@rainbow-me/rainbowkit';
-import { Check, ChevronLeft, ChevronRight, Wallet, Upload, AlertCircle, Plus, Trash2, Crown } from 'lucide-react';
+import {
+  Check, ChevronLeft, ChevronRight, Wallet, Upload, AlertCircle,
+  Plus, Trash2, Crown, AlertTriangle, Shield, ExternalLink
+} from 'lucide-react';
 
 const steps = [
   { id: 1, name: 'General', description: 'Basic project info' },
@@ -25,10 +28,28 @@ const blockchains = [
   'Linea', 'Scroll', 'Other'
 ];
 
-const platformTypes = [
-  'New Token Launch', 'Existing Token', 'NFT Collection',
-  'DeFi Protocol', 'Gaming Platform', 'Other'
+const saleTypes = [
+  { value: 'ico', label: 'ICO (Initial Coin Offering)' },
+  { value: 'ieo', label: 'IEO (Initial Exchange Offering)' },
+  { value: 'ido', label: 'IDO (Initial DEX Offering)' },
+  { value: 'fair_launch', label: 'Fair Launch' },
+  { value: 'presale', label: 'Presale' },
 ];
+
+const projectStages = [
+  { value: 'concept', label: 'Concept / Idea' },
+  { value: 'development', label: 'In Development' },
+  { value: 'testnet', label: 'Testnet Live' },
+  { value: 'mainnet_beta', label: 'Mainnet Beta' },
+  { value: 'mainnet', label: 'Mainnet Live' },
+  { value: 'launched', label: 'Fully Launched' },
+  { value: 'discontinued', label: 'Discontinued' },
+];
+
+interface ContractAddress {
+  chain: string;
+  address: string;
+}
 
 interface TeamMember {
   name: string;
@@ -39,10 +60,22 @@ interface TeamMember {
   twitter: string;
 }
 
+// Mock existing projects for duplicate detection
+const existingProjects = [
+  { name: 'DeFi Protocol X', symbol: 'DPX', contracts: ['0x1234...'] },
+  { name: 'GameFi World', symbol: 'GFW', contracts: ['0x5678...'] },
+];
+
 export default function SubmitProjectPage() {
-  const { isConnected } = useAccount();
+  const { isConnected, address } = useAccount();
+  const { signMessageAsync } = useSignMessage();
   const [currentStep, setCurrentStep] = useState(1);
   const [isOwnProject, setIsOwnProject] = useState(false);
+  const [hasTokenSale, setHasTokenSale] = useState(false);
+  const [ownershipVerified, setOwnershipVerified] = useState(false);
+  const [verifying, setVerifying] = useState(false);
+  const [duplicateWarning, setDuplicateWarning] = useState<string | null>(null);
+
   const [formData, setFormData] = useState({
     // General (only name, symbol, category, description are required)
     submitterName: '',
@@ -54,7 +87,8 @@ export default function SubmitProjectPage() {
 
     // Details (all optional)
     blockchain: '',
-    platformType: '',
+    projectStage: '',
+    saleType: '',
     tokenName: '',
     totalSupply: '',
     hardCap: '',
@@ -62,7 +96,8 @@ export default function SubmitProjectPage() {
     tokenPrice: '',
     startDate: '',
     endDate: '',
-    logoUrl: '',
+    projectImageUrl: '',
+    tokenImageUrl: '',
 
     // Links (all optional)
     website: '',
@@ -76,19 +111,66 @@ export default function SubmitProjectPage() {
     youtube: '',
     github: '',
     facebook: '',
-    blog: '',
+    linkedin: '',
+    tiktok: '',
+    instagram: '',
 
     // Payment
     listingType: 'free',
     paymentMethod: 'eth',
   });
 
+  const [contractAddresses, setContractAddresses] = useState<ContractAddress[]>([
+    { chain: '', address: '' }
+  ]);
+
   const [teamMembers, setTeamMembers] = useState<TeamMember[]>([
     { name: '', role: '', bio: '', photoUrl: '', linkedin: '', twitter: '' }
   ]);
 
+  // Duplicate detection
+  useEffect(() => {
+    if (formData.projectName || formData.tokenSymbol || contractAddresses.some(c => c.address)) {
+      const nameMatch = existingProjects.find(p =>
+        p.name.toLowerCase() === formData.projectName.toLowerCase()
+      );
+      const symbolMatch = existingProjects.find(p =>
+        p.symbol.toLowerCase() === formData.tokenSymbol.toLowerCase()
+      );
+      const contractMatch = existingProjects.find(p =>
+        contractAddresses.some(c => p.contracts.includes(c.address))
+      );
+
+      if (nameMatch) {
+        setDuplicateWarning(`A project named "${nameMatch.name}" already exists`);
+      } else if (contractMatch) {
+        setDuplicateWarning(`A project with this contract address already exists`);
+      } else {
+        setDuplicateWarning(null);
+      }
+    }
+  }, [formData.projectName, formData.tokenSymbol, contractAddresses]);
+
   const updateFormData = (field: string, value: string) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
+  };
+
+  const addContractAddress = () => {
+    setContractAddresses((prev) => [...prev, { chain: '', address: '' }]);
+  };
+
+  const removeContractAddress = (index: number) => {
+    if (contractAddresses.length > 1) {
+      setContractAddresses((prev) => prev.filter((_, i) => i !== index));
+    }
+  };
+
+  const updateContractAddress = (index: number, field: keyof ContractAddress, value: string) => {
+    setContractAddresses((prev) => {
+      const updated = [...prev];
+      updated[index] = { ...updated[index], [field]: value };
+      return updated;
+    });
   };
 
   const addTeamMember = () => {
@@ -109,6 +191,21 @@ export default function SubmitProjectPage() {
     });
   };
 
+  const verifyOwnership = async () => {
+    if (!address) return;
+    setVerifying(true);
+    try {
+      const message = `I verify ownership of ${formData.projectName} (${formData.tokenSymbol}) on DappScore.\n\nWallet: ${address}\nTimestamp: ${Date.now()}`;
+      const signature = await signMessageAsync({ message });
+      if (signature) {
+        setOwnershipVerified(true);
+      }
+    } catch (error) {
+      console.error('Signature failed:', error);
+    }
+    setVerifying(false);
+  };
+
   const nextStep = () => setCurrentStep((prev) => Math.min(prev + 1, 5));
   const prevStep = () => setCurrentStep((prev) => Math.max(prev - 1, 1));
 
@@ -116,7 +213,7 @@ export default function SubmitProjectPage() {
     if (currentStep === 1) {
       return formData.projectName && formData.tokenSymbol && formData.category && formData.description;
     }
-    return true; // All other steps are optional
+    return true;
   };
 
   if (!isConnected) {
@@ -170,6 +267,17 @@ export default function SubmitProjectPage() {
             ))}
           </div>
         </div>
+
+        {/* Duplicate Warning */}
+        {duplicateWarning && (
+          <div className="mb-6 p-4 bg-orange-500/10 border border-orange-500/50 rounded-lg flex items-start space-x-3">
+            <AlertTriangle className="h-5 w-5 text-orange-400 flex-shrink-0 mt-0.5" />
+            <div>
+              <p className="font-medium text-orange-400">Possible Duplicate</p>
+              <p className="text-sm text-gray-400">{duplicateWarning}. You can still submit if this is a different project.</p>
+            </div>
+          </div>
+        )}
 
         {/* Form */}
         <div className="bg-gray-800 rounded-xl p-6">
@@ -252,30 +360,91 @@ export default function SubmitProjectPage() {
                 <p className="text-xs text-gray-500 mt-1">{formData.description.length}/2000 characters</p>
               </div>
 
-              <div className="flex items-center space-x-3 p-4 bg-gray-700/50 rounded-lg">
-                <input
-                  type="checkbox"
-                  id="isOwnProject"
-                  checked={isOwnProject}
-                  onChange={(e) => setIsOwnProject(e.target.checked)}
-                  className="w-5 h-5 rounded border-gray-600 bg-gray-700 text-yellow-500 focus:ring-yellow-500"
-                />
-                <label htmlFor="isOwnProject" className="text-sm">
-                  I am a team member of this project and want to claim ownership
-                </label>
+              {/* Ownership Claim */}
+              <div className="p-4 bg-gray-700/50 rounded-lg space-y-4">
+                <div className="flex items-center space-x-3">
+                  <input
+                    type="checkbox"
+                    id="isOwnProject"
+                    checked={isOwnProject}
+                    onChange={(e) => setIsOwnProject(e.target.checked)}
+                    className="w-5 h-5 rounded border-gray-600 bg-gray-700 text-yellow-500 focus:ring-yellow-500"
+                  />
+                  <label htmlFor="isOwnProject" className="text-sm">
+                    I am a team member of this project and want to claim ownership
+                  </label>
+                </div>
+
+                {isOwnProject && (
+                  <div className="pl-8 space-y-3">
+                    <p className="text-xs text-gray-400">
+                      Verify ownership by signing a message with your wallet. This proves you control the wallet associated with this project.
+                    </p>
+                    {ownershipVerified ? (
+                      <div className="flex items-center space-x-2 text-green-400">
+                        <Shield className="h-5 w-5" />
+                        <span className="text-sm font-medium">Ownership Verified</span>
+                      </div>
+                    ) : (
+                      <button
+                        onClick={verifyOwnership}
+                        disabled={verifying || !formData.projectName}
+                        className="px-4 py-2 bg-yellow-500 text-black font-medium rounded-lg hover:bg-yellow-400 disabled:opacity-50 disabled:cursor-not-allowed text-sm"
+                      >
+                        {verifying ? 'Signing...' : 'Sign Message to Verify'}
+                      </button>
+                    )}
+                  </div>
+                )}
               </div>
             </div>
           )}
 
-          {/* Step 2: Token & Sale Details */}
+          {/* Step 2: Project Details */}
           {currentStep === 2 && (
             <div className="space-y-6">
-              <h2 className="text-xl font-bold">Token & Sale Details</h2>
+              <h2 className="text-xl font-bold">Project Details</h2>
               <p className="text-gray-400 text-sm">All fields are optional - fill out what you know</p>
+
+              {/* Images */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm text-gray-400 mb-2">Project Logo</label>
+                  <div className="flex space-x-2">
+                    <input
+                      type="url"
+                      value={formData.projectImageUrl}
+                      onChange={(e) => updateFormData('projectImageUrl', e.target.value)}
+                      placeholder="https://yourproject.com/logo.png"
+                      className="flex-1 bg-gray-700 border border-gray-600 rounded-lg px-4 py-3 focus:border-yellow-500 focus:outline-none"
+                    />
+                    <button type="button" className="px-3 py-3 bg-gray-700 border border-gray-600 rounded-lg hover:border-yellow-500 transition-colors">
+                      <Upload className="h-5 w-5" />
+                    </button>
+                  </div>
+                  <p className="text-xs text-gray-500 mt-1">200x200px, PNG or JPG</p>
+                </div>
+                <div>
+                  <label className="block text-sm text-gray-400 mb-2">Token Icon</label>
+                  <div className="flex space-x-2">
+                    <input
+                      type="url"
+                      value={formData.tokenImageUrl}
+                      onChange={(e) => updateFormData('tokenImageUrl', e.target.value)}
+                      placeholder="https://yourproject.com/token.png"
+                      className="flex-1 bg-gray-700 border border-gray-600 rounded-lg px-4 py-3 focus:border-yellow-500 focus:outline-none"
+                    />
+                    <button type="button" className="px-3 py-3 bg-gray-700 border border-gray-600 rounded-lg hover:border-yellow-500 transition-colors">
+                      <Upload className="h-5 w-5" />
+                    </button>
+                  </div>
+                  <p className="text-xs text-gray-500 mt-1">100x100px, PNG with transparency</p>
+                </div>
+              </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm text-gray-400 mb-2">Blockchain</label>
+                  <label className="block text-sm text-gray-400 mb-2">Primary Blockchain</label>
                   <select
                     value={formData.blockchain}
                     onChange={(e) => updateFormData('blockchain', e.target.value)}
@@ -288,18 +457,61 @@ export default function SubmitProjectPage() {
                   </select>
                 </div>
                 <div>
-                  <label className="block text-sm text-gray-400 mb-2">Platform Type</label>
+                  <label className="block text-sm text-gray-400 mb-2">Project Stage</label>
                   <select
-                    value={formData.platformType}
-                    onChange={(e) => updateFormData('platformType', e.target.value)}
+                    value={formData.projectStage}
+                    onChange={(e) => updateFormData('projectStage', e.target.value)}
                     className="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-3 focus:border-yellow-500 focus:outline-none"
                   >
-                    <option value="">Select type</option>
-                    {platformTypes.map((type) => (
-                      <option key={type} value={type}>{type}</option>
+                    <option value="">Select stage</option>
+                    {projectStages.map((stage) => (
+                      <option key={stage.value} value={stage.value}>{stage.label}</option>
                     ))}
                   </select>
                 </div>
+              </div>
+
+              {/* Contract Addresses */}
+              <div className="space-y-3">
+                <label className="block text-sm text-gray-400">Contract Addresses</label>
+                {contractAddresses.map((contract, index) => (
+                  <div key={index} className="flex space-x-2">
+                    <select
+                      value={contract.chain}
+                      onChange={(e) => updateContractAddress(index, 'chain', e.target.value)}
+                      className="w-40 bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 focus:border-yellow-500 focus:outline-none text-sm"
+                    >
+                      <option value="">Chain</option>
+                      {blockchains.map((chain) => (
+                        <option key={chain} value={chain}>{chain}</option>
+                      ))}
+                    </select>
+                    <input
+                      type="text"
+                      value={contract.address}
+                      onChange={(e) => updateContractAddress(index, 'address', e.target.value)}
+                      placeholder="0x..."
+                      className="flex-1 bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 focus:border-yellow-500 focus:outline-none font-mono text-sm"
+                    />
+                    {contractAddresses.length > 1 && (
+                      <button
+                        type="button"
+                        onClick={() => removeContractAddress(index)}
+                        className="p-2 text-red-400 hover:text-red-300"
+                      >
+                        <Trash2 className="h-5 w-5" />
+                      </button>
+                    )}
+                  </div>
+                ))}
+                <button
+                  type="button"
+                  onClick={addContractAddress}
+                  className="text-yellow-500 hover:text-yellow-400 text-sm flex items-center space-x-1"
+                >
+                  <Plus className="h-4 w-4" />
+                  <span>Add Another Contract</span>
+                </button>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -325,76 +537,92 @@ export default function SubmitProjectPage() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div>
-                  <label className="block text-sm text-gray-400 mb-2">Hard Cap (USD)</label>
+              {/* Token Sale Section */}
+              <div className="pt-4 border-t border-gray-700">
+                <div className="flex items-center space-x-3 mb-4">
                   <input
-                    type="text"
-                    value={formData.hardCap}
-                    onChange={(e) => updateFormData('hardCap', e.target.value)}
-                    placeholder="e.g., 2,000,000"
-                    className="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-3 focus:border-yellow-500 focus:outline-none"
+                    type="checkbox"
+                    id="hasTokenSale"
+                    checked={hasTokenSale}
+                    onChange={(e) => setHasTokenSale(e.target.checked)}
+                    className="w-5 h-5 rounded border-gray-600 bg-gray-700 text-yellow-500 focus:ring-yellow-500"
                   />
+                  <label htmlFor="hasTokenSale" className="text-sm font-medium">
+                    This project has an active or upcoming token sale
+                  </label>
                 </div>
-                <div>
-                  <label className="block text-sm text-gray-400 mb-2">Soft Cap (USD)</label>
-                  <input
-                    type="text"
-                    value={formData.softCap}
-                    onChange={(e) => updateFormData('softCap', e.target.value)}
-                    placeholder="e.g., 500,000"
-                    className="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-3 focus:border-yellow-500 focus:outline-none"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm text-gray-400 mb-2">Token Price (USD)</label>
-                  <input
-                    type="text"
-                    value={formData.tokenPrice}
-                    onChange={(e) => updateFormData('tokenPrice', e.target.value)}
-                    placeholder="e.g., 0.05"
-                    className="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-3 focus:border-yellow-500 focus:outline-none"
-                  />
-                </div>
-              </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm text-gray-400 mb-2">Sale Start Date</label>
-                  <input
-                    type="datetime-local"
-                    value={formData.startDate}
-                    onChange={(e) => updateFormData('startDate', e.target.value)}
-                    className="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-3 focus:border-yellow-500 focus:outline-none"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm text-gray-400 mb-2">Sale End Date</label>
-                  <input
-                    type="datetime-local"
-                    value={formData.endDate}
-                    onChange={(e) => updateFormData('endDate', e.target.value)}
-                    className="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-3 focus:border-yellow-500 focus:outline-none"
-                  />
-                </div>
-              </div>
+                {hasTokenSale && (
+                  <div className="space-y-4 pl-8 border-l-2 border-yellow-500/30">
+                    <div>
+                      <label className="block text-sm text-gray-400 mb-2">Sale Type</label>
+                      <select
+                        value={formData.saleType}
+                        onChange={(e) => updateFormData('saleType', e.target.value)}
+                        className="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-3 focus:border-yellow-500 focus:outline-none"
+                      >
+                        <option value="">Select sale type</option>
+                        {saleTypes.map((type) => (
+                          <option key={type.value} value={type.value}>{type.label}</option>
+                        ))}
+                      </select>
+                    </div>
 
-              <div>
-                <label className="block text-sm text-gray-400 mb-2">Logo URL</label>
-                <div className="flex space-x-4">
-                  <input
-                    type="url"
-                    value={formData.logoUrl}
-                    onChange={(e) => updateFormData('logoUrl', e.target.value)}
-                    placeholder="https://yourproject.com/logo.png"
-                    className="flex-1 bg-gray-700 border border-gray-600 rounded-lg px-4 py-3 focus:border-yellow-500 focus:outline-none"
-                  />
-                  <button className="px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg hover:border-yellow-500 transition-colors flex items-center space-x-2">
-                    <Upload className="h-5 w-5" />
-                    <span>Upload</span>
-                  </button>
-                </div>
-                <p className="text-xs text-gray-500 mt-1">Recommended: 200x200px, PNG or JPG</p>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <div>
+                        <label className="block text-sm text-gray-400 mb-2">Hard Cap (USD)</label>
+                        <input
+                          type="text"
+                          value={formData.hardCap}
+                          onChange={(e) => updateFormData('hardCap', e.target.value)}
+                          placeholder="e.g., 2,000,000"
+                          className="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-3 focus:border-yellow-500 focus:outline-none"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm text-gray-400 mb-2">Soft Cap (USD)</label>
+                        <input
+                          type="text"
+                          value={formData.softCap}
+                          onChange={(e) => updateFormData('softCap', e.target.value)}
+                          placeholder="e.g., 500,000"
+                          className="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-3 focus:border-yellow-500 focus:outline-none"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm text-gray-400 mb-2">Token Price (USD)</label>
+                        <input
+                          type="text"
+                          value={formData.tokenPrice}
+                          onChange={(e) => updateFormData('tokenPrice', e.target.value)}
+                          placeholder="e.g., 0.05"
+                          className="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-3 focus:border-yellow-500 focus:outline-none"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-sm text-gray-400 mb-2">Sale Start Date</label>
+                        <input
+                          type="datetime-local"
+                          value={formData.startDate}
+                          onChange={(e) => updateFormData('startDate', e.target.value)}
+                          className="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-3 focus:border-yellow-500 focus:outline-none"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm text-gray-400 mb-2">Sale End Date</label>
+                        <input
+                          type="datetime-local"
+                          value={formData.endDate}
+                          onChange={(e) => updateFormData('endDate', e.target.value)}
+                          className="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-3 focus:border-yellow-500 focus:outline-none"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           )}
@@ -476,6 +704,19 @@ export default function SubmitProjectPage() {
                   />
                 </div>
                 <div>
+                  <label className="block text-sm text-gray-400 mb-2">LinkedIn</label>
+                  <input
+                    type="url"
+                    value={formData.linkedin}
+                    onChange={(e) => updateFormData('linkedin', e.target.value)}
+                    placeholder="https://linkedin.com/company/yourproject"
+                    className="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-3 focus:border-yellow-500 focus:outline-none"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
                   <label className="block text-sm text-gray-400 mb-2">Reddit</label>
                   <input
                     type="url"
@@ -485,9 +726,6 @@ export default function SubmitProjectPage() {
                     className="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-3 focus:border-yellow-500 focus:outline-none"
                   />
                 </div>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm text-gray-400 mb-2">Medium / Blog</label>
                   <input
@@ -498,6 +736,9 @@ export default function SubmitProjectPage() {
                     className="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-3 focus:border-yellow-500 focus:outline-none"
                   />
                 </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm text-gray-400 mb-2">YouTube</label>
                   <input
@@ -508,9 +749,6 @@ export default function SubmitProjectPage() {
                     className="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-3 focus:border-yellow-500 focus:outline-none"
                   />
                 </div>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm text-gray-400 mb-2">GitHub</label>
                   <input
@@ -521,6 +759,9 @@ export default function SubmitProjectPage() {
                     className="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-3 focus:border-yellow-500 focus:outline-none"
                   />
                 </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div>
                   <label className="block text-sm text-gray-400 mb-2">Facebook</label>
                   <input
@@ -528,6 +769,26 @@ export default function SubmitProjectPage() {
                     value={formData.facebook}
                     onChange={(e) => updateFormData('facebook', e.target.value)}
                     placeholder="https://facebook.com/yourproject"
+                    className="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-3 focus:border-yellow-500 focus:outline-none"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm text-gray-400 mb-2">TikTok</label>
+                  <input
+                    type="url"
+                    value={formData.tiktok}
+                    onChange={(e) => updateFormData('tiktok', e.target.value)}
+                    placeholder="https://tiktok.com/@yourproject"
+                    className="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-3 focus:border-yellow-500 focus:outline-none"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm text-gray-400 mb-2">Instagram</label>
+                  <input
+                    type="url"
+                    value={formData.instagram}
+                    onChange={(e) => updateFormData('instagram', e.target.value)}
+                    placeholder="https://instagram.com/yourproject"
                     className="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-3 focus:border-yellow-500 focus:outline-none"
                   />
                 </div>

@@ -15,6 +15,7 @@ export interface Project {
   chain: string;
   logoUrl?: string;
   websiteUrl?: string;
+  contractAddresses?: { chain: string; address: string }[];
   totalSupply: string;
   hardCap: string;
   startDate: number;
