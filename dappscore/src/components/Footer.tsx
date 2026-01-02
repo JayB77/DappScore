@@ -65,22 +65,22 @@ export function Footer() {
             <h3 className="text-white font-semibold mb-4">Resources</h3>
             <ul className="space-y-2">
               <li>
-                <a href="#" target="_blank" rel="noopener noreferrer" className="text-gray-400 hover:text-yellow-500 transition-colors">
+                <a href="#" className="text-gray-400 hover:text-yellow-500 transition-colors">
                   Documentation
                 </a>
               </li>
               <li>
-                <a href="#" target="_blank" rel="noopener noreferrer" className="text-gray-400 hover:text-yellow-500 transition-colors">
+                <a href="#" className="text-gray-400 hover:text-yellow-500 transition-colors">
                   Tokenomics
                 </a>
               </li>
               <li>
-                <a href="#" target="_blank" rel="noopener noreferrer" className="text-gray-400 hover:text-yellow-500 transition-colors">
+                <a href="#" className="text-gray-400 hover:text-yellow-500 transition-colors">
                   Whitepaper
                 </a>
               </li>
               <li>
-                <a href="#" target="_blank" rel="noopener noreferrer" className="text-gray-400 hover:text-yellow-500 transition-colors">
+                <a href="#" className="text-gray-400 hover:text-yellow-500 transition-colors">
                   Smart Contracts
                 </a>
               </li>
