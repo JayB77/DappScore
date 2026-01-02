@@ -1,12 +1,14 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useAccount, useSignMessage } from 'wagmi';
+import { useAccount, useSignMessage, useChainId } from 'wagmi';
 import { ConnectButton } from '@rainbow-me/rainbowkit';
 import {
   Check, ChevronLeft, ChevronRight, Wallet, Upload, AlertCircle,
-  Plus, Trash2, Crown, AlertTriangle, Shield, ExternalLink
+  Plus, Trash2, Crown, AlertTriangle, Shield, ExternalLink, Loader2
 } from 'lucide-react';
+import { useUSDCPayment } from '@/hooks/useUSDCPayment';
+import { baseSepolia } from 'wagmi/chains';
 
 const steps = [
   { id: 1, name: 'General', description: 'Basic project info' },
@@ -69,12 +71,31 @@ const existingProjects = [
 export default function SubmitProjectPage() {
   const { isConnected, address } = useAccount();
   const { signMessageAsync } = useSignMessage();
+  const chainId = useChainId();
   const [currentStep, setCurrentStep] = useState(1);
   const [isOwnProject, setIsOwnProject] = useState(false);
   const [hasTokenSale, setHasTokenSale] = useState(false);
   const [ownershipVerified, setOwnershipVerified] = useState(false);
   const [verifying, setVerifying] = useState(false);
   const [duplicateWarning, setDuplicateWarning] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
+  const [submitted, setSubmitted] = useState(false);
+
+  // USDC Payment hook
+  const {
+    status: paymentStatus,
+    error: paymentError,
+    txHash,
+    formattedBalance,
+    formattedPrice,
+    isConfirming,
+    isConfirmed,
+    checkBalance,
+    payForPremium,
+    reset: resetPayment,
+  } = useUSDCPayment();
+
+  const isTestnet = chainId === baseSepolia.id;
 
   const [formData, setFormData] = useState({
     // General (only name, symbol, category, description are required)
@@ -127,6 +148,13 @@ export default function SubmitProjectPage() {
   const [teamMembers, setTeamMembers] = useState<TeamMember[]>([
     { name: '', role: '', bio: '', photoUrl: '', linkedin: '', twitter: '' }
   ]);
+
+  // Mark as submitted when payment is confirmed
+  useEffect(() => {
+    if (isConfirmed && formData.listingType === 'premium' && !submitted) {
+      setSubmitted(true);
+    }
+  }, [isConfirmed, formData.listingType, submitted]);
 
   // Duplicate detection
   useEffect(() => {
@@ -902,15 +930,25 @@ export default function SubmitProjectPage() {
               <h2 className="text-xl font-bold">Listing Options</h2>
               <p className="text-gray-400 text-sm">Choose how you want your project listed</p>
 
+              {/* Testnet Banner */}
+              {isTestnet && (
+                <div className="p-3 bg-purple-500/10 border border-purple-500/50 rounded-lg">
+                  <p className="text-sm text-purple-400 flex items-center">
+                    <AlertCircle className="h-4 w-4 mr-2" />
+                    You&apos;re on Base Sepolia testnet. Use testnet USDC for premium listings.
+                  </p>
+                </div>
+              )}
+
               <div className="space-y-4">
                 {/* Free Listing */}
                 <div
-                  onClick={() => updateFormData('listingType', 'free')}
+                  onClick={() => !submitted && updateFormData('listingType', 'free')}
                   className={`p-6 rounded-lg cursor-pointer border-2 transition-all ${
                     formData.listingType === 'free'
                       ? 'border-yellow-500 bg-yellow-500/10'
                       : 'border-gray-600 hover:border-gray-500'
-                  }`}
+                  } ${submitted ? 'opacity-50 cursor-not-allowed' : ''}`}
                 >
                   <div className="flex justify-between items-start">
                     <div>
@@ -945,12 +983,12 @@ export default function SubmitProjectPage() {
 
                 {/* Premium Listing */}
                 <div
-                  onClick={() => updateFormData('listingType', 'premium')}
+                  onClick={() => !submitted && updateFormData('listingType', 'premium')}
                   className={`p-6 rounded-lg cursor-pointer border-2 transition-all relative overflow-hidden ${
                     formData.listingType === 'premium'
                       ? 'border-yellow-500 bg-yellow-500/10'
                       : 'border-gray-600 hover:border-gray-500'
-                  }`}
+                  } ${submitted ? 'opacity-50 cursor-not-allowed' : ''}`}
                 >
                   <div className="absolute top-0 right-0 bg-yellow-500 text-black text-xs font-bold px-3 py-1 rounded-bl-lg">
                     FEATURED
@@ -961,7 +999,7 @@ export default function SubmitProjectPage() {
                         <Crown className="h-5 w-5 text-yellow-500 mr-2" />
                         Premium Listing
                       </div>
-                      <div className="text-2xl text-yellow-500 mb-3">0.05 ETH or 100 USDC</div>
+                      <div className="text-2xl text-yellow-500 mb-3">{formattedPrice} USDC</div>
                       <ul className="text-sm text-gray-400 space-y-2">
                         <li className="flex items-center">
                           <Check className="h-4 w-4 text-green-500 mr-2 flex-shrink-0" />
@@ -994,31 +1032,77 @@ export default function SubmitProjectPage() {
                 </div>
               </div>
 
-              {formData.listingType === 'premium' && (
+              {/* Premium Payment Section */}
+              {formData.listingType === 'premium' && !submitted && (
                 <div className="space-y-4 pt-4 border-t border-gray-700">
-                  <h3 className="font-semibold">Payment Method</h3>
-                  <div className="flex space-x-4">
-                    <button
-                      onClick={() => updateFormData('paymentMethod', 'eth')}
-                      className={`flex-1 py-3 px-4 rounded-lg border-2 font-medium transition-all ${
-                        formData.paymentMethod === 'eth'
-                          ? 'border-yellow-500 bg-yellow-500/10 text-yellow-500'
-                          : 'border-gray-600 hover:border-gray-500'
-                      }`}
-                    >
-                      Pay with ETH
-                    </button>
-                    <button
-                      onClick={() => updateFormData('paymentMethod', 'usdc')}
-                      className={`flex-1 py-3 px-4 rounded-lg border-2 font-medium transition-all ${
-                        formData.paymentMethod === 'usdc'
-                          ? 'border-yellow-500 bg-yellow-500/10 text-yellow-500'
-                          : 'border-gray-600 hover:border-gray-500'
-                      }`}
-                    >
-                      Pay with USDC
-                    </button>
+                  <div className="flex justify-between items-center">
+                    <h3 className="font-semibold">Payment Details</h3>
+                    <span className="text-sm text-gray-400">
+                      Balance: <span className="text-white font-mono">{formattedBalance} USDC</span>
+                    </span>
                   </div>
+
+                  {/* Payment Status */}
+                  {paymentError && (
+                    <div className="p-3 bg-red-500/10 border border-red-500/50 rounded-lg">
+                      <p className="text-sm text-red-400">{paymentError}</p>
+                    </div>
+                  )}
+
+                  {paymentStatus === 'confirming' && (
+                    <div className="p-4 bg-yellow-500/10 border border-yellow-500/50 rounded-lg">
+                      <div className="flex items-center space-x-3">
+                        <Loader2 className="h-5 w-5 text-yellow-500 animate-spin" />
+                        <div>
+                          <p className="font-medium text-yellow-500">Confirming transaction...</p>
+                          {txHash && (
+                            <a
+                              href={`https://sepolia.basescan.org/tx/${txHash}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-sm text-gray-400 hover:text-yellow-500 flex items-center mt-1"
+                            >
+                              View on BaseScan <ExternalLink className="h-3 w-3 ml-1" />
+                            </a>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {isConfirmed && (
+                    <div className="p-4 bg-green-500/10 border border-green-500/50 rounded-lg">
+                      <div className="flex items-center space-x-3">
+                        <Check className="h-5 w-5 text-green-500" />
+                        <div>
+                          <p className="font-medium text-green-500">Payment confirmed!</p>
+                          {txHash && (
+                            <a
+                              href={`https://sepolia.basescan.org/tx/${txHash}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-sm text-gray-400 hover:text-green-500 flex items-center mt-1"
+                            >
+                              View on BaseScan <ExternalLink className="h-3 w-3 ml-1" />
+                            </a>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Success Message */}
+              {submitted && (
+                <div className="p-6 bg-green-500/10 border border-green-500/50 rounded-lg text-center">
+                  <Check className="h-12 w-12 text-green-500 mx-auto mb-3" />
+                  <h3 className="text-xl font-bold text-green-500 mb-2">Project Submitted!</h3>
+                  <p className="text-gray-400">
+                    {formData.listingType === 'premium'
+                      ? 'Your premium listing is now live and featured at the top!'
+                      : 'Your project has been submitted and will appear in the directory.'}
+                  </p>
                 </div>
               )}
 
@@ -1030,7 +1114,7 @@ export default function SubmitProjectPage() {
                     <p className="text-gray-400 mt-1">
                       {formData.listingType === 'free'
                         ? 'Your project will be listed and the community will vote on it. Projects rise or fall based on their community score.'
-                        : 'Your project will be featured at the top for 7 days. After that, position is determined by community score - just like free listings.'}
+                        : 'Pay with USDC to get your project featured at the top for 7 days. After that, position is determined by community score.'}
                     </p>
                   </div>
                 </div>
@@ -1042,7 +1126,7 @@ export default function SubmitProjectPage() {
           <div className="flex justify-between mt-8 pt-6 border-t border-gray-700">
             <button
               onClick={prevStep}
-              disabled={currentStep === 1}
+              disabled={currentStep === 1 || submitting || submitted}
               className="flex items-center space-x-2 px-6 py-3 border border-gray-600 rounded-lg hover:border-yellow-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             >
               <ChevronLeft className="h-5 w-5" />
@@ -1058,9 +1142,44 @@ export default function SubmitProjectPage() {
                 <span>Continue</span>
                 <ChevronRight className="h-5 w-5" />
               </button>
+            ) : submitted ? (
+              <a
+                href="/projects"
+                className="flex items-center space-x-2 px-6 py-3 bg-green-500 text-white font-semibold rounded-lg hover:bg-green-400 transition-colors"
+              >
+                <span>View Projects</span>
+                <ChevronRight className="h-5 w-5" />
+              </a>
             ) : (
-              <button className="flex items-center space-x-2 px-6 py-3 bg-yellow-500 text-black font-semibold rounded-lg hover:bg-yellow-400 transition-colors">
-                <span>{formData.listingType === 'free' ? 'Submit Project' : 'Submit & Pay'}</span>
+              <button
+                onClick={async () => {
+                  if (formData.listingType === 'premium') {
+                    setSubmitting(true);
+                    const success = await payForPremium();
+                    if (success) {
+                      // Wait for confirmation effect to trigger
+                      // The isConfirmed state will update and show success
+                    }
+                    setSubmitting(false);
+                  } else {
+                    // Free listing - just submit
+                    setSubmitting(true);
+                    await new Promise(resolve => setTimeout(resolve, 1000));
+                    setSubmitted(true);
+                    setSubmitting(false);
+                  }
+                }}
+                disabled={submitting || (formData.listingType === 'premium' && isConfirming)}
+                className="flex items-center space-x-2 px-6 py-3 bg-yellow-500 text-black font-semibold rounded-lg hover:bg-yellow-400 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              >
+                {submitting || isConfirming ? (
+                  <>
+                    <Loader2 className="h-5 w-5 animate-spin" />
+                    <span>{isConfirming ? 'Confirming...' : 'Processing...'}</span>
+                  </>
+                ) : (
+                  <span>{formData.listingType === 'free' ? 'Submit Project' : `Pay ${formattedPrice} USDC & Submit`}</span>
+                )}
               </button>
             )}
           </div>
