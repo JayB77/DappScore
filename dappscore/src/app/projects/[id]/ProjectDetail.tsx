@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { useParams } from 'next/navigation';
+import Link from 'next/link';
 import { useAccount } from 'wagmi';
 import { ConnectButton } from '@rainbow-me/rainbowkit';
 import {
@@ -20,6 +21,7 @@ import {
   Crown,
   ChevronUp,
   ChevronDown,
+  Edit3,
 } from 'lucide-react';
 
 // Mock project data
@@ -31,6 +33,7 @@ const mockProject = {
     'Revolutionary decentralized exchange with zero-slippage trades and MEV protection built on Base. Our innovative AMM design eliminates front-running and sandwich attacks while providing deep liquidity for all trading pairs.',
   category: 'DeFi',
   chain: 'Base',
+  ownerAddress: '0x1234567890abcdef1234567890abcdef12345678', // Project owner wallet
   websiteUrl: 'https://example.com',
   whitepaperUrl: 'https://example.com/whitepaper.pdf',
   totalSupply: '100,000,000',
@@ -111,7 +114,7 @@ const mockComments: Comment[] = [
 
 export default function ProjectDetail() {
   const params = useParams();
-  const { isConnected } = useAccount();
+  const { isConnected, address } = useAccount();
   const [userVote, setUserVote] = useState<'up' | 'down' | null>(null);
   const [comment, setComment] = useState('');
   const [commentImage, setCommentImage] = useState<string>('');
@@ -120,6 +123,7 @@ export default function ProjectDetail() {
 
   const project = mockProject;
   const trustScore = Math.round((project.upvotes / (project.upvotes + project.downvotes)) * 100);
+  const isOwner = address?.toLowerCase() === project.ownerAddress?.toLowerCase();
 
   const handleVote = (type: 'up' | 'down') => {
     if (!isConnected) return;
@@ -217,6 +221,15 @@ export default function ProjectDetail() {
                 <FileText className="h-4 w-4" />
                 <span>Whitepaper</span>
               </a>
+              {isOwner && (
+                <Link
+                  href={`/projects/${project.id}/edit`}
+                  className="px-4 py-2 bg-blue-500 text-white font-semibold rounded-lg hover:bg-blue-400 transition-colors flex items-center space-x-2"
+                >
+                  <Edit3 className="h-4 w-4" />
+                  <span>Edit Project</span>
+                </Link>
+              )}
             </div>
           </div>
         </div>
