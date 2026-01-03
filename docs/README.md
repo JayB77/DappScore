@@ -1,64 +1,97 @@
-# Introduction
+# 👋 Welcome to DappScore
 
 ## What is DappScore?
 
-DappScore is a community-driven platform for discovering and evaluating blockchain projects. We help crypto users make informed decisions by providing transparent trust scores, community reviews, and verified project information.
+**DappScore** is a community-driven platform for discovering and evaluating blockchain projects. We help crypto users make informed decisions through transparent trust scores, community reviews, and verified project information.
 
-In a space filled with scams, rug pulls, and unreliable projects, DappScore serves as your trusted guide. Our community of voters evaluates every project, creating a crowdsourced reputation system that rewards legitimate projects and exposes bad actors.
+{% hint style="success" %}
+**Our Mission**: Separate legitimate crypto projects from scams using the wisdom of the crowd.
+{% endhint %}
 
-## The Problem
+---
 
-The cryptocurrency space has a trust problem:
+## 🚨 The Problem
 
-- **Scams are everywhere** - Rug pulls, honeypots, and fake projects steal billions from investors every year
-- **No accountability** - Bad actors disappear without consequences
-- **Information asymmetry** - Regular users lack the tools to properly evaluate projects
-- **Paid promotions** - Many "reviews" are actually paid advertisements
+The crypto space has a trust problem:
 
-## Our Solution
+| Issue | Impact |
+|-------|--------|
+| 💀 **Scams everywhere** | Rug pulls steal billions yearly |
+| 🏃 **No accountability** | Bad actors disappear without consequences |
+| 🔮 **Information asymmetry** | Users can't properly evaluate projects |
+| 💸 **Paid promotions** | Many "reviews" are advertisements |
 
-DappScore addresses these issues through:
+---
 
-- **Community Voting** - Real users vote on projects, creating authentic trust scores
-- **Reputation System** - Voters build reputation over time, making manipulation difficult
-- **Verified Information** - Project details are verified and tracked on-chain
-- **Incentivized Honesty** - $SCORE token rewards accurate voting and penalizes bad behavior
+## ✅ Our Solution
 
-## How It Works
+<table data-card-size="large" data-view="cards">
+<thead><tr><th></th><th></th></tr></thead>
+<tbody>
+<tr><td><strong>🗳️ Community Voting</strong></td><td>Real users vote on projects, creating authentic trust scores</td></tr>
+<tr><td><strong>⭐ Reputation System</strong></td><td>Voters build reputation over time, making manipulation expensive</td></tr>
+<tr><td><strong>🔍 Verified Info</strong></td><td>Project details tracked and verified on-chain</td></tr>
+<tr><td><strong>💰 Incentivized Honesty</strong></td><td>$SCORE tokens reward accurate voting</td></tr>
+</tbody>
+</table>
 
-1. **Projects Submit** - Teams submit their projects with verified details
-2. **Community Votes** - Users research and vote on project legitimacy
-3. **Scores Emerge** - Trust scores reflect genuine community sentiment
-4. **Rewards Flow** - Accurate voters earn $SCORE tokens
+---
 
-## Key Features
+## ⚙️ How It Works
 
-- **Trust Scores** - Every project gets a community-generated trust score
-- **Detailed Reviews** - Read what real users think about each project
-- **Project Tracking** - Monitor project updates, team changes, and red flags
-- **Premium Listings** - Verified projects can boost visibility
-- **Scam Alerts** - Community-flagged warnings on suspicious projects
+| Step | Action |
+|------|--------|
+| **1** | 📝 Projects submit with verified details |
+| **2** | 🔍 Community researches and votes |
+| **3** | 📊 Trust scores reflect consensus |
+| **4** | 🪙 Accurate voters earn $SCORE |
 
-## Built on Base
+---
 
-DappScore is built on Base, Coinbase's Layer 2 network. This means:
+## ✨ Key Features
 
-- Low transaction fees
-- Fast confirmations
-- Ethereum security
-- Easy onboarding from Coinbase
+| Feature | Description |
+|---------|-------------|
+| 📊 **Trust Scores** | Community-generated ratings for every project |
+| 💬 **Reviews** | Real user opinions backed by evidence |
+| 🚨 **Scam Alerts** | Community-flagged warnings |
+| ⭐ **Premium Listings** | Boosted visibility for projects |
+| 📈 **Reputation** | Build influence through contributions |
 
-## Get Started
+---
 
-Ready to explore? Here's how to begin:
+## ⛓️ Built on Base
 
-- [Connect your wallet](getting-started.md) and explore projects
-- [Learn about voting](platform/voting-reputation.md) and earn rewards
-- [Understand the $SCORE token](token/score-token.md) and tokenomics
-- [Submit your project](platform/submitting-projects.md) if you're a builder
+DappScore runs on **Base**, Coinbase's Layer 2:
 
-## Links
+| | |
+|---|---|
+| ⚡ **Speed** | Near-instant confirmations |
+| 💸 **Cost** | Fraction of a cent per tx |
+| 🔒 **Security** | Ethereum-level security |
+| 🚀 **Access** | Easy Coinbase onboarding |
 
-- **Website**: [dappscore.io](https://dappscore.io)
-- **Network**: Base (Coinbase L2)
-- **Status**: Live on Testnet
+---
+
+## 🚀 Quick Links
+
+<table data-view="cards">
+<thead><tr><th></th><th></th></tr></thead>
+<tbody>
+<tr><td><a href="getting-started.md"><strong>🎮 Get Started</strong></a></td><td>Connect & explore</td></tr>
+<tr><td><a href="platform/voting-reputation.md"><strong>🗳️ Voting</strong></a></td><td>Vote & earn rewards</td></tr>
+<tr><td><a href="token/score-token.md"><strong>🪙 $SCORE</strong></a></td><td>Token info</td></tr>
+<tr><td><a href="platform/submitting-projects.md"><strong>📝 Submit</strong></a></td><td>List your project</td></tr>
+</tbody>
+</table>
+
+---
+
+## 🔗 Official Links
+
+| | |
+|---|---|
+| 🌐 **Website** | [dappscore.io](https://dappscore.io) |
+| 📚 **Docs** | [docs.dappscore.io](https://docs.dappscore.io) |
+| ⛓️ **Network** | Base (Coinbase L2) |
+| 📍 **Status** | ✅ Live on Testnet |

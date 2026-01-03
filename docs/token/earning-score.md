@@ -1,36 +1,50 @@
-# Earning $SCORE
+# 💰 Earning $SCORE
 
-There are multiple ways to earn $SCORE tokens on the platform.
+Multiple ways to earn $SCORE tokens by contributing to DappScore.
 
-## Voting Rewards
+---
 
-| Action | Reward |
-|--------|--------|
-| Vote on a project | 10 $SCORE |
-| First vote on new listing | 20 $SCORE |
-
-Voting rewards are distributed after each vote is confirmed on-chain.
-
-## Comment Rewards
+## 🗳️ Voting Rewards
 
 | Action | Reward |
 |--------|--------|
-| Comment receives upvote | 5 $SCORE per upvote |
-| Comment marked as "Helpful" | 50 $SCORE |
-| Top comment of the week | 100 $SCORE |
+| Vote on any project | **10 $SCORE** |
+| First vote on new listing | **20 $SCORE** |
 
-Write quality, evidence-based comments to maximize earnings.
+{% hint style="success" %}
+Rewards are distributed immediately after your vote is confirmed on-chain.
+{% endhint %}
 
-## Scam Reporting
+---
+
+## 💬 Comment Rewards
 
 | Action | Reward |
 |--------|--------|
-| Report confirmed as valid | 100 $SCORE |
-| First to report major scam | 500 $SCORE |
+| Comment gets upvoted | **5 $SCORE** per upvote |
+| Marked as "Helpful" | **50 $SCORE** |
+| Top comment of the week | **100 $SCORE** |
 
-False reports result in reputation loss.
+{% hint style="info" %}
+**Pro Tip**: Write quality, evidence-based comments to maximize earnings!
+{% endhint %}
 
-## Staking Rewards
+---
+
+## 🚨 Scam Reporting
+
+| Action | Reward |
+|--------|--------|
+| Valid report confirmed | **100 $SCORE** |
+| First to report major scam | **500 $SCORE** |
+
+{% hint style="warning" %}
+False reports result in reputation loss. Only report with evidence.
+{% endhint %}
+
+---
+
+## 📈 Staking Rewards
 
 | Stake Amount | APY |
 |--------------|-----|
@@ -38,26 +52,38 @@ False reports result in reputation loss.
 | 10,000+ $SCORE | 8% |
 | 100,000+ $SCORE | 12% |
 
-Staking also increases your reputation multiplier.
+Staking also boosts your reputation multiplier!
 
-## Referral Program
+---
 
-Coming soon:
-- Earn $SCORE when referred users participate
-- Bonus for referred projects that get listed
+## 🔜 Coming Soon
 
-## Daily/Weekly Challenges
+<table data-card-size="large" data-view="cards">
+<thead><tr><th></th><th></th></tr></thead>
+<tbody>
+<tr>
+<td><strong>🔗 Referral Program</strong></td>
+<td>
+• Earn when referred users participate<br>
+• Bonus for referred projects
+</td>
+</tr>
+<tr>
+<td><strong>🎯 Daily Challenges</strong></td>
+<td>
+• "Vote on 5 projects"<br>
+• "Leave 3 comments"<br>
+• Bonus $SCORE rewards
+</td>
+</tr>
+</tbody>
+</table>
 
-Coming soon:
-- Complete challenges for bonus $SCORE
-- Examples: "Vote on 5 projects", "Leave 3 comments"
+---
 
-## Emission Schedule
+## 📅 Emission Schedule
 
-$SCORE rewards are distributed from the Community Rewards pool:
-- 25,000,000 $SCORE total
-- Released over 4 years
-- Decreasing emission rate
+Rewards come from the Community pool (25M $SCORE over 4 years):
 
 | Year | Monthly Emission |
 |------|------------------|
@@ -66,12 +92,20 @@ $SCORE rewards are distributed from the Community Rewards pool:
 | 3 | 300,000 $SCORE |
 | 4 | 200,000 $SCORE |
 
-## Claiming Rewards
+{% hint style="info" %}
+Early participants earn the most! Emission decreases over time.
+{% endhint %}
 
-1. Navigate to Dashboard
-2. View pending rewards
-3. Click "Claim"
-4. Confirm transaction
-5. $SCORE sent to your wallet
+---
 
-Minimum claim: 100 $SCORE
+## 🎁 Claiming Rewards
+
+| Step | Action |
+|------|--------|
+| **1** | Go to Dashboard |
+| **2** | View pending rewards |
+| **3** | Click **Claim** |
+| **4** | Confirm transaction |
+| **5** | $SCORE arrives in wallet! |
+
+**Minimum claim**: 100 $SCORE

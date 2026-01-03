@@ -1,79 +1,118 @@
-# Getting Started
+# 🎮 Getting Started
 
-Welcome to DappScore! This guide will help you get started exploring and contributing to the platform.
+Welcome to DappScore! Let's get you set up in minutes.
 
-## What You'll Need
+---
 
-- **A crypto wallet** - MetaMask, Coinbase Wallet, Rainbow, or any WalletConnect-compatible wallet
-- **Some ETH on Base** - A small amount for gas fees (usually less than $0.01 per transaction)
-- **USDC on Base** - Only needed if you want to purchase a premium listing
+## 📋 What You'll Need
 
-## Connecting Your Wallet
+| Requirement | Details |
+|-------------|---------|
+| 🦊 **Wallet** | MetaMask, Coinbase Wallet, Rainbow, etc. |
+| ⛽ **ETH on Base** | Small amount for gas (< $0.01 per tx) |
+| 💵 **USDC** | Only for premium listings (optional) |
+
+---
+
+## 🔗 Connect Your Wallet
+
+<details>
+<summary><strong>Step-by-step instructions</strong></summary>
 
 1. Visit [dappscore.io](https://dappscore.io)
-2. Click **Connect Wallet** in the top right corner
-3. Select your preferred wallet from the list
-4. Approve the connection in your wallet
-5. If prompted, switch to the Base network
+2. Click **Connect Wallet** (top right)
+3. Select your wallet from the list
+4. Approve the connection
+5. Switch to Base network if prompted
 
-That's it! You're now connected and ready to explore.
+</details>
 
-## Exploring Projects
+{% hint style="success" %}
+**That's it!** You're now connected and ready to explore.
+{% endhint %}
 
-Once connected, you can browse the full directory of submitted projects:
+---
 
-- **Browse All** - See every project at [dappscore.io/projects](https://dappscore.io/projects)
-- **Search** - Find projects by name, token symbol, or contract address
-- **Filter** - Sort by category, trust level, or date added
-- **Research** - Read community comments and see vote history
+## 🔍 Explore Projects
 
-## Voting on Projects
+| Action | How |
+|--------|-----|
+| 📋 **Browse** | Visit [dappscore.io/projects](https://dappscore.io/projects) |
+| 🔎 **Search** | By name, symbol, or contract address |
+| 🏷️ **Filter** | By category, trust level, or date |
+| 📖 **Research** | Read comments and vote history |
 
-Help the community by voting on projects you've researched:
+---
 
-1. Navigate to any project page
-2. Review the project details, links, and community comments
-3. Click **Trust** if you believe the project is legitimate
-4. Click **Distrust** if you have concerns
-5. Optionally leave a comment explaining your vote
+## 🗳️ Cast Your First Vote
 
-You'll earn $SCORE tokens for every vote you cast!
+| Step | Action |
+|------|--------|
+| **1** | Navigate to any project |
+| **2** | Review details and comments |
+| **3** | Click **Trust** ✅ or **Distrust** ❌ |
+| **4** | Add a comment (optional) |
+| **5** | Earn $SCORE tokens! 🪙 |
 
-## Submitting a Project
+{% hint style="info" %}
+**Pro Tip**: Write helpful comments to earn extra rewards when others upvote them!
+{% endhint %}
 
-Are you a project owner or want to add a project for community review?
+---
 
-1. Click **Submit Project** in the navigation
-2. Fill out the project information
-3. Add team details and social links
-4. Choose Free or Premium listing
-5. Submit for community review
+## 📝 Submit a Project
 
-See [Submitting Projects](platform/submitting-projects.md) for detailed instructions.
+Building something? Get it listed:
 
-## Earning $SCORE Tokens
+| Step | Action |
+|------|--------|
+| **1** | Click **Submit Project** |
+| **2** | Fill out project info |
+| **3** | Add team & social links |
+| **4** | Choose Free or Premium |
+| **5** | Submit for review |
 
-Participate in the ecosystem to earn rewards:
+👉 [Full submission guide](platform/submitting-projects.md)
 
-- **Vote on projects** - Earn tokens for each vote
-- **Write helpful comments** - Get rewarded when others upvote your insights
-- **Report scams** - Earn bonus rewards for confirmed reports
-- **Build reputation** - Higher reputation means more earning power
+---
 
-Learn more about [Earning Rewards](token/earning-score.md).
+## 💰 Start Earning
 
-## Network Details
+| Activity | Reward |
+|----------|--------|
+| 🗳️ Vote on projects | $SCORE tokens |
+| 💬 Helpful comments | Bonus when upvoted |
+| 🚨 Report scams | Extra rewards |
+| ⭐ Build reputation | More earning power |
 
-DappScore runs on Base, Coinbase's Layer 2 network.
+👉 [Learn more about rewards](token/earning-score.md)
 
-**Base Mainnet**
-- Chain ID: 8453
-- Block Explorer: [basescan.org](https://basescan.org)
+---
 
-**Base Sepolia (Testnet)**
-- Chain ID: 84532
-- Block Explorer: [sepolia.basescan.org](https://sepolia.basescan.org)
+## ⛓️ Network Details
 
-## Need Help?
+<details>
+<summary><strong>Base Mainnet</strong></summary>
 
-Check out our [FAQ](faq.md) for answers to common questions.
+| | |
+|---|---|
+| **Chain ID** | 8453 |
+| **Explorer** | [basescan.org](https://basescan.org) |
+
+</details>
+
+<details>
+<summary><strong>Base Sepolia (Testnet)</strong></summary>
+
+| | |
+|---|---|
+| **Chain ID** | 84532 |
+| **Explorer** | [sepolia.basescan.org](https://sepolia.basescan.org) |
+
+</details>
+
+---
+
+## ❓ Need Help?
+
+Check our [FAQ](faq.md) for answers to common questions.

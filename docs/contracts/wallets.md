@@ -1,51 +1,91 @@
-# Wallet Addresses
+# 🔐 Official Wallets
 
-This page lists all official DappScore wallet addresses. Always verify addresses before sending any funds.
+All official DappScore wallet addresses. Always verify before sending funds.
 
-## Official Wallets
+{% hint style="danger" %}
+**Security First**: DappScore will NEVER DM you asking for funds. Always verify addresses through this page.
+{% endhint %}
 
-### Payment Receiver
+---
+
+## 💳 Payment Receiver
+
 Receives USDC payments for premium listings.
 
-| Network | Address |
-|---------|---------|
-| Base Sepolia | `0x3b4368820c0A03ebd2B5C688b3CBC0A3B31C41B7` |
-| Base Mainnet | `0x3b4368820c0A03ebd2B5C688b3CBC0A3B31C41B7` |
+```
+0x3b4368820c0A03ebd2B5C688b3CBC0A3B31C41B7
+```
 
-### Protocol Fees
+| Network | Status |
+|---------|--------|
+| Base Mainnet | ✅ Active |
+| Base Sepolia | ✅ Active |
+
+---
+
+## 📊 Protocol Fees
+
 Collects protocol fees from platform operations.
 
-| Network | Address |
-|---------|---------|
-| Base Sepolia | `0x657Ec34e6C3958b54Ca7Cb2343e75371C20a2e73` |
-| Base Mainnet | `0x657Ec34e6C3958b54Ca7Cb2343e75371C20a2e73` |
+```
+0x657Ec34e6C3958b54Ca7Cb2343e75371C20a2e73
+```
 
-### Team Wallet
+| Network | Status |
+|---------|--------|
+| Base Mainnet | ✅ Active |
+| Base Sepolia | ✅ Active |
+
+---
+
+## 👥 Team Wallet
+
 Team allocation and operational expenses.
 
-| Network | Address |
-|---------|---------|
-| Base Sepolia | `0x039B3790f95C282CfBA98A3158677D210652B28d` |
-| Base Mainnet | `0x039B3790f95C282CfBA98A3158677D210652B28d` |
+```
+0x039B3790f95C282CfBA98A3158677D210652B28d
+```
 
-### Deployer
+| Network | Status |
+|---------|--------|
+| Base Mainnet | ✅ Active |
+| Base Sepolia | ✅ Active |
+
+---
+
+## 🔧 Deployer
+
 Contract deployment and upgrades.
 
-| Network | Address |
-|---------|---------|
-| Base Sepolia | `0x0cC77C9d660f2E7D10783014e0e3D510f7307A50` |
-| Base Mainnet | `0x0cC77C9d660f2E7D10783014e0e3D510f7307A50` |
+```
+0x0cC77C9d660f2E7D10783014e0e3D510f7307A50
+```
 
-## Verifying Addresses
+| Network | Status |
+|---------|--------|
+| Base Mainnet | ✅ Active |
+| Base Sepolia | ✅ Active |
 
-Always verify wallet addresses through multiple sources:
+---
 
-1. Check this official documentation
-2. Verify on the DappScore website
-3. Cross-reference with our official social media announcements
+## ✅ How to Verify
 
-## Security Notice
+| Step | Action |
+|------|--------|
+| **1** | Check this official documentation |
+| **2** | Verify on [dappscore.io](https://dappscore.io) |
+| **3** | Cross-reference official announcements |
 
-- DappScore team will **never** DM you asking for funds
-- Always double-check addresses before sending any tokens
-- Report any suspicious activity to our team
+---
+
+## 🚨 Security Reminders
+
+| ✅ Do | ❌ Don't |
+|-------|---------|
+| Verify addresses multiple times | Trust DMs about tokens |
+| Use official links only | Send to unverified addresses |
+| Report suspicious activity | Share your private keys |
+
+{% hint style="warning" %}
+When in doubt, reach out through official channels before sending any funds.
+{% endhint %}

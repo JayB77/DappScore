@@ -1,97 +1,126 @@
-# How It Works
+# ⚙️ How It Works
 
-DappScore uses community wisdom to separate legitimate crypto projects from scams. Here's how the platform operates.
+DappScore uses community wisdom to separate legitimate projects from scams.
 
-## The Process
+---
 
-### 1. Projects Get Submitted
+## 🔄 The Process
 
-Anyone can submit a project for community review. Each submission includes:
+### 1️⃣ Projects Get Submitted
 
-- Basic information (name, symbol, category)
-- Project description and links
-- Token details and contract addresses
-- Team information (optional)
-- Social media and community links
+Anyone can submit a project for review:
 
-### 2. Community Votes
+| Required Info | Examples |
+|---------------|----------|
+| 📝 **Basics** | Name, symbol, category |
+| 📄 **Description** | What the project does |
+| 🔗 **Links** | Website, socials, contracts |
+| 👥 **Team** | Optional but recommended |
 
-Connected wallet holders vote on each project:
+---
 
-- **Trust** - You believe this project is legitimate
-- **Distrust** - You have concerns about this project
+### 2️⃣ Community Votes
 
-Every vote matters, and votes from experienced community members carry more weight.
+| Vote | Meaning |
+|------|---------|
+| ✅ **Trust** | You believe this project is legitimate |
+| ❌ **Distrust** | You have concerns about this project |
 
-### 3. Comments & Discussion
+{% hint style="info" %}
+Votes from experienced community members carry more weight!
+{% endhint %}
 
-Users share their research and opinions through comments:
+---
 
-- Explain why you voted the way you did
-- Share evidence and analysis
-- Link to relevant sources
-- Upload screenshots as proof
+### 3️⃣ Discussion & Evidence
 
-Good comments get upvoted. Spam or misleading info gets downvoted.
+Users share research through comments:
 
-### 4. Trust Scores Emerge
+| Action | Purpose |
+|--------|---------|
+| 💬 **Comment** | Explain your reasoning |
+| 📸 **Screenshot** | Upload proof |
+| 🔗 **Link** | Cite sources |
+| ⬆️ **Upvote** | Highlight helpful info |
 
-Each project receives a trust score based on:
+---
 
-- The ratio of Trust to Distrust votes
-- The reputation of voters (experienced voters count more)
-- The consistency of votes over time
+### 4️⃣ Trust Scores Emerge
 
-### 5. Projects Get Classified
+Scores are calculated from:
 
-Based on community consensus, projects fall into trust levels:
+| Factor | Weight |
+|--------|--------|
+| 📊 **Vote ratio** | Trust vs Distrust |
+| ⭐ **Voter reputation** | Experienced = more weight |
+| ⏰ **Consistency** | Votes over time |
 
-| Trust Level | What It Means |
-|-------------|---------------|
-| **New Listing** | Recently added, still gathering votes |
-| **Trusted** | Strong positive community sentiment |
-| **Neutral** | Mixed feedback, do your own research |
-| **Suspicious** | Red flags identified by community |
-| **Suspected Scam** | Strong negative consensus |
+---
 
-## Free vs Premium Listings
+### 5️⃣ Projects Get Classified
 
-### Free Listing
+| Level | Meaning |
+|-------|---------|
+| 🆕 **New Listing** | Recently added, gathering votes |
+| ✅ **Trusted** | Strong positive consensus |
+| ⚖️ **Neutral** | Mixed feedback, DYOR |
+| ⚠️ **Suspicious** | Red flags identified |
+| 🚨 **Suspected Scam** | Strong negative consensus |
 
-Every project starts with a free listing:
+---
 
-- Appears in the project directory
-- Community voting enabled
-- Position based on trust score
-- No cost to submit
+## 💎 Free vs Premium
 
-### Premium Listing
+<table data-card-size="large" data-view="cards">
+<thead><tr><th></th><th></th></tr></thead>
+<tbody>
+<tr>
+<td><strong>🆓 Free Listing</strong></td>
+<td>
+✓ Listed in directory<br>
+✓ Community voting<br>
+✓ Position by trust score<br>
+✓ $0 cost
+</td>
+</tr>
+<tr>
+<td><strong>⭐ Premium (100 USDC)</strong></td>
+<td>
+✓ Featured 7 days<br>
+✓ Premium badge<br>
+✓ Priority placement<br>
+✓ All free features
+</td>
+</tr>
+</tbody>
+</table>
 
-Projects can upgrade for enhanced visibility:
+{% hint style="warning" %}
+**Note**: Premium only affects visibility, NOT trust scores. Community votes honestly on all projects.
+{% endhint %}
 
-- Featured placement for 7 days
-- Premium badge displayed
-- Priority in search results
-- 100 USDC one-time payment
+---
 
-Premium status doesn't affect trust scores - it's purely for visibility. The community still votes honestly on all projects.
+## 📈 Reputation Levels
 
-## Your Reputation Matters
+| Level | Rep Points | Vote Weight |
+|-------|------------|-------------|
+| 🌱 **New** | 0-99 | 1x |
+| 👤 **Member** | 100-499 | 1x |
+| ⭐ **Active** | 500-999 | 2x |
+| 🏆 **Trusted** | 1000+ | 3x |
 
-As you participate, you build reputation:
+{% hint style="success" %}
+Higher reputation = more influence on project scores!
+{% endhint %}
 
-| Level | Reputation | Your Vote Weight |
-|-------|------------|------------------|
-| New | 0-99 | 1x |
-| Member | 100-499 | 1x |
-| Active | 500-999 | 2x |
-| Trusted | 1000+ | 3x |
+---
 
-Higher reputation means your votes have more impact on project scores.
+## 🛡️ Why It Works
 
-## Why It Works
-
-- **Decentralized** - No single entity controls the ratings
-- **Transparent** - All votes are on-chain and verifiable
-- **Incentivized** - Good behavior earns rewards, bad behavior loses reputation
-- **Resistant to manipulation** - Reputation system makes gaming expensive
+| Principle | How |
+|-----------|-----|
+| 🌐 **Decentralized** | No single entity controls ratings |
+| 👁️ **Transparent** | All votes on-chain & verifiable |
+| 💰 **Incentivized** | Good behavior earns rewards |
+| 🔒 **Sybil-resistant** | Reputation makes gaming expensive |

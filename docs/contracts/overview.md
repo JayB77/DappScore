@@ -1,63 +1,97 @@
-# Security
+# 🔒 Security
 
-DappScore takes security seriously. Here's what you need to know to stay safe.
+DappScore takes security seriously. Here's how we keep you safe.
 
-## Smart Contract Security
+---
 
-DappScore is built on audited smart contracts deployed on Base blockchain (Coinbase's Layer 2).
+## 🛡️ Smart Contract Security
 
-### Contract Audits
+DappScore is built on Base blockchain (Coinbase's Layer 2).
 
-Smart contract audits will be conducted before mainnet launch by reputable security firms. All audit reports will be published publicly.
+| Aspect | Status |
+|--------|--------|
+| 📋 **Audits** | Before mainnet launch |
+| 📖 **Open Source** | All contracts public |
+| 🔍 **Verifiable** | Check on BaseScan |
 
-### Open Source
+{% hint style="info" %}
+Audit reports will be published publicly when available.
+{% endhint %}
 
-All DappScore smart contracts are open source and publicly verifiable. Transparency is core to our mission.
+---
 
-## Protecting Yourself
+## 🦊 Protecting Yourself
 
-### Wallet Safety
+### ✅ Wallet Safety
 
-- **Never share your private key or seed phrase** - DappScore will never ask for these
-- **Verify you're on the official site** - Always check the URL is `dappscore.io`
-- **Review transactions carefully** - Check amounts and addresses before signing
+| ✅ Do | ❌ Don't |
+|-------|---------|
+| Verify URL is `dappscore.io` | Share private keys |
+| Review transactions before signing | Click suspicious links |
+| Use hardware wallet for large amounts | Trust unsolicited DMs |
 
-### Avoiding Scams
+---
 
-- **DappScore team will never DM you first** - Ignore unsolicited messages
-- **We don't do airdrops via DMs** - These are always scams
-- **Verify addresses through multiple sources** - Check our [Official Wallets](wallets.md)
+### 🚨 Avoiding Scams
 
-### What We Do Ask For
+{% hint style="danger" %}
+**Red Flags**
 
-When using DappScore, you may be asked to:
+- ❌ DappScore team will NEVER DM you first
+- ❌ We don't do airdrops via DMs
+- ❌ Never send tokens to "verify" your wallet
+{% endhint %}
 
-- **Connect your wallet** - To vote, comment, or submit projects
-- **Sign messages** - To verify ownership (costs no gas)
-- **Approve transactions** - To send USDC for premium listings
+---
 
-We will **never** ask you to:
+## ✅ What We Ask For
 
-- Send tokens to random addresses
-- Share your seed phrase
-- Sign transactions on suspicious sites
+**Legitimate requests:**
 
-## Official Channels
+| Action | When |
+|--------|------|
+| 🔗 Connect wallet | Voting, commenting, submitting |
+| ✍️ Sign message | Ownership verification (free) |
+| 💳 Approve tx | Premium listing payment |
 
-Only trust information from these official sources:
+**We NEVER ask for:**
 
-- **Website**: [dappscore.io](https://dappscore.io)
-- **Documentation**: [docs.dappscore.io](https://docs.dappscore.io)
+- 🚫 Your seed phrase
+- 🚫 Tokens to random addresses
+- 🚫 Transactions on other sites
 
-More official channels coming soon (Twitter, Discord).
+---
 
-## Reporting Issues
+## 🔗 Official Channels
 
-If you discover a security vulnerability or encounter a scam, please report it immediately. Contact information coming soon.
+| Channel | Link |
+|---------|------|
+| 🌐 **Website** | [dappscore.io](https://dappscore.io) |
+| 📚 **Docs** | [docs.dappscore.io](https://docs.dappscore.io) |
+| 🐦 **Twitter** | Coming soon |
+| 💬 **Discord** | Coming soon |
 
-## Platform Status
+{% hint style="warning" %}
+Only trust information from official sources listed above.
+{% endhint %}
+
+---
+
+## 🐛 Reporting Issues
+
+Found a vulnerability or scam?
+
+| Type | Action |
+|------|--------|
+| 🔒 Security bug | Contact via official channels |
+| 🚨 Scam project | Use "Report" button on project page |
+| 🐛 Platform bug | Report through official channels |
+
+---
+
+## 📊 Platform Status
 
 | Network | Status |
 |---------|--------|
-| Base Sepolia (Testnet) | Live |
-| Base Mainnet | Coming Soon |
+| Base Sepolia | ✅ Live |
+| Base Mainnet | 🔜 Coming Soon |
