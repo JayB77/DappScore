@@ -65,23 +65,23 @@ export function Footer() {
             <h3 className="text-white font-semibold mb-4">Resources</h3>
             <ul className="space-y-2">
               <li>
-                <a href="#" className="text-gray-400 hover:text-yellow-500 transition-colors">
+                <a href="https://docs.dappscore.io" target="_blank" rel="noopener noreferrer" className="text-gray-400 hover:text-yellow-500 transition-colors">
                   Documentation
                 </a>
               </li>
               <li>
-                <a href="#" className="text-gray-400 hover:text-yellow-500 transition-colors">
+                <a href="https://docs.dappscore.io/token/tokenomics" target="_blank" rel="noopener noreferrer" className="text-gray-400 hover:text-yellow-500 transition-colors">
                   Tokenomics
                 </a>
               </li>
               <li>
-                <a href="#" className="text-gray-400 hover:text-yellow-500 transition-colors">
-                  Whitepaper
+                <a href="https://docs.dappscore.io/resources/wallets" target="_blank" rel="noopener noreferrer" className="text-gray-400 hover:text-yellow-500 transition-colors">
+                  Official Wallets
                 </a>
               </li>
               <li>
-                <a href="#" className="text-gray-400 hover:text-yellow-500 transition-colors">
-                  Smart Contracts
+                <a href="https://docs.dappscore.io/faq" target="_blank" rel="noopener noreferrer" className="text-gray-400 hover:text-yellow-500 transition-colors">
+                  FAQ
                 </a>
               </li>
             </ul>

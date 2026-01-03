@@ -47,7 +47,7 @@ We will **never** ask you to:
 Only trust information from these official sources:
 
 - **Website**: [dappscore.io](https://dappscore.io)
-- **Documentation**: This GitBook
+- **Documentation**: [docs.dappscore.io](https://docs.dappscore.io)
 
 More official channels coming soon (Twitter, Discord).
 
