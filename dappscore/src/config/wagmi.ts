@@ -12,7 +12,7 @@ export const config = getDefaultConfig({
 export const PREMIUM_LISTING_PRICE = BigInt(100_000000); // 100 USDC
 
 // Payment receiver address (your wallet to receive payments)
-export const PAYMENT_RECEIVER = '0x0000000000000000000000000000000000000000'; // TODO: Set your address
+export const PAYMENT_RECEIVER = '0x3b4368820c0A03ebd2B5C688b3CBC0A3B31C41B7';
 
 // Contract addresses (update after deployment)
 export const CONTRACT_ADDRESSES = {
