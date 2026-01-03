@@ -1,78 +1,97 @@
-# Platform Overview
+# How It Works
 
-DappScore is a community-driven platform for vetting crypto projects on Base blockchain.
+DappScore uses community wisdom to separate legitimate crypto projects from scams. Here's how the platform operates.
 
-## How It Works
+## The Process
 
-### 1. Project Submission
-Anyone can submit a project for community review. Submissions include:
-- Basic info (name, symbol, category, description)
-- Token details (supply, blockchain, contract addresses)
-- Team information
-- Social links and resources
+### 1. Projects Get Submitted
 
-### 2. Community Voting
-Connected wallet holders can vote on projects:
-- **Upvote** - You trust this project
-- **Downvote** - You have concerns about this project
+Anyone can submit a project for community review. Each submission includes:
 
-Votes are weighted by the voter's reputation score.
+- Basic information (name, symbol, category)
+- Project description and links
+- Token details and contract addresses
+- Team information (optional)
+- Social media and community links
 
-### 3. Comments & Evidence
-Users can leave detailed comments with:
-- Text feedback and analysis
-- Image attachments for evidence
-- Links to sources
+### 2. Community Votes
 
-Comments can be upvoted/downvoted, affecting the commenter's reputation.
+Connected wallet holders vote on each project:
 
-### 4. Trust Scores
-Projects receive a trust score based on:
-- Ratio of upvotes to downvotes
-- Quality of voter reputation
-- Age and consistency of votes
+- **Trust** - You believe this project is legitimate
+- **Distrust** - You have concerns about this project
 
-### 5. Trust Levels
+Every vote matters, and votes from experienced community members carry more weight.
 
-| Level | Description |
-|-------|-------------|
-| New Listing | Recently submitted, insufficient data |
-| Trusted | Positive community sentiment |
-| Neutral | Mixed or limited feedback |
-| Suspicious | Concerning signals identified |
-| Suspected Scam | Strong negative consensus |
-| Probable Scam | Confirmed red flags |
+### 3. Comments & Discussion
 
-## Premium vs Free Listings
+Users share their research and opinions through comments:
+
+- Explain why you voted the way you did
+- Share evidence and analysis
+- Link to relevant sources
+- Upload screenshots as proof
+
+Good comments get upvoted. Spam or misleading info gets downvoted.
+
+### 4. Trust Scores Emerge
+
+Each project receives a trust score based on:
+
+- The ratio of Trust to Distrust votes
+- The reputation of voters (experienced voters count more)
+- The consistency of votes over time
+
+### 5. Projects Get Classified
+
+Based on community consensus, projects fall into trust levels:
+
+| Trust Level | What It Means |
+|-------------|---------------|
+| **New Listing** | Recently added, still gathering votes |
+| **Trusted** | Strong positive community sentiment |
+| **Neutral** | Mixed feedback, do your own research |
+| **Suspicious** | Red flags identified by community |
+| **Suspected Scam** | Strong negative consensus |
+
+## Free vs Premium Listings
 
 ### Free Listing
-- Listed in directory
+
+Every project starts with a free listing:
+
+- Appears in the project directory
 - Community voting enabled
 - Position based on trust score
-- $0 cost
+- No cost to submit
 
 ### Premium Listing
-- Featured at top for 7 days
+
+Projects can upgrade for enhanced visibility:
+
+- Featured placement for 7 days
 - Premium badge displayed
-- Priority review
-- 100 USDC payment
+- Priority in search results
+- 100 USDC one-time payment
 
-## Reputation System
+Premium status doesn't affect trust scores - it's purely for visibility. The community still votes honestly on all projects.
 
-Users build reputation through quality contributions:
+## Your Reputation Matters
 
-| Reputation Level | Range | Vote Weight |
-|-----------------|-------|-------------|
+As you participate, you build reputation:
+
+| Level | Reputation | Your Vote Weight |
+|-------|------------|------------------|
 | New | 0-99 | 1x |
 | Member | 100-499 | 1x |
 | Active | 500-999 | 2x |
 | Trusted | 1000+ | 3x |
 
-Earn reputation by:
-- Voting on projects (+5)
-- Comments that get upvoted (+10 per upvote)
-- Reporting confirmed scams (+100)
+Higher reputation means your votes have more impact on project scores.
 
-Lose reputation by:
-- Comments that get downvoted (-5 per downvote)
-- False reports (-50)
+## Why It Works
+
+- **Decentralized** - No single entity controls the ratings
+- **Transparent** - All votes are on-chain and verifiable
+- **Incentivized** - Good behavior earns rewards, bad behavior loses reputation
+- **Resistant to manipulation** - Reputation system makes gaming expensive

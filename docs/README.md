@@ -1,39 +1,64 @@
-# DappScore
-
-**Community-Driven Crypto Project Vetting Platform**
-
-DappScore is a decentralized platform where the community votes, comments, and helps separate legitimate crypto projects from scams. Earn $SCORE tokens for contributing to the ecosystem.
+# Introduction
 
 ## What is DappScore?
 
-DappScore provides a transparent, community-driven way to evaluate blockchain projects. Unlike traditional rating systems controlled by centralized entities, DappScore leverages the wisdom of the crowd and on-chain reputation to surface trustworthy projects.
+DappScore is a community-driven platform for discovering and evaluating blockchain projects. We help crypto users make informed decisions by providing transparent trust scores, community reviews, and verified project information.
 
-### Key Features
+In a space filled with scams, rug pulls, and unreliable projects, DappScore serves as your trusted guide. Our community of voters evaluates every project, creating a crowdsourced reputation system that rewards legitimate projects and exposes bad actors.
 
-- **Community Voting** - Upvote or downvote projects based on your research
-- **Reputation System** - Earn reputation through quality contributions
-- **Evidence-Based Comments** - Attach images and proof to support your claims
-- **Premium Listings** - Projects can pay for featured placement
-- **On-Chain Transparency** - All votes and data stored on Base blockchain
+## The Problem
 
-## Quick Links
+The cryptocurrency space has a trust problem:
 
-- [Getting Started](getting-started.md)
-- [Platform Overview](platform/overview.md)
-- [$SCORE Token](token/score-token.md)
-- [Smart Contracts](contracts/overview.md)
-- [FAQ](faq.md)
+- **Scams are everywhere** - Rug pulls, honeypots, and fake projects steal billions from investors every year
+- **No accountability** - Bad actors disappear without consequences
+- **Information asymmetry** - Regular users lack the tools to properly evaluate projects
+- **Paid promotions** - Many "reviews" are actually paid advertisements
 
-## Networks
+## Our Solution
 
-| Network | Status |
-|---------|--------|
-| Base Sepolia (Testnet) | Live |
-| Base Mainnet | Coming Soon |
+DappScore addresses these issues through:
+
+- **Community Voting** - Real users vote on projects, creating authentic trust scores
+- **Reputation System** - Voters build reputation over time, making manipulation difficult
+- **Verified Information** - Project details are verified and tracked on-chain
+- **Incentivized Honesty** - $SCORE token rewards accurate voting and penalizes bad behavior
+
+## How It Works
+
+1. **Projects Submit** - Teams submit their projects with verified details
+2. **Community Votes** - Users research and vote on project legitimacy
+3. **Scores Emerge** - Trust scores reflect genuine community sentiment
+4. **Rewards Flow** - Accurate voters earn $SCORE tokens
+
+## Key Features
+
+- **Trust Scores** - Every project gets a community-generated trust score
+- **Detailed Reviews** - Read what real users think about each project
+- **Project Tracking** - Monitor project updates, team changes, and red flags
+- **Premium Listings** - Verified projects can boost visibility
+- **Scam Alerts** - Community-flagged warnings on suspicious projects
+
+## Built on Base
+
+DappScore is built on Base, Coinbase's Layer 2 network. This means:
+
+- Low transaction fees
+- Fast confirmations
+- Ethereum security
+- Easy onboarding from Coinbase
+
+## Get Started
+
+Ready to explore? Here's how to begin:
+
+- [Connect your wallet](getting-started.md) and explore projects
+- [Learn about voting](platform/voting-reputation.md) and earn rewards
+- [Understand the $SCORE token](token/score-token.md) and tokenomics
+- [Submit your project](platform/submitting-projects.md) if you're a builder
 
 ## Links
 
 - **Website**: [dappscore.io](https://dappscore.io)
-- **Twitter**: Coming Soon
-- **Discord**: Coming Soon
-- **GitHub**: [ICO-Trust/platform_private](https://github.com/ICO-Trust/platform_private)
+- **Network**: Base (Coinbase L2)
+- **Status**: Live on Testnet

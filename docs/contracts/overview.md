@@ -1,67 +1,63 @@
-# Contract Overview
+# Security
 
-DappScore is built on a suite of smart contracts deployed on Base blockchain.
+DappScore takes security seriously. Here's what you need to know to stay safe.
 
-## Architecture
+## Smart Contract Security
 
-```
-┌─────────────────────────────────────────────────────────────┐
-│                        DappScore                             │
-├─────────────────────────────────────────────────────────────┤
-│  ┌─────────────┐  ┌─────────────┐  ┌─────────────────────┐  │
-│  │ ScoreToken  │  │  Voting     │  │  Premium Listings   │  │
-│  │   (ERC20)   │  │   Engine    │  │                     │  │
-│  └─────────────┘  └─────────────┘  └─────────────────────┘  │
-│         │               │                    │               │
-│         └───────────────┴────────────────────┘               │
-│                         │                                    │
-│              ┌─────────────────────┐                         │
-│              │  Project Registry   │                         │
-│              └─────────────────────┘                         │
-└─────────────────────────────────────────────────────────────┘
-```
+DappScore is built on audited smart contracts deployed on Base blockchain (Coinbase's Layer 2).
 
-## Deployed Contracts
+### Contract Audits
 
-### Base Sepolia (Testnet)
+Smart contract audits will be conducted before mainnet launch by reputable security firms. All audit reports will be published publicly.
 
-| Contract | Address | Status |
-|----------|---------|--------|
-| USDC (Circle) | `0x036CbD53842c5426634e7929541eC2318f3dCF7e` | External |
-| ScoreToken | Coming Soon | Pending |
-| ProjectRegistry | Coming Soon | Pending |
-| VotingEngine | Coming Soon | Pending |
-| PremiumListings | Coming Soon | Pending |
+### Open Source
 
-### Base Mainnet
+All DappScore smart contracts are open source and publicly verifiable. Transparency is core to our mission.
 
-| Contract | Address | Status |
-|----------|---------|--------|
-| USDC (Circle) | `0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913` | External |
-| ScoreToken | Coming Soon | Pending |
-| ProjectRegistry | Coming Soon | Pending |
-| VotingEngine | Coming Soon | Pending |
-| PremiumListings | Coming Soon | Pending |
+## Protecting Yourself
 
-## Contract Descriptions
+### Wallet Safety
 
-### ScoreToken
-ERC-20 token with a max supply of 100,000,000 $SCORE. Used for governance, staking, and rewards.
+- **Never share your private key or seed phrase** - DappScore will never ask for these
+- **Verify you're on the official site** - Always check the URL is `dappscore.io`
+- **Review transactions carefully** - Check amounts and addresses before signing
 
-### ProjectRegistry
-Stores all project submissions with metadata, ownership, and verification status.
+### Avoiding Scams
 
-### VotingEngine
-Handles upvotes/downvotes with reputation-weighted voting power.
+- **DappScore team will never DM you first** - Ignore unsolicited messages
+- **We don't do airdrops via DMs** - These are always scams
+- **Verify addresses through multiple sources** - Check our [Official Wallets](wallets.md)
 
-### PremiumListings
-Manages featured listings and USDC payments.
+### What We Do Ask For
 
-## Audits
+When using DappScore, you may be asked to:
 
-Smart contract audits will be conducted before mainnet launch. Audit reports will be published here.
+- **Connect your wallet** - To vote, comment, or submit projects
+- **Sign messages** - To verify ownership (costs no gas)
+- **Approve transactions** - To send USDC for premium listings
 
-## Open Source
+We will **never** ask you to:
 
-All contracts are open source and available on GitHub:
-- [View Contracts](https://github.com/ICO-Trust/platform_private/tree/main/contracts)
+- Send tokens to random addresses
+- Share your seed phrase
+- Sign transactions on suspicious sites
+
+## Official Channels
+
+Only trust information from these official sources:
+
+- **Website**: [dappscore.io](https://dappscore.io)
+- **Documentation**: This GitBook
+
+More official channels coming soon (Twitter, Discord).
+
+## Reporting Issues
+
+If you discover a security vulnerability or encounter a scam, please report it immediately. Contact information coming soon.
+
+## Platform Status
+
+| Network | Status |
+|---------|--------|
+| Base Sepolia (Testnet) | Live |
+| Base Mainnet | Coming Soon |
