@@ -1,80 +1,104 @@
-# Token Sale
+# 🎫 Token Sale
 
-Information about the $SCORE token public sale.
+Join the $SCORE public sale and become part of the DappScore community.
 
-## Sale Details
+---
 
-| Parameter | Value |
-|-----------|-------|
-| Token | $SCORE |
-| Network | Base |
-| Total for Sale | 30,000,000 (30%) |
-| Vesting | None (fully unlocked at TGE) |
+## 📊 Sale Overview
 
-## Sale Phases
+| | |
+|---|---|
+| **Token** | $SCORE |
+| **Network** | Base (Coinbase L2) |
+| **Total Supply** | 100,000,000 |
+| **For Sale** | 30,000,000 (30%) |
+| **Vesting** | None - fully unlocked |
 
-### Phase 1: Early Access
-- **Allocation**: 10,000,000 $SCORE
-- **Price**: TBD
-- **Eligibility**: Whitelist holders
+---
 
-### Phase 2: Public Sale
-- **Allocation**: 20,000,000 $SCORE
-- **Price**: TBD
-- **Eligibility**: Open to all
+## 💰 Public Sale
 
-## How to Participate
+The entire token sale is open to everyone. No whitelist, no early access - fair launch for all.
 
-1. Visit [dappscore.io/token-sale](https://dappscore.io/token-sale)
-2. Connect your wallet
-3. Ensure you have USDC or ETH on Base
-4. Enter amount to purchase
-5. Confirm transaction
-6. Tokens delivered to your wallet
+| | |
+|---|---|
+| **Allocation** | 30,000,000 $SCORE |
+| **Price** | TBD |
+| **Min Purchase** | $50 |
+| **Max Purchase** | $5,000 |
 
-## Payment Methods
+{% hint style="info" %}
+**Fair Launch** - Everyone has equal opportunity. No private rounds, no VC allocation.
+{% endhint %}
 
-- USDC on Base
-- ETH on Base
+---
 
-## Token Delivery
+## 🛒 How to Buy
 
-Tokens are delivered immediately upon purchase confirmation. No claiming required.
+<details>
+<summary><strong>Step-by-step guide</strong></summary>
 
-## Important Dates
+1. **Visit** [dappscore.io/token-sale](https://dappscore.io/token-sale)
+2. **Connect** your wallet (MetaMask, Coinbase Wallet, etc.)
+3. **Switch** to Base network if prompted
+4. **Enter** the amount you want to purchase
+5. **Confirm** the transaction in your wallet
+6. **Receive** tokens instantly - no claiming needed!
+
+</details>
+
+---
+
+## 💳 Payment Methods
+
+| Method | Network |
+|--------|---------|
+| USDC | Base |
+| ETH | Base |
+
+{% hint style="warning" %}
+**Important**: Make sure you have ETH on Base for gas fees, even when paying with USDC.
+{% endhint %}
+
+---
+
+## 📅 Timeline
 
 | Event | Date |
 |-------|------|
-| Whitelist Opens | TBA |
-| Phase 1 Start | TBA |
-| Phase 1 End | TBA |
-| Phase 2 Start | TBA |
-| Phase 2 End | TBA |
+| Sale Announcement | TBA |
+| Sale Start | TBA |
+| Sale End | TBA |
+| DEX Listing | TBA |
 
-## Whitelist
+---
 
-To get whitelisted:
-- Join Discord (coming soon)
-- Follow on Twitter (coming soon)
-- Complete required tasks
+## 🔒 Security
 
-## Purchase Limits
+{% hint style="danger" %}
+**Protect Yourself**
 
-| Phase | Min | Max |
-|-------|-----|-----|
-| Phase 1 | $100 | $10,000 |
-| Phase 2 | $50 | $5,000 |
+- ✅ Only buy through [dappscore.io](https://dappscore.io)
+- ✅ Verify contract addresses in our [Official Wallets](../contracts/wallets.md)
+- ❌ Never send tokens to random addresses
+- ❌ Never trust DMs offering tokens
+{% endhint %}
 
-## Security
+---
 
-- Never send tokens to random addresses
-- Only purchase through official dappscore.io
-- Verify contract addresses in our docs
-- Beware of scams and fake sales
+## 🚀 After the Sale
 
-## Post-Sale
+Once the sale concludes:
 
-After the sale ends:
-- Liquidity will be added to DEXs
-- Trading will be enabled
-- Staking will go live
+| Milestone | Description |
+|-----------|-------------|
+| **Liquidity** | Added to decentralized exchanges |
+| **Trading** | $SCORE becomes freely tradeable |
+| **Staking** | Earn rewards by staking tokens |
+| **Governance** | Vote on platform decisions |
+
+---
+
+## ❓ Questions?
+
+Check our [FAQ](../faq.md) or reach out on our official channels (coming soon).

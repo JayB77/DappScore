@@ -1,61 +1,118 @@
-# Getting Started
+# 🎮 Getting Started
 
-Welcome to DappScore! This guide will help you get started with the platform.
+Welcome to DappScore! Let's get you set up in minutes.
 
-## Prerequisites
+---
 
-- A Web3 wallet (MetaMask, Coinbase Wallet, or any WalletConnect-compatible wallet)
-- Some ETH on Base network for gas fees
-- USDC on Base (for premium listings only)
+## 📋 What You'll Need
 
-## Connecting Your Wallet
+| Requirement | Details |
+|-------------|---------|
+| 🦊 **Wallet** | MetaMask, Coinbase Wallet, Rainbow, etc. |
+| ⛽ **ETH on Base** | Small amount for gas (< $0.01 per tx) |
+| 💵 **USDC** | Only for premium listings (optional) |
+
+---
+
+## 🔗 Connect Your Wallet
+
+<details>
+<summary><strong>Step-by-step instructions</strong></summary>
 
 1. Visit [dappscore.io](https://dappscore.io)
-2. Click **Connect Wallet** in the top right
-3. Select your preferred wallet
-4. Approve the connection request
+2. Click **Connect Wallet** (top right)
+3. Select your wallet from the list
+4. Approve the connection
 5. Switch to Base network if prompted
 
-## Browsing Projects
+</details>
 
-Once connected, you can:
+{% hint style="success" %}
+**That's it!** You're now connected and ready to explore.
+{% endhint %}
 
-- **Browse** - View all listed projects at `/projects`
-- **Search** - Search by project name, token symbol, or contract address
-- **Filter** - Filter by category, trust level, or sort by various criteria
-- **Vote** - Upvote projects you trust, downvote suspicious ones
+---
 
-## Submitting a Project
+## 🔍 Explore Projects
 
-Anyone can submit a project for community review:
+| Action | How |
+|--------|-----|
+| 📋 **Browse** | Visit [dappscore.io/projects](https://dappscore.io/projects) |
+| 🔎 **Search** | By name, symbol, or contract address |
+| 🏷️ **Filter** | By category, trust level, or date |
+| 📖 **Research** | Read comments and vote history |
 
-1. Go to **Submit Project**
-2. Fill out the required information (Name, Symbol, Category, Description)
-3. Add optional details (team, links, contract addresses)
-4. Choose Free or Premium listing
-5. Submit and let the community evaluate
+---
 
-See [Submitting Projects](platform/submitting-projects.md) for detailed instructions.
+## 🗳️ Cast Your First Vote
 
-## Earning $SCORE
+| Step | Action |
+|------|--------|
+| **1** | Navigate to any project |
+| **2** | Review details and comments |
+| **3** | Click **Trust** ✅ or **Distrust** ❌ |
+| **4** | Add a comment (optional) |
+| **5** | Earn $SCORE tokens! 🪙 |
 
-Participate in the ecosystem to earn $SCORE tokens:
+{% hint style="info" %}
+**Pro Tip**: Write helpful comments to earn extra rewards when others upvote them!
+{% endhint %}
 
-- Vote on projects (+10 $SCORE per vote)
-- Write quality comments that get upvoted
-- Report scams that get confirmed
-- Stake $SCORE for additional rewards
+---
 
-See [Earning $SCORE](token/earning-score.md) for more details.
+## 📝 Submit a Project
 
-## Network Information
+Building something? Get it listed:
 
-### Base Sepolia (Testnet)
-- **Chain ID**: 84532
-- **RPC URL**: https://sepolia.base.org
-- **Block Explorer**: https://sepolia.basescan.org
+| Step | Action |
+|------|--------|
+| **1** | Click **Submit Project** |
+| **2** | Fill out project info |
+| **3** | Add team & social links |
+| **4** | Choose Free or Premium |
+| **5** | Submit for review |
 
-### Base Mainnet
-- **Chain ID**: 8453
-- **RPC URL**: https://mainnet.base.org
-- **Block Explorer**: https://basescan.org
+👉 [Full submission guide](platform/submitting-projects.md)
+
+---
+
+## 💰 Start Earning
+
+| Activity | Reward |
+|----------|--------|
+| 🗳️ Vote on projects | $SCORE tokens |
+| 💬 Helpful comments | Bonus when upvoted |
+| 🚨 Report scams | Extra rewards |
+| ⭐ Build reputation | More earning power |
+
+👉 [Learn more about rewards](token/earning-score.md)
+
+---
+
+## ⛓️ Network Details
+
+<details>
+<summary><strong>Base Mainnet</strong></summary>
+
+| | |
+|---|---|
+| **Chain ID** | 8453 |
+| **Explorer** | [basescan.org](https://basescan.org) |
+
+</details>
+
+<details>
+<summary><strong>Base Sepolia (Testnet)</strong></summary>
+
+| | |
+|---|---|
+| **Chain ID** | 84532 |
+| **Explorer** | [sepolia.basescan.org](https://sepolia.basescan.org) |
+
+</details>
+
+---
+
+## ❓ Need Help?
+
+Check our [FAQ](faq.md) for answers to common questions.
