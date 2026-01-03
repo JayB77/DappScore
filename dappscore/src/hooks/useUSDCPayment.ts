@@ -63,11 +63,6 @@ export function useUSDCPayment() {
       return false;
     }
 
-    if (PAYMENT_RECEIVER === '0x0000000000000000000000000000000000000000') {
-      setError('Payment receiver not configured');
-      return false;
-    }
-
     try {
       setStatus('transferring');
       setError(null);
