@@ -3,7 +3,7 @@ import { base, baseSepolia } from 'wagmi/chains';
 
 export const config = getDefaultConfig({
   appName: 'DappScore',
-  projectId: process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID || 'YOUR_PROJECT_ID',
+  projectId: '621bdd56c6b4f8f819a93e0353018b98',
   chains: [base, baseSepolia],
   ssr: true,
 });
