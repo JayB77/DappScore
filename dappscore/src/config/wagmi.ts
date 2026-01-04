@@ -23,6 +23,7 @@ export const CONTRACT_ADDRESSES = {
   // Base Mainnet
   [base.id]: {
     usdc: '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913', // Official Base USDC
+    usdt: '0xfde4C96c8593536E31F229EA8f37b2ADa2699bb2', // Bridged USDT on Base
     scoreToken: '0x0000000000000000000000000000000000000000',
     projectRegistry: '0x0000000000000000000000000000000000000000',
     votingEngine: '0x0000000000000000000000000000000000000000',
@@ -32,6 +33,7 @@ export const CONTRACT_ADDRESSES = {
   // Base Sepolia (testnet)
   [baseSepolia.id]: {
     usdc: '0x036CbD53842c5426634e7929541eC2318f3dCF7e', // Base Sepolia USDC
+    usdt: '0x0000000000000000000000000000000000000000', // No official testnet USDT - deploy mock
     scoreToken: '0x0000000000000000000000000000000000000000',
     projectRegistry: '0x0000000000000000000000000000000000000000',
     votingEngine: '0x0000000000000000000000000000000000000000',
@@ -39,6 +41,15 @@ export const CONTRACT_ADDRESSES = {
     tokenSale: '0x0000000000000000000000000000000000000000',
   },
 } as const;
+
+// Payment methods supported
+export type PaymentMethod = 'ETH' | 'USDC' | 'USDT';
+
+export const PAYMENT_METHODS: { id: PaymentMethod; name: string; decimals: number }[] = [
+  { id: 'ETH', name: 'Ethereum', decimals: 18 },
+  { id: 'USDC', name: 'USD Coin', decimals: 6 },
+  { id: 'USDT', name: 'Tether', decimals: 6 },
+];
 
 // ERC20 ABI for USDC transfers
 export const ERC20_ABI = [

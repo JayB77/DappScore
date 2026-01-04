@@ -1,9 +1,27 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useAccount } from 'wagmi';
+import { useAccount, useBalance } from 'wagmi';
 import { ConnectButton } from '@rainbow-me/rainbowkit';
-import { Coins, Clock, Users, Target, Wallet, Sparkles, Shield, TrendingUp } from 'lucide-react';
+import { Coins, Clock, Users, Target, Wallet, Sparkles, Shield, TrendingUp, ChevronDown, Gift, Zap } from 'lucide-react';
+import { type PaymentMethod, PAYMENT_METHODS } from '@/config/wagmi';
+
+type Stage = 1 | 2 | 3;
+
+interface StageInfo {
+  stage: Stage;
+  name: string;
+  price: number;
+  discount: string;
+  allocation: number;
+  color: string;
+}
+
+const stages: StageInfo[] = [
+  { stage: 1, name: 'Early Bird', price: 0.008, discount: '20% OFF', allocation: 166666, color: 'green' },
+  { stage: 2, name: 'Growth', price: 0.009, discount: '10% OFF', allocation: 166667, color: 'blue' },
+  { stage: 3, name: 'Public', price: 0.01, discount: 'Full Price', allocation: 166667, color: 'yellow' },
+];
 
 function CountdownTimer({ endTime }: { endTime: number }) {
   const [timeLeft, setTimeLeft] = useState({ days: 0, hours: 0, mins: 0, secs: 0 });
@@ -44,39 +62,70 @@ function CountdownTimer({ endTime }: { endTime: number }) {
 }
 
 export default function TokenSalePage() {
-  const { isConnected } = useAccount();
-  const [usdcAmount, setUsdcAmount] = useState('');
+  const { isConnected, address } = useAccount();
+  const [amount, setAmount] = useState('');
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('USDC');
+  const [showPaymentDropdown, setShowPaymentDropdown] = useState(false);
+  const [currentStage] = useState<Stage>(1); // Will be read from contract
 
-  const tokenPrice = 0.01; // $0.01 per token
-  const tokensToReceive = usdcAmount ? (parseFloat(usdcAmount) / tokenPrice).toFixed(0) : '0';
+  const { data: ethBalance } = useBalance({ address });
 
-  // Sale starts in the future (placeholder)
-  const saleStartTime = Math.floor(Date.now() / 1000) + 86400 * 14; // 14 days from now
+  const ethPrice = 3000;
+  const stageInfo = stages.find(s => s.stage === currentStage)!;
+
+  const calculateTokens = () => {
+    if (!amount || isNaN(parseFloat(amount))) return '0';
+    const inputAmount = parseFloat(amount);
+
+    if (paymentMethod === 'ETH') {
+      const usdValue = inputAmount * ethPrice;
+      return Math.floor(usdValue / stageInfo.price).toLocaleString();
+    } else {
+      return Math.floor(inputAmount / stageInfo.price).toLocaleString();
+    }
+  };
+
+  const tokensToReceive = calculateTokens();
+  const saleStartTime = Math.floor(Date.now() / 1000) + 86400 * 14;
 
   const stats = [
-    { label: 'Token Price', value: '$0.01', icon: Target },
-    { label: 'For Sale', value: '30M SCORE', icon: Coins },
-    { label: 'Max Supply', value: '100M', icon: TrendingUp },
-    { label: 'Sale Start', value: 'TBA', icon: Clock },
+    { label: 'Current Price', value: `$${stageInfo.price}`, icon: Target },
+    { label: 'Total For Sale', value: '500K SCORE', icon: Coins },
+    { label: 'Max Per Wallet', value: '$5,000', icon: TrendingUp },
+    { label: 'Min Purchase', value: '$20', icon: Clock },
   ];
 
   const features = [
     {
       icon: Sparkles,
       title: 'Fair Launch',
-      description: 'No private sale, no VCs, no whitelist. Everyone gets equal access at the same price.',
+      description: 'No private sale, no VCs, no whitelist. Everyone gets equal access.',
+    },
+    {
+      icon: Zap,
+      title: '3 Stages',
+      description: 'Early supporters get the best price. Prices increase each stage.',
+    },
+    {
+      icon: Gift,
+      title: 'Claim After Sale',
+      description: 'Tokens are distributed after the sale ends. Everyone claims together.',
     },
     {
       icon: Shield,
-      title: 'No Vesting',
-      description: 'Tokens are fully unlocked immediately. No cliff, no vesting schedule.',
-    },
-    {
-      icon: Users,
-      title: 'Community First',
-      description: '30% of supply available in public sale. 25% reserved for community rewards.',
+      title: 'Investment Cap',
+      description: '$5,000 max per wallet ensures fair distribution.',
     },
   ];
+
+  const getMinMax = () => {
+    if (paymentMethod === 'ETH') {
+      return { min: (20 / ethPrice).toFixed(4), max: (5000 / ethPrice).toFixed(2) };
+    }
+    return { min: '20', max: '5000' };
+  };
+
+  const { min, max } = getMinMax();
 
   return (
     <div className="min-h-screen py-12">
@@ -85,19 +134,61 @@ export default function TokenSalePage() {
         <div className="text-center mb-12">
           <div className="inline-flex items-center space-x-2 bg-yellow-500/10 text-yellow-500 px-4 py-2 rounded-full mb-4">
             <Sparkles className="h-4 w-4" />
-            <span className="text-sm font-medium">Fair Launch</span>
+            <span className="text-sm font-medium">Fair Launch - 3 Stages</span>
           </div>
           <h1 className="text-4xl font-bold mb-4">
             <span className="text-yellow-500">$SCORE</span> Token Sale
           </h1>
           <p className="text-gray-400 max-w-2xl mx-auto">
-            Join the DappScore community. No private rounds, no whitelist - just a fair public sale
-            where everyone has equal opportunity.
+            Join the DappScore community. No private rounds, no whitelist - early supporters get the best price!
           </p>
         </div>
 
+        {/* Stage Progress */}
+        <div className="bg-gray-800 rounded-xl p-6 mb-8">
+          <h3 className="font-bold mb-4 text-center">Sale Stages</h3>
+          <div className="grid grid-cols-3 gap-4">
+            {stages.map((stage) => (
+              <div
+                key={stage.stage}
+                className={`relative rounded-lg p-4 border-2 transition-all ${
+                  currentStage === stage.stage
+                    ? 'border-yellow-500 bg-yellow-500/10'
+                    : currentStage > stage.stage
+                    ? 'border-green-500/50 bg-green-500/5'
+                    : 'border-gray-700 bg-gray-700/30'
+                }`}
+              >
+                {currentStage === stage.stage && (
+                  <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-yellow-500 text-black text-xs font-bold px-2 py-1 rounded">
+                    ACTIVE
+                  </div>
+                )}
+                {currentStage > stage.stage && (
+                  <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-green-500 text-white text-xs font-bold px-2 py-1 rounded">
+                    SOLD OUT
+                  </div>
+                )}
+                <div className="text-center">
+                  <div className="text-sm text-gray-400 mb-1">Stage {stage.stage}</div>
+                  <div className="font-bold text-lg mb-1">{stage.name}</div>
+                  <div className="text-2xl font-bold text-yellow-500">${stage.price}</div>
+                  <div className={`text-sm mt-1 ${
+                    stage.discount === 'Full Price' ? 'text-gray-400' : 'text-green-400'
+                  }`}>
+                    {stage.discount}
+                  </div>
+                  <div className="text-xs text-gray-500 mt-2">
+                    {stage.allocation.toLocaleString()} SCORE
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
         {/* Stats */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-12">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
           {stats.map((stat) => (
             <div key={stat.label} className="bg-gray-800 rounded-lg p-4 text-center">
               <stat.icon className="h-6 w-6 text-yellow-500 mx-auto mb-2" />
@@ -118,50 +209,110 @@ export default function TokenSalePage() {
               <CountdownTimer endTime={saleStartTime} />
             </div>
 
-            {/* Price Info */}
+            {/* Current Stage Price */}
             <div className="bg-gray-700 rounded-lg p-4 mb-6">
               <div className="flex justify-between items-center">
-                <span className="text-gray-400">Token Price</span>
-                <span className="text-2xl font-bold text-yellow-500">$0.01</span>
-              </div>
-              <div className="flex justify-between items-center mt-2">
-                <span className="text-gray-400">Available</span>
-                <span className="text-gray-300">30,000,000 SCORE</span>
+                <div>
+                  <span className="text-gray-400 text-sm">Current Stage</span>
+                  <div className="font-bold">{stageInfo.name}</div>
+                </div>
+                <div className="text-right">
+                  <div className="text-2xl font-bold text-yellow-500">${stageInfo.price}</div>
+                  {stageInfo.discount !== 'Full Price' && (
+                    <span className="text-green-400 text-sm">{stageInfo.discount}</span>
+                  )}
+                </div>
               </div>
             </div>
 
             {isConnected ? (
               <>
                 {/* Fair Launch Badge */}
-                <div className="flex items-center space-x-2 mb-4 p-3 rounded-lg bg-yellow-900/30 text-yellow-400">
-                  <Sparkles className="h-5 w-5" />
-                  <span>Fair launch - no whitelist required!</span>
+                <div className="flex items-center space-x-2 mb-4 p-3 rounded-lg bg-green-900/30 text-green-400">
+                  <Gift className="h-5 w-5" />
+                  <span>Early bird pricing - get more tokens!</span>
+                </div>
+
+                {/* Payment Method Selector */}
+                <div className="mb-4">
+                  <label className="block text-sm text-gray-400 mb-2">Pay with</label>
+                  <div className="relative">
+                    <button
+                      onClick={() => setShowPaymentDropdown(!showPaymentDropdown)}
+                      disabled
+                      className="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-3 text-white flex items-center justify-between disabled:opacity-50"
+                    >
+                      <div className="flex items-center space-x-3">
+                        <span className="text-xl">
+                          {paymentMethod === 'ETH' ? 'Ξ' : paymentMethod === 'USDC' ? '$' : '₮'}
+                        </span>
+                        <span>{PAYMENT_METHODS.find(m => m.id === paymentMethod)?.name}</span>
+                      </div>
+                      <ChevronDown className="h-5 w-5 text-gray-400" />
+                    </button>
+
+                    {showPaymentDropdown && (
+                      <div className="absolute z-10 w-full mt-2 bg-gray-700 border border-gray-600 rounded-lg overflow-hidden">
+                        {PAYMENT_METHODS.map((method) => (
+                          <button
+                            key={method.id}
+                            onClick={() => {
+                              setPaymentMethod(method.id);
+                              setShowPaymentDropdown(false);
+                              setAmount('');
+                            }}
+                            className={`w-full px-4 py-3 text-left hover:bg-gray-600 flex items-center space-x-3 ${
+                              paymentMethod === method.id ? 'bg-gray-600' : ''
+                            }`}
+                          >
+                            <span className="text-xl">
+                              {method.id === 'ETH' ? 'Ξ' : method.id === 'USDC' ? '$' : '₮'}
+                            </span>
+                            <span>{method.name}</span>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
                 </div>
 
                 {/* Purchase Form */}
                 <div className="space-y-4">
                   <div>
-                    <label className="block text-sm text-gray-400 mb-2">Amount (USDC)</label>
+                    <label className="block text-sm text-gray-400 mb-2">
+                      Amount ({paymentMethod})
+                    </label>
                     <input
                       type="number"
-                      value={usdcAmount}
-                      onChange={(e) => setUsdcAmount(e.target.value)}
-                      placeholder="100"
-                      min="50"
-                      max="5000"
-                      step="50"
+                      value={amount}
+                      onChange={(e) => setAmount(e.target.value)}
+                      placeholder={paymentMethod === 'ETH' ? '0.1' : '100'}
+                      min={min}
+                      max={max}
+                      step={paymentMethod === 'ETH' ? '0.001' : '10'}
                       disabled
                       className="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-3 text-white focus:border-yellow-500 focus:outline-none disabled:opacity-50"
                     />
-                    <p className="text-xs text-gray-500 mt-1">Min: $50 | Max: $5,000</p>
+                    <p className="text-xs text-gray-500 mt-1">
+                      Min: {paymentMethod === 'ETH' ? `${min} ETH` : `$${min}`} | Max: {paymentMethod === 'ETH' ? `${max} ETH` : `$${max}`}
+                    </p>
                   </div>
+
+                  {paymentMethod === 'ETH' && ethBalance && (
+                    <div className="text-xs text-gray-500">
+                      Your balance: {parseFloat(ethBalance.formatted).toFixed(4)} ETH
+                    </div>
+                  )}
 
                   <div className="bg-gray-700 rounded-lg p-4">
                     <div className="flex justify-between items-center">
                       <span className="text-gray-400">You will receive</span>
                       <span className="text-xl font-bold text-white">
-                        {parseInt(tokensToReceive).toLocaleString()} SCORE
+                        {tokensToReceive} SCORE
                       </span>
+                    </div>
+                    <div className="text-xs text-gray-500 mt-2">
+                      Tokens will be claimable after the sale ends
                     </div>
                   </div>
 
@@ -182,27 +333,45 @@ export default function TokenSalePage() {
             )}
           </div>
 
-          {/* Right Side - Features & Tokenomics */}
+          {/* Right Side */}
           <div className="space-y-6">
-            {/* Fair Launch Features */}
+            {/* Features */}
             <div className="bg-gray-800 rounded-xl p-6">
-              <h2 className="text-xl font-bold mb-4">Why Fair Launch?</h2>
-              <div className="space-y-4">
+              <h2 className="text-xl font-bold mb-4">How It Works</h2>
+              <div className="grid grid-cols-2 gap-4">
                 {features.map((feature) => (
-                  <div key={feature.title} className="flex items-start space-x-3">
-                    <div className="bg-yellow-500/10 rounded-lg p-2">
-                      <feature.icon className="h-5 w-5 text-yellow-500" />
+                  <div key={feature.title} className="flex flex-col items-center text-center p-3">
+                    <div className="bg-yellow-500/10 rounded-lg p-3 mb-2">
+                      <feature.icon className="h-6 w-6 text-yellow-500" />
                     </div>
-                    <div>
-                      <h3 className="font-semibold text-white">{feature.title}</h3>
-                      <p className="text-sm text-gray-400">{feature.description}</p>
-                    </div>
+                    <h3 className="font-semibold text-white text-sm mb-1">{feature.title}</h3>
+                    <p className="text-xs text-gray-400">{feature.description}</p>
                   </div>
                 ))}
               </div>
             </div>
 
-            {/* Tokenomics Summary */}
+            {/* Accepted Payments */}
+            <div className="bg-gray-800 rounded-xl p-6">
+              <h3 className="font-bold mb-4">Accepted Payments</h3>
+              <div className="grid grid-cols-3 gap-3">
+                {[
+                  { symbol: 'Ξ', name: 'ETH', color: 'bg-blue-500/20 text-blue-400' },
+                  { symbol: '$', name: 'USDC', color: 'bg-green-500/20 text-green-400' },
+                  { symbol: '₮', name: 'USDT', color: 'bg-emerald-500/20 text-emerald-400' },
+                ].map((payment) => (
+                  <div key={payment.name} className={`${payment.color} rounded-lg p-3 text-center`}>
+                    <div className="text-2xl font-bold">{payment.symbol}</div>
+                    <div className="text-sm">{payment.name}</div>
+                  </div>
+                ))}
+              </div>
+              <p className="text-xs text-gray-500 mt-3 text-center">
+                All payments on Base network
+              </p>
+            </div>
+
+            {/* Tokenomics */}
             <div className="bg-gray-800 rounded-xl p-6">
               <h3 className="font-bold mb-4">Token Allocation</h3>
               <div className="space-y-3">
@@ -231,10 +400,10 @@ export default function TokenSalePage() {
               <ol className="space-y-3">
                 {[
                   'Connect your wallet (Base network)',
-                  'Ensure you have USDC on Base',
-                  'Enter the amount you want to purchase',
+                  'Choose payment: ETH, USDC, or USDT',
+                  'Enter amount ($20 min, $5,000 max)',
                   'Confirm the transaction',
-                  'Receive $SCORE tokens instantly',
+                  'Claim tokens after sale ends!',
                 ].map((step, index) => (
                   <li key={index} className="flex items-center space-x-3">
                     <span className="flex-shrink-0 w-6 h-6 bg-yellow-500 text-black rounded-full flex items-center justify-center text-sm font-bold">
