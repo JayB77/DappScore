@@ -4,397 +4,524 @@ pragma solidity ^0.8.24;
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "./ScoreToken.sol";
 
 /**
  * @title TokenSale
- * @notice DappScore's own token sale contract
- * @dev Multi-phase sale with whitelist and public rounds
+ * @notice DappScore's fair launch token sale with 3 stages
+ * @dev Features:
+ *      - 3 stages with increasing prices (incentivizes early participation)
+ *      - Fair launch: no private rounds, no whitelist
+ *      - Multi-currency: ETH, USDC, USDT
+ *      - Per-user investment cap (prevents whales from buying all)
+ *      - Claim-based: tokens are held until sale ends, then users claim
+ *      - All parameters owner-adjustable via contract
  *
- * Sale Phases:
- * 1. Private Sale (whitelist only, best price)
- * 2. Presale (whitelist + KYC, discounted)
- * 3. Public Sale (open to all)
+ * Typical Stage Pricing:
+ *   Stage 1: $0.008 (20% discount - early supporters)
+ *   Stage 2: $0.009 (10% discount - growth phase)
+ *   Stage 3: $0.010 (full price - final sale)
  */
 contract TokenSale is Ownable, ReentrancyGuard {
+    using SafeERC20 for IERC20;
 
-    enum SalePhase {
-        NotStarted,
-        PrivateSale,
-        Presale,
-        PublicSale,
-        Ended
+    // ============ Enums ============
+
+    enum Stage { NotStarted, Stage1, Stage2, Stage3, Ended }
+
+    // ============ Structs ============
+
+    struct StageConfig {
+        uint256 tokenPriceUsd;   // Price in USD with 6 decimals (e.g., 8000 = $0.008)
+        uint256 allocation;       // Tokens available in this stage
+        uint256 sold;             // Tokens sold in this stage
+        uint256 startTime;        // Unix timestamp
+        uint256 endTime;          // Unix timestamp
     }
 
-    struct PhaseConfig {
-        uint256 tokenPrice;      // Price per token in ETH (wei)
-        uint256 minPurchase;     // Minimum purchase in ETH
-        uint256 maxPurchase;     // Maximum purchase in ETH per wallet
-        uint256 allocation;      // Total tokens available in this phase
-        uint256 sold;            // Tokens sold in this phase
-        uint256 startTime;
-        uint256 endTime;
-        bool whitelistRequired;
-    }
+    // ============ State Variables ============
 
-    // Token
+    // Token being sold
     ScoreToken public scoreToken;
-    IERC20 public usdc;
 
-    // Sale state
-    SalePhase public currentPhase;
-    mapping(SalePhase => PhaseConfig) public phaseConfigs;
-    mapping(address => bool) public whitelist;
-    mapping(address => uint256) public contributions;  // ETH contributed
-    mapping(address => uint256) public tokensPurchased;
+    // Accepted payment tokens
+    IERC20 public usdc;
+    IERC20 public usdt;
+
+    // Current stage
+    Stage public currentStage;
+
+    // Stage configurations (owner-adjustable)
+    mapping(Stage => StageConfig) public stageConfigs;
+
+    // ETH/USD price (owner-adjustable for ETH purchases)
+    uint256 public ethPriceUsd;  // 6 decimals (e.g., 3000_000000 = $3000)
+
+    // Purchase limits (owner-adjustable)
+    uint256 public minPurchaseUsd;   // Minimum per transaction
+    uint256 public maxPurchaseUsd;   // Maximum per wallet (investment cap)
+
+    // User tracking
+    mapping(address => uint256) public userPurchasedUsd;   // Total USD invested
+    mapping(address => uint256) public userTokensOwed;     // Tokens to claim
     mapping(address => bool) public hasClaimed;
 
-    // Vesting (for private sale participants)
-    uint256 public vestingCliff = 30 days;
-    uint256 public vestingDuration = 180 days;  // 6 months
-    uint256 public tgeUnlock = 2000;  // 20% unlocked at TGE (basis points)
-
     // Totals
-    uint256 public totalRaised;
-    uint256 public totalSold;
+    uint256 public totalRaisedUsd;
+    uint256 public totalTokensSold;
     uint256 public totalContributors;
 
-    // Soft/Hard caps
-    uint256 public softCap = 50 ether;
-    uint256 public hardCap = 500 ether;
-
-    // Treasury
+    // Treasury (receives funds)
     address public treasury;
 
-    // Claim enabled
+    // Claim enabled (set by owner after sale ends)
     bool public claimEnabled;
-    uint256 public tgeTime;
 
-    // Events
-    event PhaseStarted(SalePhase phase);
-    event PhaseEnded(SalePhase phase);
-    event TokensPurchased(address indexed buyer, uint256 ethAmount, uint256 tokenAmount, SalePhase phase);
+    // ============ Events ============
+
+    event StageStarted(Stage stage, uint256 startTime, uint256 endTime);
+    event StageEnded(Stage stage);
+    event TokensPurchasedWithEth(address indexed buyer, Stage stage, uint256 ethAmount, uint256 usdValue, uint256 tokenAmount);
+    event TokensPurchasedWithToken(address indexed buyer, Stage stage, address token, uint256 amount, uint256 tokenAmount);
     event TokensClaimed(address indexed buyer, uint256 amount);
-    event WhitelistUpdated(address indexed account, bool status);
-    event RefundClaimed(address indexed buyer, uint256 amount);
+    event StageConfigUpdated(Stage stage, uint256 price, uint256 allocation, uint256 startTime, uint256 endTime);
+    event StageExtended(Stage stage, uint256 newEndTime);
+    event LimitsUpdated(uint256 minUsd, uint256 maxUsd);
+    event EthPriceUpdated(uint256 newPrice);
+    event ClaimEnabled();
+
+    // ============ Constructor ============
 
     constructor(
         address _initialOwner,
         address _scoreToken,
         address _usdc,
+        address _usdt,
         address _treasury
     ) Ownable(_initialOwner) {
         scoreToken = ScoreToken(_scoreToken);
         usdc = IERC20(_usdc);
+        usdt = IERC20(_usdt);
         treasury = _treasury;
-        currentPhase = SalePhase.NotStarted;
+        currentStage = Stage.NotStarted;
 
-        // Initialize phase configs
-        // Private Sale: $0.005 per token equivalent
-        phaseConfigs[SalePhase.PrivateSale] = PhaseConfig({
-            tokenPrice: 0.000015 ether,     // ~$0.005 at $3000 ETH
-            minPurchase: 0.5 ether,
-            maxPurchase: 10 ether,
-            allocation: 10_000_000 * 10**18,  // 10M tokens (10%)
+        // Default configuration
+        ethPriceUsd = 3000_000000;        // $3000 per ETH
+        minPurchaseUsd = 20_000000;       // $20 minimum
+        maxPurchaseUsd = 5000_000000;     // $5,000 max per wallet
+
+        // Default stage configs (can be adjusted before sale starts)
+        // Stage 1: Early supporters - 20% discount
+        stageConfigs[Stage.Stage1] = StageConfig({
+            tokenPriceUsd: 8000,           // $0.008
+            allocation: 166_666 * 10**18,  // ~1/3 of 500k
             sold: 0,
             startTime: 0,
-            endTime: 0,
-            whitelistRequired: true
+            endTime: 0
         });
 
-        // Presale: $0.008 per token
-        phaseConfigs[SalePhase.Presale] = PhaseConfig({
-            tokenPrice: 0.000024 ether,     // ~$0.008 at $3000 ETH
-            minPurchase: 0.1 ether,
-            maxPurchase: 5 ether,
-            allocation: 15_000_000 * 10**18,  // 15M tokens (15%)
+        // Stage 2: Growth phase - 10% discount
+        stageConfigs[Stage.Stage2] = StageConfig({
+            tokenPriceUsd: 9000,           // $0.009
+            allocation: 166_667 * 10**18,  // ~1/3 of 500k
             sold: 0,
             startTime: 0,
-            endTime: 0,
-            whitelistRequired: true
+            endTime: 0
         });
 
-        // Public Sale: $0.01 per token
-        phaseConfigs[SalePhase.PublicSale] = PhaseConfig({
-            tokenPrice: 0.00003 ether,      // ~$0.01 at $3000 ETH
-            minPurchase: 0.05 ether,
-            maxPurchase: 2 ether,
-            allocation: 15_000_000 * 10**18,  // 15M tokens (15%)
+        // Stage 3: Final sale - full price
+        stageConfigs[Stage.Stage3] = StageConfig({
+            tokenPriceUsd: 10000,          // $0.01
+            allocation: 166_667 * 10**18,  // ~1/3 of 500k
             sold: 0,
             startTime: 0,
-            endTime: 0,
-            whitelistRequired: false
+            endTime: 0
         });
     }
+
+    // ============ Purchase Functions ============
 
     /**
      * @notice Buy tokens with ETH
      */
-    function buyTokens() external payable nonReentrant {
-        require(currentPhase != SalePhase.NotStarted && currentPhase != SalePhase.Ended, "Sale not active");
+    function buyWithEth() external payable nonReentrant {
+        require(currentStage >= Stage.Stage1 && currentStage <= Stage.Stage3, "Sale not active");
         require(msg.value > 0, "No ETH sent");
 
-        PhaseConfig storage config = phaseConfigs[currentPhase];
+        StageConfig storage config = stageConfigs[currentStage];
+        require(block.timestamp >= config.startTime, "Stage not started");
+        require(block.timestamp <= config.endTime, "Stage ended");
 
-        require(block.timestamp >= config.startTime, "Phase not started");
-        require(block.timestamp <= config.endTime, "Phase ended");
-        require(msg.value >= config.minPurchase, "Below minimum");
-        require(contributions[msg.sender] + msg.value <= config.maxPurchase, "Exceeds maximum");
+        // Calculate USD value of ETH sent
+        uint256 usdValue = (msg.value * ethPriceUsd) / 1 ether;
 
-        if (config.whitelistRequired) {
-            require(whitelist[msg.sender], "Not whitelisted");
-        }
+        _processPurchase(usdValue, config);
 
-        uint256 tokenAmount = (msg.value * 10**18) / config.tokenPrice;
-        require(config.sold + tokenAmount <= config.allocation, "Exceeds allocation");
+        // Transfer ETH to treasury
+        (bool sent, ) = treasury.call{value: msg.value}("");
+        require(sent, "ETH transfer failed");
+
+        emit TokensPurchasedWithEth(msg.sender, currentStage, msg.value, usdValue, _calculateTokens(usdValue, config.tokenPriceUsd));
+    }
+
+    /**
+     * @notice Buy tokens with USDC
+     */
+    function buyWithUsdc(uint256 amount) external nonReentrant {
+        _buyWithStablecoin(address(usdc), amount);
+    }
+
+    /**
+     * @notice Buy tokens with USDT
+     */
+    function buyWithUsdt(uint256 amount) external nonReentrant {
+        _buyWithStablecoin(address(usdt), amount);
+    }
+
+    function _buyWithStablecoin(address token, uint256 amount) internal {
+        require(currentStage >= Stage.Stage1 && currentStage <= Stage.Stage3, "Sale not active");
+        require(token != address(0), "Token not configured");
+        require(amount > 0, "Amount must be > 0");
+
+        StageConfig storage config = stageConfigs[currentStage];
+        require(block.timestamp >= config.startTime, "Stage not started");
+        require(block.timestamp <= config.endTime, "Stage ended");
+
+        // For stablecoins, amount IS the USD value (both have 6 decimals)
+        uint256 usdValue = amount;
+        uint256 tokenAmount = _processPurchase(usdValue, config);
+
+        // Transfer stablecoin to treasury
+        IERC20(token).safeTransferFrom(msg.sender, treasury, amount);
+
+        emit TokensPurchasedWithToken(msg.sender, currentStage, token, amount, tokenAmount);
+    }
+
+    function _processPurchase(uint256 usdValue, StageConfig storage config) internal returns (uint256) {
+        // Validate limits
+        require(usdValue >= minPurchaseUsd, "Below minimum purchase");
+        require(userPurchasedUsd[msg.sender] + usdValue <= maxPurchaseUsd, "Exceeds maximum per wallet");
+
+        // Calculate tokens
+        uint256 tokenAmount = _calculateTokens(usdValue, config.tokenPriceUsd);
+        require(config.sold + tokenAmount <= config.allocation, "Exceeds stage allocation");
 
         // Update state
-        if (contributions[msg.sender] == 0) {
+        if (userPurchasedUsd[msg.sender] == 0) {
             totalContributors++;
         }
 
-        contributions[msg.sender] += msg.value;
-        tokensPurchased[msg.sender] += tokenAmount;
+        userPurchasedUsd[msg.sender] += usdValue;
+        userTokensOwed[msg.sender] += tokenAmount;
         config.sold += tokenAmount;
-        totalRaised += msg.value;
-        totalSold += tokenAmount;
+        totalRaisedUsd += usdValue;
+        totalTokensSold += tokenAmount;
 
-        emit TokensPurchased(msg.sender, msg.value, tokenAmount, currentPhase);
-
-        // Check hard cap
-        if (totalRaised >= hardCap) {
-            _endCurrentPhase();
-        }
+        return tokenAmount;
     }
 
+    function _calculateTokens(uint256 usdValue, uint256 priceUsd) internal pure returns (uint256) {
+        // usdValue has 6 decimals, priceUsd has 6 decimals
+        // Result should have 18 decimals (token decimals)
+        return (usdValue * 10**18) / priceUsd;
+    }
+
+    // ============ Claim Function ============
+
     /**
-     * @notice Claim purchased tokens (after TGE)
+     * @notice Claim purchased tokens (after sale ends and claiming is enabled)
      */
     function claimTokens() external nonReentrant {
-        require(claimEnabled, "Claiming not enabled");
-        require(tokensPurchased[msg.sender] > 0, "No tokens to claim");
+        require(claimEnabled, "Claiming not enabled yet");
+        require(userTokensOwed[msg.sender] > 0, "No tokens to claim");
         require(!hasClaimed[msg.sender], "Already claimed");
 
-        uint256 totalPurchased = tokensPurchased[msg.sender];
-        uint256 claimable = calculateClaimable(msg.sender);
-        require(claimable > 0, "Nothing to claim yet");
-
+        uint256 amount = userTokensOwed[msg.sender];
         hasClaimed[msg.sender] = true;
 
-        // For simplicity, we release all at once after vesting
-        // In production, implement proper vesting schedule
-        scoreToken.transfer(msg.sender, claimable);
+        scoreToken.transfer(msg.sender, amount);
 
-        emit TokensClaimed(msg.sender, claimable);
+        emit TokensClaimed(msg.sender, amount);
+    }
+
+    // ============ Owner Functions ============
+
+    /**
+     * @notice Configure a stage (must be done before stage starts)
+     */
+    function setStageConfig(
+        Stage _stage,
+        uint256 _priceUsd,
+        uint256 _allocation,
+        uint256 _startTime,
+        uint256 _endTime
+    ) external onlyOwner {
+        require(_stage >= Stage.Stage1 && _stage <= Stage.Stage3, "Invalid stage");
+        require(_endTime > _startTime, "Invalid times");
+        require(_priceUsd > 0, "Price must be > 0");
+
+        StageConfig storage config = stageConfigs[_stage];
+        require(config.sold == 0, "Cannot modify after sales");
+
+        config.tokenPriceUsd = _priceUsd;
+        config.allocation = _allocation;
+        config.startTime = _startTime;
+        config.endTime = _endTime;
+
+        emit StageConfigUpdated(_stage, _priceUsd, _allocation, _startTime, _endTime);
     }
 
     /**
-     * @notice Calculate claimable tokens based on vesting
+     * @notice Start a specific stage
      */
-    function calculateClaimable(address _buyer) public view returns (uint256) {
-        if (!claimEnabled || tgeTime == 0) return 0;
+    function startStage(Stage _stage) external onlyOwner {
+        require(_stage >= Stage.Stage1 && _stage <= Stage.Stage3, "Invalid stage");
+        require(currentStage == Stage.NotStarted || uint8(_stage) == uint8(currentStage) + 1, "Invalid stage order");
 
-        uint256 totalPurchased = tokensPurchased[_buyer];
-        if (totalPurchased == 0) return 0;
-        if (hasClaimed[_buyer]) return 0;
+        StageConfig storage config = stageConfigs[_stage];
+        require(config.startTime > 0 && config.endTime > 0, "Stage not configured");
 
-        uint256 timeSinceTge = block.timestamp - tgeTime;
+        // Ensure we have enough tokens for all stages
+        uint256 totalNeeded = stageConfigs[Stage.Stage1].allocation +
+                              stageConfigs[Stage.Stage2].allocation +
+                              stageConfigs[Stage.Stage3].allocation;
+        require(scoreToken.balanceOf(address(this)) >= totalNeeded, "Insufficient token balance");
 
-        // TGE unlock
-        uint256 tgeAmount = totalPurchased * tgeUnlock / 10000;
-
-        if (timeSinceTge < vestingCliff) {
-            return tgeAmount;
-        }
-
-        // After cliff, linear vesting
-        uint256 vestedTime = timeSinceTge - vestingCliff;
-        if (vestedTime >= vestingDuration) {
-            return totalPurchased;  // Fully vested
-        }
-
-        uint256 vestingAmount = totalPurchased - tgeAmount;
-        uint256 vested = vestingAmount * vestedTime / vestingDuration;
-
-        return tgeAmount + vested;
+        currentStage = _stage;
+        emit StageStarted(_stage, config.startTime, config.endTime);
     }
 
     /**
-     * @notice Refund if soft cap not met
+     * @notice End current stage and optionally move to next
      */
-    function claimRefund() external nonReentrant {
-        require(currentPhase == SalePhase.Ended, "Sale not ended");
-        require(totalRaised < softCap, "Soft cap reached");
-        require(contributions[msg.sender] > 0, "No contribution");
+    function endCurrentStage() external onlyOwner {
+        require(currentStage >= Stage.Stage1 && currentStage <= Stage.Stage3, "No active stage");
 
-        uint256 amount = contributions[msg.sender];
-        contributions[msg.sender] = 0;
-        tokensPurchased[msg.sender] = 0;
+        emit StageEnded(currentStage);
 
-        (bool sent, ) = msg.sender.call{value: amount}("");
-        require(sent, "Refund failed");
-
-        emit RefundClaimed(msg.sender, amount);
-    }
-
-    // Admin functions
-
-    /**
-     * @notice Start a sale phase
-     */
-    function startPhase(SalePhase _phase, uint256 _duration) external onlyOwner {
-        require(_phase != SalePhase.NotStarted && _phase != SalePhase.Ended, "Invalid phase");
-        require(currentPhase == SalePhase.NotStarted || uint256(currentPhase) < uint256(_phase), "Invalid phase order");
-
-        currentPhase = _phase;
-        PhaseConfig storage config = phaseConfigs[_phase];
-        config.startTime = block.timestamp;
-        config.endTime = block.timestamp + _duration;
-
-        emit PhaseStarted(_phase);
-    }
-
-    /**
-     * @notice End current phase
-     */
-    function endPhase() external onlyOwner {
-        _endCurrentPhase();
-    }
-
-    function _endCurrentPhase() internal {
-        emit PhaseEnded(currentPhase);
-
-        if (currentPhase == SalePhase.PublicSale) {
-            currentPhase = SalePhase.Ended;
-        } else if (currentPhase == SalePhase.Presale) {
-            currentPhase = SalePhase.PublicSale;
-        } else if (currentPhase == SalePhase.PrivateSale) {
-            currentPhase = SalePhase.Presale;
+        if (currentStage == Stage.Stage3) {
+            currentStage = Stage.Ended;
+        } else {
+            // Move to next stage
+            currentStage = Stage(uint8(currentStage) + 1);
         }
     }
 
     /**
-     * @notice Enable token claiming (TGE)
+     * @notice Extend the current stage's end time
+     * @param additionalTime Extra seconds to add to the current stage
+     */
+    function extendCurrentStage(uint256 additionalTime) external onlyOwner {
+        require(currentStage >= Stage.Stage1 && currentStage <= Stage.Stage3, "No active stage");
+        require(additionalTime > 0, "Must extend by > 0");
+
+        StageConfig storage config = stageConfigs[currentStage];
+        config.endTime += additionalTime;
+
+        emit StageExtended(currentStage, config.endTime);
+    }
+
+    /**
+     * @notice Set a new end time for the current stage
+     * @param newEndTime New unix timestamp for stage end
+     */
+    function setStageEndTime(uint256 newEndTime) external onlyOwner {
+        require(currentStage >= Stage.Stage1 && currentStage <= Stage.Stage3, "No active stage");
+
+        StageConfig storage config = stageConfigs[currentStage];
+        require(newEndTime > block.timestamp, "End time must be in future");
+        require(newEndTime > config.startTime, "End must be after start");
+
+        config.endTime = newEndTime;
+
+        emit StageExtended(currentStage, newEndTime);
+    }
+
+    /**
+     * @notice Enable token claiming (call after sale ends)
      */
     function enableClaiming() external onlyOwner {
-        require(currentPhase == SalePhase.Ended, "Sale not ended");
-        require(totalRaised >= softCap, "Soft cap not reached");
+        require(currentStage == Stage.Ended, "Sale not ended");
         claimEnabled = true;
-        tgeTime = block.timestamp;
+        emit ClaimEnabled();
     }
 
     /**
-     * @notice Add/remove from whitelist
+     * @notice Update purchase limits
      */
-    function setWhitelist(address[] calldata _accounts, bool _status) external onlyOwner {
-        for (uint256 i = 0; i < _accounts.length; i++) {
-            whitelist[_accounts[i]] = _status;
-            emit WhitelistUpdated(_accounts[i], _status);
-        }
+    function setLimits(uint256 _minUsd, uint256 _maxUsd) external onlyOwner {
+        require(_maxUsd >= _minUsd, "Max must be >= min");
+        minPurchaseUsd = _minUsd;
+        maxPurchaseUsd = _maxUsd;
+        emit LimitsUpdated(_minUsd, _maxUsd);
     }
 
     /**
-     * @notice Update phase config
+     * @notice Update ETH/USD price
      */
-    function setPhaseConfig(
-        SalePhase _phase,
-        uint256 _tokenPrice,
-        uint256 _minPurchase,
-        uint256 _maxPurchase,
-        uint256 _allocation
-    ) external onlyOwner {
-        require(currentPhase == SalePhase.NotStarted, "Sale already started");
-
-        PhaseConfig storage config = phaseConfigs[_phase];
-        config.tokenPrice = _tokenPrice;
-        config.minPurchase = _minPurchase;
-        config.maxPurchase = _maxPurchase;
-        config.allocation = _allocation;
+    function setEthPrice(uint256 _ethPriceUsd) external onlyOwner {
+        require(_ethPriceUsd > 0, "Price must be > 0");
+        ethPriceUsd = _ethPriceUsd;
+        emit EthPriceUpdated(_ethPriceUsd);
     }
 
     /**
-     * @notice Update vesting params
+     * @notice Update USDC address
      */
-    function setVesting(uint256 _cliff, uint256 _duration, uint256 _tgeUnlock) external onlyOwner {
-        require(currentPhase == SalePhase.NotStarted, "Sale already started");
-        vestingCliff = _cliff;
-        vestingDuration = _duration;
-        tgeUnlock = _tgeUnlock;
+    function setUsdc(address _usdc) external onlyOwner {
+        usdc = IERC20(_usdc);
     }
 
     /**
-     * @notice Update caps
+     * @notice Update USDT address
      */
-    function setCaps(uint256 _softCap, uint256 _hardCap) external onlyOwner {
-        require(currentPhase == SalePhase.NotStarted, "Sale already started");
-        softCap = _softCap;
-        hardCap = _hardCap;
+    function setUsdt(address _usdt) external onlyOwner {
+        usdt = IERC20(_usdt);
     }
 
     /**
-     * @notice Withdraw raised funds to treasury
+     * @notice Update treasury address
      */
-    function withdrawFunds() external onlyOwner {
-        require(totalRaised >= softCap, "Soft cap not reached");
-
-        uint256 balance = address(this).balance;
-        require(balance > 0, "No funds");
-
-        (bool sent, ) = treasury.call{value: balance}("");
-        require(sent, "Withdraw failed");
+    function setTreasury(address _treasury) external onlyOwner {
+        require(_treasury != address(0), "Invalid address");
+        treasury = _treasury;
     }
 
     /**
-     * @notice Withdraw unsold tokens
+     * @notice Withdraw unsold tokens after sale ends
      */
     function withdrawUnsoldTokens() external onlyOwner {
-        require(currentPhase == SalePhase.Ended, "Sale not ended");
+        require(currentStage == Stage.Ended, "Sale not ended");
 
         uint256 balance = scoreToken.balanceOf(address(this));
-        uint256 reserved = totalSold;  // Tokens owed to buyers
+        uint256 owed = totalTokensSold;
 
-        require(balance > reserved, "No excess tokens");
+        // Only withdraw tokens not owed to buyers
+        // After everyone claims, this will be just unsold tokens
+        require(balance > owed, "No excess tokens");
 
-        scoreToken.transfer(treasury, balance - reserved);
+        scoreToken.transfer(treasury, balance - owed);
     }
 
-    // View functions
-
-    function getPhaseConfig(SalePhase _phase) external view returns (PhaseConfig memory) {
-        return phaseConfigs[_phase];
+    /**
+     * @notice Emergency withdraw any ERC20 token
+     */
+    function emergencyWithdraw(address token) external onlyOwner {
+        require(token != address(scoreToken), "Use withdrawUnsoldTokens for SCORE");
+        uint256 balance = IERC20(token).balanceOf(address(this));
+        require(balance > 0, "No balance");
+        IERC20(token).safeTransfer(treasury, balance);
     }
 
-    function getUserInfo(address _user) external view returns (
-        uint256 contributed,
-        uint256 purchased,
-        bool isWhitelisted,
-        bool claimed,
-        uint256 claimable
-    ) {
-        return (
-            contributions[_user],
-            tokensPurchased[_user],
-            whitelist[_user],
-            hasClaimed[_user],
-            calculateClaimable(_user)
-        );
-    }
+    // ============ View Functions ============
 
     function getSaleInfo() external view returns (
-        SalePhase phase,
-        uint256 raised,
-        uint256 sold,
+        Stage stage,
+        uint256 raisedUsd,
+        uint256 tokensSold,
         uint256 contributors,
-        uint256 soft,
-        uint256 hard
+        bool claiming
+    ) {
+        return (currentStage, totalRaisedUsd, totalTokensSold, totalContributors, claimEnabled);
+    }
+
+    function getStageInfo(Stage _stage) external view returns (
+        uint256 priceUsd,
+        uint256 allocation,
+        uint256 sold,
+        uint256 startTime,
+        uint256 endTime,
+        uint256 remaining
+    ) {
+        StageConfig memory config = stageConfigs[_stage];
+        return (
+            config.tokenPriceUsd,
+            config.allocation,
+            config.sold,
+            config.startTime,
+            config.endTime,
+            config.allocation - config.sold
+        );
+    }
+
+    function getCurrentStageInfo() external view returns (
+        uint256 priceUsd,
+        uint256 allocation,
+        uint256 sold,
+        uint256 startTime,
+        uint256 endTime,
+        uint256 remaining
+    ) {
+        if (currentStage == Stage.NotStarted || currentStage == Stage.Ended) {
+            return (0, 0, 0, 0, 0, 0);
+        }
+        StageConfig memory config = stageConfigs[currentStage];
+        return (
+            config.tokenPriceUsd,
+            config.allocation,
+            config.sold,
+            config.startTime,
+            config.endTime,
+            config.allocation - config.sold
+        );
+    }
+
+    function getUserInfo(address user) external view returns (
+        uint256 purchasedUsd,
+        uint256 tokensOwed,
+        uint256 remainingAllowance,
+        bool claimed
+    ) {
+        uint256 remaining = maxPurchaseUsd > userPurchasedUsd[user]
+            ? maxPurchaseUsd - userPurchasedUsd[user]
+            : 0;
+        return (
+            userPurchasedUsd[user],
+            userTokensOwed[user],
+            remaining,
+            hasClaimed[user]
+        );
+    }
+
+    /**
+     * @notice Calculate tokens for a given USD amount at current stage price
+     */
+    function calculateTokens(uint256 usdAmount) external view returns (uint256) {
+        if (currentStage == Stage.NotStarted || currentStage == Stage.Ended) {
+            return 0;
+        }
+        return _calculateTokens(usdAmount, stageConfigs[currentStage].tokenPriceUsd);
+    }
+
+    /**
+     * @notice Calculate tokens for a given ETH amount at current stage price
+     */
+    function calculateTokensForEth(uint256 ethAmount) external view returns (uint256) {
+        if (currentStage == Stage.NotStarted || currentStage == Stage.Ended) {
+            return 0;
+        }
+        uint256 usdValue = (ethAmount * ethPriceUsd) / 1 ether;
+        return _calculateTokens(usdValue, stageConfigs[currentStage].tokenPriceUsd);
+    }
+
+    /**
+     * @notice Get all stage prices for display
+     */
+    function getAllStagePrices() external view returns (
+        uint256 stage1Price,
+        uint256 stage2Price,
+        uint256 stage3Price
     ) {
         return (
-            currentPhase,
-            totalRaised,
-            totalSold,
-            totalContributors,
-            softCap,
-            hardCap
+            stageConfigs[Stage.Stage1].tokenPriceUsd,
+            stageConfigs[Stage.Stage2].tokenPriceUsd,
+            stageConfigs[Stage.Stage3].tokenPriceUsd
         );
+    }
+
+    // No direct ETH transfers - use buyWithEth()
+    receive() external payable {
+        revert("Use buyWithEth()");
     }
 }

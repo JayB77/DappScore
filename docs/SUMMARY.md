@@ -8,6 +8,7 @@
 
 * [How It Works](platform/overview.md)
 * [Voting & Reputation](platform/voting-reputation.md)
+* [Trust vs Paid Features](platform/trust-vs-paid.md)
 * [Submitting Projects](platform/submitting-projects.md)
 * [Premium Listings](platform/premium-listings.md)
 * [Project Ownership](platform/project-ownership.md)
