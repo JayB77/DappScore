@@ -9,7 +9,11 @@ export const config = getDefaultConfig({
 });
 
 // Premium listing price in USDC (6 decimals)
-export const PREMIUM_LISTING_PRICE = BigInt(100_000000); // 100 USDC
+// Configurable via environment variable - defaults to 100 USDC
+const DEFAULT_PREMIUM_PRICE_USDC = 100;
+export const PREMIUM_LISTING_PRICE = BigInt(
+  (parseInt(process.env.NEXT_PUBLIC_PREMIUM_LISTING_PRICE || String(DEFAULT_PREMIUM_PRICE_USDC)) * 1_000000)
+); // USDC has 6 decimals
 
 // Payment receiver address (your wallet to receive payments)
 export const PAYMENT_RECEIVER = '0x3b4368820c0A03ebd2B5C688b3CBC0A3B31C41B7';
