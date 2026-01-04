@@ -5,7 +5,8 @@ import { useAccount, useSignMessage, useChainId } from 'wagmi';
 import { ConnectButton } from '@rainbow-me/rainbowkit';
 import {
   Check, ChevronLeft, ChevronRight, Wallet, Upload, AlertCircle,
-  Plus, Trash2, Crown, AlertTriangle, Shield, ExternalLink, Loader2
+  Plus, Trash2, Crown, AlertTriangle, Shield, ExternalLink, Loader2,
+  Coins, SkipForward, Clock
 } from 'lucide-react';
 import { useUSDCPayment } from '@/hooks/useUSDCPayment';
 import { baseSepolia } from 'wagmi/chains';
@@ -261,9 +262,20 @@ export default function SubmitProjectPage() {
     <div className="min-h-screen py-8">
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
         <h1 className="text-3xl font-bold text-center mb-2">Submit Your Project</h1>
-        <p className="text-gray-400 text-center mb-8">
+        <p className="text-gray-400 text-center mb-4">
           Get your project listed on DappScore and let the community evaluate it
         </p>
+
+        {/* Submission Reward Banner */}
+        <div className="mb-8 p-4 bg-green-500/10 border border-green-500/50 rounded-lg">
+          <div className="flex items-center justify-center space-x-3">
+            <Coins className="h-6 w-6 text-green-400" />
+            <div className="text-center">
+              <span className="text-green-400 font-medium">Earn 50 $SCORE tokens</span>
+              <span className="text-gray-400"> for submitting a project!</span>
+            </div>
+          </div>
+        </div>
 
         {/* Progress Steps */}
         <div className="mb-8">
@@ -953,7 +965,13 @@ export default function SubmitProjectPage() {
                   <div className="flex justify-between items-start">
                     <div>
                       <div className="font-bold text-lg mb-1">Free Listing</div>
-                      <div className="text-2xl text-green-400 mb-3">$0</div>
+                      <div className="flex items-center space-x-3 mb-3">
+                        <span className="text-2xl text-green-400">$0</span>
+                        <span className="px-2 py-1 bg-green-500/20 text-green-400 text-xs font-medium rounded-full flex items-center">
+                          <Coins className="h-3 w-3 mr-1" />
+                          +50 $SCORE
+                        </span>
+                      </div>
                       <ul className="text-sm text-gray-400 space-y-2">
                         <li className="flex items-center">
                           <Check className="h-4 w-4 text-green-500 mr-2 flex-shrink-0" />
@@ -971,6 +989,10 @@ export default function SubmitProjectPage() {
                           <Check className="h-4 w-4 text-green-500 mr-2 flex-shrink-0" />
                           Position based on community score
                         </li>
+                        <li className="flex items-center">
+                          <Coins className="h-4 w-4 text-green-500 mr-2 flex-shrink-0" />
+                          Earn 50 $SCORE tokens!
+                        </li>
                       </ul>
                     </div>
                     <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center ${
@@ -981,53 +1003,47 @@ export default function SubmitProjectPage() {
                   </div>
                 </div>
 
-                {/* Premium Listing */}
+                {/* Premium Listing - Coming Soon */}
                 <div
-                  onClick={() => !submitted && updateFormData('listingType', 'premium')}
-                  className={`p-6 rounded-lg cursor-pointer border-2 transition-all relative overflow-hidden ${
-                    formData.listingType === 'premium'
-                      ? 'border-yellow-500 bg-yellow-500/10'
-                      : 'border-gray-600 hover:border-gray-500'
-                  } ${submitted ? 'opacity-50 cursor-not-allowed' : ''}`}
+                  className="p-6 rounded-lg border-2 border-gray-700 relative overflow-hidden opacity-60 cursor-not-allowed"
                 >
-                  <div className="absolute top-0 right-0 bg-yellow-500 text-black text-xs font-bold px-3 py-1 rounded-bl-lg">
+                  {/* Coming Soon Overlay */}
+                  <div className="absolute inset-0 bg-gray-900/50 flex items-center justify-center z-10">
+                    <div className="bg-gray-800 px-4 py-2 rounded-full flex items-center space-x-2">
+                      <Clock className="h-4 w-4 text-yellow-500" />
+                      <span className="text-yellow-500 font-medium">Coming Soon</span>
+                    </div>
+                  </div>
+                  <div className="absolute top-0 right-0 bg-gray-600 text-gray-400 text-xs font-bold px-3 py-1 rounded-bl-lg">
                     FEATURED
                   </div>
                   <div className="flex justify-between items-start">
                     <div>
-                      <div className="font-bold text-lg mb-1 flex items-center">
-                        <Crown className="h-5 w-5 text-yellow-500 mr-2" />
+                      <div className="font-bold text-lg mb-1 flex items-center text-gray-500">
+                        <Crown className="h-5 w-5 text-gray-500 mr-2" />
                         Premium Listing
                       </div>
-                      <div className="text-2xl text-yellow-500 mb-3">{formattedPrice} USDC</div>
-                      <ul className="text-sm text-gray-400 space-y-2">
+                      <div className="text-2xl text-gray-500 mb-3">{formattedPrice} USDC</div>
+                      <ul className="text-sm text-gray-500 space-y-2">
                         <li className="flex items-center">
-                          <Check className="h-4 w-4 text-green-500 mr-2 flex-shrink-0" />
+                          <Check className="h-4 w-4 text-gray-600 mr-2 flex-shrink-0" />
                           Everything in Free
                         </li>
                         <li className="flex items-center">
-                          <Check className="h-4 w-4 text-yellow-500 mr-2 flex-shrink-0" />
+                          <Check className="h-4 w-4 text-gray-600 mr-2 flex-shrink-0" />
                           Featured at top of listings for 7 days
                         </li>
                         <li className="flex items-center">
-                          <Check className="h-4 w-4 text-yellow-500 mr-2 flex-shrink-0" />
+                          <Check className="h-4 w-4 text-gray-600 mr-2 flex-shrink-0" />
                           Premium badge on your listing
                         </li>
                         <li className="flex items-center">
-                          <Check className="h-4 w-4 text-yellow-500 mr-2 flex-shrink-0" />
+                          <Check className="h-4 w-4 text-gray-600 mr-2 flex-shrink-0" />
                           Priority review and approval
-                        </li>
-                        <li className="flex items-center">
-                          <Check className="h-4 w-4 text-yellow-500 mr-2 flex-shrink-0" />
-                          Position maintained by community score after
                         </li>
                       </ul>
                     </div>
-                    <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center ${
-                      formData.listingType === 'premium' ? 'border-yellow-500 bg-yellow-500' : 'border-gray-500'
-                    }`}>
-                      {formData.listingType === 'premium' && <Check className="h-4 w-4 text-black" />}
-                    </div>
+                    <div className="w-6 h-6 rounded-full border-2 border-gray-600" />
                   </div>
                 </div>
               </div>
@@ -1098,11 +1114,13 @@ export default function SubmitProjectPage() {
                 <div className="p-6 bg-green-500/10 border border-green-500/50 rounded-lg text-center">
                   <Check className="h-12 w-12 text-green-500 mx-auto mb-3" />
                   <h3 className="text-xl font-bold text-green-500 mb-2">Project Submitted!</h3>
-                  <p className="text-gray-400">
-                    {formData.listingType === 'premium'
-                      ? 'Your premium listing is now live and featured at the top!'
-                      : 'Your project has been submitted and will appear in the directory.'}
+                  <p className="text-gray-400 mb-3">
+                    Your project has been submitted and will appear in the directory.
                   </p>
+                  <div className="inline-flex items-center space-x-2 px-4 py-2 bg-green-500/20 rounded-full">
+                    <Coins className="h-5 w-5 text-green-400" />
+                    <span className="text-green-400 font-medium">+50 $SCORE earned!</span>
+                  </div>
                 </div>
               )}
 
@@ -1134,14 +1152,26 @@ export default function SubmitProjectPage() {
             </button>
 
             {currentStep < 5 ? (
-              <button
-                onClick={nextStep}
-                disabled={!isStepValid()}
-                className="flex items-center space-x-2 px-6 py-3 bg-yellow-500 text-black font-semibold rounded-lg hover:bg-yellow-400 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-              >
-                <span>Continue</span>
-                <ChevronRight className="h-5 w-5" />
-              </button>
+              <div className="flex items-center space-x-3">
+                {/* Skip button for optional steps (2, 3, 4) */}
+                {currentStep >= 2 && currentStep <= 4 && (
+                  <button
+                    onClick={nextStep}
+                    className="flex items-center space-x-2 px-6 py-3 border border-gray-600 text-gray-400 rounded-lg hover:border-gray-500 hover:text-gray-300 transition-colors"
+                  >
+                    <SkipForward className="h-4 w-4" />
+                    <span>Skip</span>
+                  </button>
+                )}
+                <button
+                  onClick={nextStep}
+                  disabled={!isStepValid()}
+                  className="flex items-center space-x-2 px-6 py-3 bg-yellow-500 text-black font-semibold rounded-lg hover:bg-yellow-400 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                >
+                  <span>Continue</span>
+                  <ChevronRight className="h-5 w-5" />
+                </button>
+              </div>
             ) : submitted ? (
               <a
                 href="/projects"
