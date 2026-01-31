@@ -1,3 +1,16 @@
+/**
+ * DappScore Web3 Configuration
+ *
+ * CONTRACT DEPLOYMENT:
+ * 1. cd dappscore/contracts
+ * 2. cp .env.example .env && edit .env with your keys
+ * 3. Deploy: forge script script/Deploy.s.sol:Deploy --rpc-url base_sepolia --broadcast --verify
+ * 4. Copy the deployed addresses from console output below
+ * 5. Run setup: forge script script/Setup.s.sol:Setup --rpc-url base_sepolia --broadcast
+ *
+ * After deployment, update CONTRACT_ADDRESSES below with the real addresses.
+ */
+
 import { getDefaultConfig } from '@rainbow-me/rainbowkit';
 import { base, baseSepolia } from 'wagmi/chains';
 
