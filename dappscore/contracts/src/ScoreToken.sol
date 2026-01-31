@@ -8,18 +8,27 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 /**
  * @title ScoreToken
  * @notice The native token of DappScore platform
- * @dev Fixed supply of 100M tokens with burn capability
+ * @dev Fixed supply of 500M tokens with deflationary burn mechanism
  *
  * Token Allocation:
- * - 40% (40M) - Liquidity Pool
- * - 40% (40M) - Voting Rewards Pool
- * - 5%  (5M)  - Airdrop
- * - 5%  (5M)  - Development
- * - 5%  (5M)  - Marketing
- * - 5%  (5M)  - Team (vested)
+ * - 40% (200M) - Liquidity Pool
+ * - 40% (200M) - Voting Rewards Pool
+ * - 5%  (25M)  - Airdrop
+ * - 5%  (25M)  - Development
+ * - 5%  (25M)  - Marketing
+ * - 5%  (25M)  - Team (vested)
+ *
+ * Burn Mechanism:
+ * - Users can burn their own tokens via burn()
+ * - Approved spenders can burn via burnFrom()
+ * - Protocol can burn from rewards pool
+ * - All burns are tracked and reduce circulating supply permanently
  */
 contract ScoreToken is ERC20, ERC20Burnable, Ownable {
-    uint256 public constant MAX_SUPPLY = 100_000_000 * 10**18; // 100M tokens
+    uint256 public constant MAX_SUPPLY = 500_000_000 * 10**18; // 500M tokens
+
+    // Burn tracking
+    uint256 public totalBurned;
 
     // Allocation addresses
     address public rewardsPool;
@@ -31,6 +40,8 @@ contract ScoreToken is ERC20, ERC20Burnable, Ownable {
     event RewardsPoolSet(address indexed pool);
     event TreasurySet(address indexed treasury);
     event MintingFinished();
+    event TokensBurned(address indexed burner, uint256 amount);
+    event ProtocolBurn(uint256 amount, string reason);
 
     constructor(
         address _initialOwner
@@ -88,5 +99,59 @@ contract ScoreToken is ERC20, ERC20Burnable, Ownable {
         require(!mintingFinished, "Minting finished");
         require(totalSupply() + amount <= MAX_SUPPLY, "Exceeds max supply");
         _mint(to, amount);
+    }
+
+    // ============ Burn Functions ============
+
+    /**
+     * @notice Burn tokens from caller's balance
+     * @param amount Amount to burn
+     */
+    function burn(uint256 amount) public override {
+        super.burn(amount);
+        totalBurned += amount;
+        emit TokensBurned(msg.sender, amount);
+    }
+
+    /**
+     * @notice Burn tokens from another account (requires approval)
+     * @param account Account to burn from
+     * @param amount Amount to burn
+     */
+    function burnFrom(address account, uint256 amount) public override {
+        super.burnFrom(account, amount);
+        totalBurned += amount;
+        emit TokensBurned(account, amount);
+    }
+
+    /**
+     * @notice Protocol burn for deflationary mechanisms (owner only)
+     * @param amount Amount to burn from treasury
+     * @param reason Reason for the burn (for transparency)
+     */
+    function protocolBurn(uint256 amount, string calldata reason) external onlyOwner {
+        require(treasury != address(0), "Treasury not set");
+        require(balanceOf(treasury) >= amount, "Insufficient treasury balance");
+        _burn(treasury, amount);
+        totalBurned += amount;
+        emit ProtocolBurn(amount, reason);
+        emit TokensBurned(treasury, amount);
+    }
+
+    // ============ View Functions ============
+
+    /**
+     * @notice Get circulating supply (total minted minus burned)
+     */
+    function circulatingSupply() external view returns (uint256) {
+        return totalSupply();
+    }
+
+    /**
+     * @notice Get remaining mintable supply
+     */
+    function remainingMintable() external view returns (uint256) {
+        if (mintingFinished) return 0;
+        return MAX_SUPPLY - totalSupply() - totalBurned;
     }
 }

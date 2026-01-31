@@ -3,7 +3,7 @@
  * These ABIs allow the frontend to interact with deployed contracts
  */
 
-// ScoreToken ABI (ERC20 + custom functions)
+// ScoreToken ABI (ERC20 + burn mechanism)
 export const SCORE_TOKEN_ABI = [
   // ERC20 Standard
   { name: 'name', type: 'function', stateMutability: 'view', inputs: [], outputs: [{ type: 'string' }] },
@@ -14,11 +14,20 @@ export const SCORE_TOKEN_ABI = [
   { name: 'transfer', type: 'function', stateMutability: 'nonpayable', inputs: [{ name: 'to', type: 'address' }, { name: 'amount', type: 'uint256' }], outputs: [{ type: 'bool' }] },
   { name: 'approve', type: 'function', stateMutability: 'nonpayable', inputs: [{ name: 'spender', type: 'address' }, { name: 'amount', type: 'uint256' }], outputs: [{ type: 'bool' }] },
   { name: 'allowance', type: 'function', stateMutability: 'view', inputs: [{ name: 'owner', type: 'address' }, { name: 'spender', type: 'address' }], outputs: [{ type: 'uint256' }] },
-  // Custom
+  // Custom - Supply Info
   { name: 'MAX_SUPPLY', type: 'function', stateMutability: 'view', inputs: [], outputs: [{ type: 'uint256' }] },
   { name: 'rewardsPool', type: 'function', stateMutability: 'view', inputs: [], outputs: [{ type: 'address' }] },
   { name: 'treasury', type: 'function', stateMutability: 'view', inputs: [], outputs: [{ type: 'address' }] },
   { name: 'mintingFinished', type: 'function', stateMutability: 'view', inputs: [], outputs: [{ type: 'bool' }] },
+  // Burn Mechanism
+  { name: 'totalBurned', type: 'function', stateMutability: 'view', inputs: [], outputs: [{ type: 'uint256' }] },
+  { name: 'circulatingSupply', type: 'function', stateMutability: 'view', inputs: [], outputs: [{ type: 'uint256' }] },
+  { name: 'remainingMintable', type: 'function', stateMutability: 'view', inputs: [], outputs: [{ type: 'uint256' }] },
+  { name: 'burn', type: 'function', stateMutability: 'nonpayable', inputs: [{ name: 'amount', type: 'uint256' }], outputs: [] },
+  { name: 'burnFrom', type: 'function', stateMutability: 'nonpayable', inputs: [{ name: 'account', type: 'address' }, { name: 'amount', type: 'uint256' }], outputs: [] },
+  // Events
+  { name: 'TokensBurned', type: 'event', inputs: [{ name: 'burner', type: 'address', indexed: true }, { name: 'amount', type: 'uint256', indexed: false }] },
+  { name: 'ProtocolBurn', type: 'event', inputs: [{ name: 'amount', type: 'uint256', indexed: false }, { name: 'reason', type: 'string', indexed: false }] },
 ] as const;
 
 // ProjectRegistry ABI

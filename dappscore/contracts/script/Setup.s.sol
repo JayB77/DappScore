@@ -20,16 +20,16 @@ import "../src/TokenSale.sol";
  *   TREASURY_ADDRESS - Treasury wallet address
  */
 contract Setup is Script {
-    // Token allocation (100M total)
-    uint256 constant LIQUIDITY_POOL = 40_000_000 * 10**18;  // 40%
-    uint256 constant VOTING_REWARDS = 40_000_000 * 10**18;  // 40%
-    uint256 constant AIRDROP = 5_000_000 * 10**18;          // 5%
-    uint256 constant DEVELOPMENT = 5_000_000 * 10**18;      // 5%
-    uint256 constant MARKETING = 5_000_000 * 10**18;        // 5%
-    uint256 constant TEAM = 5_000_000 * 10**18;             // 5%
+    // Token allocation (500M total)
+    uint256 constant LIQUIDITY_POOL = 200_000_000 * 10**18;  // 40%
+    uint256 constant VOTING_REWARDS = 200_000_000 * 10**18;  // 40%
+    uint256 constant AIRDROP = 25_000_000 * 10**18;          // 5%
+    uint256 constant DEVELOPMENT = 25_000_000 * 10**18;      // 5%
+    uint256 constant MARKETING = 25_000_000 * 10**18;        // 5%
+    uint256 constant TEAM = 25_000_000 * 10**18;             // 5%
 
     // Token sale allocation (from liquidity pool)
-    uint256 constant TOKEN_SALE_ALLOCATION = 500_000 * 10**18; // 500k for sale
+    uint256 constant TOKEN_SALE_ALLOCATION = 2_500_000 * 10**18; // 2.5M for sale
 
     function run() external {
         uint256 deployerPrivateKey = vm.envUint("PRIVATE_KEY");
@@ -118,9 +118,9 @@ contract Setup is Script {
         console.log("=== Setup Complete ===");
         console.log("");
         console.log("Token Distribution:");
-        console.log("  - Token Sale Contract: 500,000 SCORE");
-        console.log("  - Treasury: 59,500,000 SCORE");
-        console.log("  - Voting Rewards: minted on-demand (up to 40M)");
+        console.log("  - Token Sale Contract: 2,500,000 SCORE");
+        console.log("  - Treasury: 297,500,000 SCORE");
+        console.log("  - Voting Rewards: minted on-demand (up to 200M)");
         console.log("");
         console.log("Token Sale Schedule:");
         console.log("  - Stage 1 starts:", stage1Start);
