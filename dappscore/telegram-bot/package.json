@@ -1,0 +1,23 @@
+{
+  "name": "@dappscore/telegram-bot",
+  "version": "1.0.0",
+  "description": "DappScore Telegram Bot for trust score lookups",
+  "type": "module",
+  "main": "dist/index.js",
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "build": "tsc",
+    "start": "node dist/index.js"
+  },
+  "dependencies": {
+    "telegraf": "^4.15.3",
+    "dotenv": "^16.3.1",
+    "graphql-request": "^6.1.0",
+    "viem": "^2.7.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.10.0",
+    "typescript": "^5.3.2",
+    "tsx": "^4.6.2"
+  }
+}

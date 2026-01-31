@@ -1,0 +1,282 @@
+# DappScore Subgraph Schema
+
+# ============ Core Entities ============
+
+type Token @entity {
+  id: ID! # "token"
+  totalSupply: BigInt!
+  totalBurned: BigInt!
+  circulatingSupply: BigInt!
+  holderCount: Int!
+}
+
+type TokenBurn @entity {
+  id: ID! # tx hash
+  burner: Bytes!
+  amount: BigInt!
+  reason: String
+  isProtocolBurn: Boolean!
+  timestamp: BigInt!
+  blockNumber: BigInt!
+}
+
+type Project @entity {
+  id: ID! # project ID
+  projectId: BigInt!
+  owner: Bytes!
+  name: String!
+  symbol: String
+  metadataIpfsHash: String
+  category: String
+  chain: String
+  status: Int! # 0=Pending, 1=Active, 2=Flagged, 3=Suspended, 4=Blacklisted
+  trustLevel: Int! # 0=NewListing, 1=Trusted, 2=Neutral, 3=Suspicious, 4=SuspectedScam, 5=ProbableScam
+  upvotes: BigInt!
+  downvotes: BigInt!
+  totalVoters: BigInt!
+  isPremium: Boolean!
+  premiumExpiresAt: BigInt
+  verified: Boolean!
+  createdAt: BigInt!
+  updatedAt: BigInt!
+  votes: [Vote!]! @derivedFrom(field: "project")
+  bounties: [Bounty!]! @derivedFrom(field: "project")
+  markets: [Market!]! @derivedFrom(field: "project")
+  coverages: [Coverage!]! @derivedFrom(field: "project")
+}
+
+type User @entity {
+  id: ID! # wallet address
+  address: Bytes!
+  totalVotes: BigInt!
+  upvotes: BigInt!
+  downvotes: BigInt!
+  accurateVotes: BigInt!
+  scamsIdentified: BigInt!
+  reputationPoints: BigInt!
+  stakedBalance: BigInt!
+  totalEarnings: BigInt!
+  pendingRewards: BigInt!
+  accountCreatedAt: BigInt!
+  lastActivityAt: BigInt!
+  votes: [Vote!]! @derivedFrom(field: "voter")
+  bets: [Bet!]! @derivedFrom(field: "bettor")
+  bountySubmissions: [BountySubmission!]! @derivedFrom(field: "investigator")
+  referredBy: Affiliate
+  isAffiliate: Boolean!
+  affiliate: Affiliate @derivedFrom(field: "user")
+}
+
+type Vote @entity {
+  id: ID! # projectId-voterAddress
+  project: Project!
+  voter: User!
+  voteType: Int! # 1=Upvote, 2=Downvote
+  commentIpfsHash: String
+  timestamp: BigInt!
+  blockNumber: BigInt!
+  changed: Boolean!
+}
+
+# ============ Prediction Market ============
+
+type Market @entity {
+  id: ID! # market ID
+  marketId: BigInt!
+  project: Project!
+  creator: Bytes!
+  totalScamBets: BigInt!
+  totalLegitBets: BigInt!
+  totalBettors: BigInt!
+  status: Int! # 0=Active, 1=Closed, 2=Resolved, 3=Cancelled
+  outcome: Int! # 0=Undecided, 1=Scam, 2=Legit
+  bettingDeadline: BigInt!
+  resolutionDeadline: BigInt!
+  createdAt: BigInt!
+  resolvedAt: BigInt
+  bets: [Bet!]! @derivedFrom(field: "market")
+}
+
+type Bet @entity {
+  id: ID! # marketId-bettorAddress
+  market: Market!
+  bettor: User!
+  amount: BigInt!
+  betOnScam: Boolean!
+  claimed: Boolean!
+  winnings: BigInt
+  timestamp: BigInt!
+}
+
+# ============ Bounty System ============
+
+type Bounty @entity {
+  id: ID! # bounty ID
+  bountyId: BigInt!
+  project: Project!
+  creator: Bytes!
+  totalFunding: BigInt!
+  remainingFunding: BigInt!
+  description: String
+  status: Int! # 0=Active, 1=UnderReview, 2=Completed, 3=Expired, 4=Cancelled
+  deadline: BigInt!
+  createdAt: BigInt!
+  submissions: [BountySubmission!]! @derivedFrom(field: "bounty")
+  contributors: [BountyContribution!]! @derivedFrom(field: "bounty")
+}
+
+type BountySubmission @entity {
+  id: ID! # bountyId-submissionIndex
+  bounty: Bounty!
+  investigator: User!
+  evidenceIpfsHash: String!
+  requestedAmount: BigInt!
+  approved: Boolean!
+  rejected: Boolean!
+  paidAmount: BigInt!
+  submittedAt: BigInt!
+}
+
+type BountyContribution @entity {
+  id: ID! # bountyId-contributorAddress
+  bounty: Bounty!
+  contributor: Bytes!
+  amount: BigInt!
+  refunded: Boolean!
+}
+
+type Investigator @entity {
+  id: ID! # wallet address
+  address: Bytes!
+  totalEarnings: BigInt!
+  completedBounties: BigInt!
+  submissions: [BountySubmission!]! @derivedFrom(field: "investigator")
+}
+
+# ============ Insurance Pool ============
+
+type InsurancePoolStats @entity {
+  id: ID! # "pool"
+  totalStaked: BigInt!
+  totalCoverage: BigInt!
+  totalPremiums: BigInt!
+  totalClaimsPaid: BigInt!
+  stakerCount: Int!
+}
+
+type InsuranceStaker @entity {
+  id: ID! # wallet address
+  address: Bytes!
+  stakedAmount: BigInt!
+  pendingRewards: BigInt!
+  totalEarnings: BigInt!
+  stakedAt: BigInt!
+}
+
+type Coverage @entity {
+  id: ID! # coverage ID
+  coverageId: BigInt!
+  project: Project!
+  purchaser: Bytes!
+  coverageAmount: BigInt!
+  premiumPaid: BigInt!
+  purchasedAt: BigInt!
+  expiresAt: BigInt!
+  active: Boolean!
+  claimed: Boolean!
+  claim: InsuranceClaim @derivedFrom(field: "coverage")
+}
+
+type InsuranceClaim @entity {
+  id: ID! # claim ID
+  claimId: BigInt!
+  coverage: Coverage!
+  claimant: Bytes!
+  lossAmount: BigInt!
+  requestedAmount: BigInt!
+  approvedAmount: BigInt!
+  evidenceIpfs: String
+  approved: Boolean!
+  rejected: Boolean!
+  paid: Boolean!
+  submittedAt: BigInt!
+}
+
+# ============ Reputation System ============
+
+type UserReputation @entity {
+  id: ID! # wallet address
+  user: User!
+  points: BigInt!
+  totalVotes: BigInt!
+  accurateVotes: BigInt!
+  scamsIdentified: BigInt!
+  level: Int! # Calculated tier
+  lastActivityAt: BigInt!
+  accountCreatedAt: BigInt!
+  decayAppliedAt: BigInt!
+}
+
+type ReputationEvent @entity {
+  id: ID! # tx hash - log index
+  user: Bytes!
+  pointsChange: BigInt!
+  newTotal: BigInt!
+  reason: String!
+  timestamp: BigInt!
+}
+
+# ============ Affiliate Program ============
+
+type Affiliate @entity {
+  id: ID! # wallet address
+  user: User!
+  referralCode: Bytes!
+  referralCodeString: String
+  totalReferrals: BigInt!
+  projectReferrals: BigInt!
+  userReferrals: BigInt!
+  totalEarnings: BigInt!
+  pendingEarnings: BigInt!
+  level: Int! # 0=Bronze, 1=Silver, 2=Gold, 3=Platinum, 4=Diamond
+  joinedAt: BigInt!
+  referrals: [Referral!]! @derivedFrom(field: "referrer")
+}
+
+type Referral @entity {
+  id: ID! # tx hash
+  referrer: Affiliate!
+  referred: Bytes!
+  isProject: Boolean!
+  projectId: BigInt
+  rewardAmount: BigInt!
+  timestamp: BigInt!
+}
+
+# ============ Global Stats ============
+
+type GlobalStats @entity {
+  id: ID! # "global"
+  totalProjects: BigInt!
+  totalVotes: BigInt!
+  totalUsers: BigInt!
+  totalScamsIdentified: BigInt!
+  totalBounties: BigInt!
+  totalBountyPaid: BigInt!
+  totalInsuranceStaked: BigInt!
+  totalClaimsPaid: BigInt!
+  totalPredictionVolume: BigInt!
+  totalAffiliateEarnings: BigInt!
+}
+
+# ============ Daily Stats (for charts) ============
+
+type DailyStats @entity {
+  id: ID! # date as YYYY-MM-DD
+  date: BigInt! # timestamp at start of day
+  newProjects: BigInt!
+  newVotes: BigInt!
+  newUsers: BigInt!
+  volumeTraded: BigInt!
+  tokensBurned: BigInt!
+}
