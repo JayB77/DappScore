@@ -12,7 +12,7 @@ import { CHAIN_NAMES } from '@/config/chains';
 
 const steps = [
   { id: 1, name: 'General', description: 'Basic project info' },
-  { id: 2, name: 'Details', description: 'Token & sale details' },
+  { id: 2, name: 'Details', description: 'Project details' },
   { id: 3, name: 'Links', description: 'Social & resources' },
   { id: 4, name: 'Team', description: 'Team information' },
 ];
@@ -93,8 +93,8 @@ export default function SubmitProjectPage() {
     hardCap: '',
     softCap: '',
     tokenPrice: '',
-    startDate: '',
-    endDate: '',
+    saleStartDate: '',
+    saleEndDate: '',
     projectImageUrl: '',
     tokenImageUrl: '',
 
@@ -605,8 +605,8 @@ export default function SubmitProjectPage() {
                         <label className="block text-sm text-gray-400 mb-2">Sale Start Date</label>
                         <input
                           type="datetime-local"
-                          value={formData.startDate}
-                          onChange={(e) => updateFormData('startDate', e.target.value)}
+                          value={formData.saleStartDate}
+                          onChange={(e) => updateFormData('saleStartDate', e.target.value)}
                           className="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-3 focus:border-yellow-500 focus:outline-none"
                         />
                       </div>
@@ -614,8 +614,8 @@ export default function SubmitProjectPage() {
                         <label className="block text-sm text-gray-400 mb-2">Sale End Date</label>
                         <input
                           type="datetime-local"
-                          value={formData.endDate}
-                          onChange={(e) => updateFormData('endDate', e.target.value)}
+                          value={formData.saleEndDate}
+                          onChange={(e) => updateFormData('saleEndDate', e.target.value)}
                           className="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-3 focus:border-yellow-500 focus:outline-none"
                         />
                       </div>
