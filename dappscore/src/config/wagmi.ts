@@ -12,12 +12,42 @@
  */
 
 import { getDefaultConfig } from '@rainbow-me/rainbowkit';
-import { base, baseSepolia } from 'wagmi/chains';
+import {
+  mainnet,
+  arbitrum,
+  optimism,
+  polygon,
+  bsc,
+  avalanche,
+  base,
+  baseSepolia,
+  zksync,
+  linea,
+  scroll,
+  fantom,
+} from 'wagmi/chains';
 
+// EVM chains supported for wallet connection.
+// Non-EVM chains (Solana, Sui, Tron, TON, NEAR) are tracked in
+// src/config/chains.ts for project metadata but require separate
+// wallet adapters and are not listed here.
 export const config = getDefaultConfig({
   appName: 'DappScore',
   projectId: '621bdd56c6b4f8f819a93e0353018b98',
-  chains: [base, baseSepolia],
+  chains: [
+    base,
+    baseSepolia,
+    mainnet,
+    arbitrum,
+    optimism,
+    polygon,
+    bsc,
+    avalanche,
+    zksync,
+    linea,
+    scroll,
+    fantom,
+  ],
   ssr: true,
 });
 

@@ -8,6 +8,7 @@ import {
   Plus, Trash2, AlertTriangle, Shield, Loader2,
   SkipForward
 } from 'lucide-react';
+import { CHAIN_NAMES } from '@/config/chains';
 
 const steps = [
   { id: 1, name: 'General', description: 'Basic project info' },
@@ -22,11 +23,7 @@ const categories = [
   'Oracle', 'Bridge', 'DEX', 'Lending', 'Yield', 'Other'
 ];
 
-const blockchains = [
-  'Base', 'Ethereum', 'Arbitrum', 'Optimism', 'Polygon',
-  'BNB Chain', 'Avalanche', 'Solana', 'Fantom', 'zkSync',
-  'Linea', 'Scroll', 'Other'
-];
+const blockchains = CHAIN_NAMES;
 
 const saleTypes = [
   { value: 'ico', label: 'ICO (Initial Coin Offering)' },
