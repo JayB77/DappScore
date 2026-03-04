@@ -439,6 +439,9 @@ export default function EditProjectPage() {
                   placeholder="https://github.com/..."
                   className="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-3 focus:border-yellow-500 focus:outline-none disabled:opacity-50"
                 />
+                <p className="text-xs text-gray-500 mt-2">
+                  A public GitHub repository positively impacts your trust score. Private repos or alternative source control systems are accepted but will contribute less until independently verified.
+                </p>
               </div>
             </div>
           </div>

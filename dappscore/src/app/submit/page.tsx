@@ -6,7 +6,7 @@ import { ConnectButton } from '@rainbow-me/rainbowkit';
 import {
   Check, ChevronLeft, ChevronRight, Wallet, Upload, AlertCircle,
   Plus, Trash2, Crown, AlertTriangle, Shield, ExternalLink, Loader2,
-  Coins, SkipForward, Clock
+  SkipForward, Clock
 } from 'lucide-react';
 import { useUSDCPayment } from '@/hooks/useUSDCPayment';
 import { baseSepolia } from 'wagmi/chains';
@@ -121,7 +121,7 @@ export default function SubmitProjectPage() {
     projectImageUrl: '',
     tokenImageUrl: '',
 
-    // Links (all optional)
+    // Links (discord or telegram required; others optional)
     website: '',
     whitepaper: '',
     pitchDeck: '',
@@ -242,6 +242,9 @@ export default function SubmitProjectPage() {
     if (currentStep === 1) {
       return formData.projectName && formData.tokenSymbol && formData.category && formData.description;
     }
+    if (currentStep === 3) {
+      return !!(formData.telegram || formData.discord);
+    }
     return true;
   };
 
@@ -265,17 +268,6 @@ export default function SubmitProjectPage() {
         <p className="text-gray-400 text-center mb-4">
           Get your project listed on DappScore and let the community evaluate it
         </p>
-
-        {/* Submission Reward Banner */}
-        <div className="mb-8 p-4 bg-green-500/10 border border-green-500/50 rounded-lg">
-          <div className="flex items-center justify-center space-x-3">
-            <Coins className="h-6 w-6 text-green-400" />
-            <div className="text-center">
-              <span className="text-green-400 font-medium">Earn 50 $SCORE tokens</span>
-              <span className="text-gray-400"> for submitting a project!</span>
-            </div>
-          </div>
-        </div>
 
         {/* Progress Steps */}
         <div className="mb-8">
@@ -671,7 +663,7 @@ export default function SubmitProjectPage() {
           {currentStep === 3 && (
             <div className="space-y-6">
               <h2 className="text-xl font-bold">Links & Resources</h2>
-              <p className="text-gray-400 text-sm">All fields are optional - add as many as you have</p>
+              <p className="text-gray-400 text-sm">At least one community link (Discord or Telegram) is required. All other fields are optional.</p>
 
               <div>
                 <label className="block text-sm text-gray-400 mb-2">Website</label>
@@ -707,7 +699,44 @@ export default function SubmitProjectPage() {
                 </div>
               </div>
 
-              <h3 className="text-lg font-semibold pt-4 border-t border-gray-700">Social Media</h3>
+              <h3 className="text-lg font-semibold pt-4 border-t border-gray-700">Community Links <span className="text-red-400 text-sm font-normal">(at least one required)</span></h3>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm text-gray-400 mb-2">
+                    Discord <span className="text-red-400">*</span>
+                  </label>
+                  <input
+                    type="url"
+                    value={formData.discord}
+                    onChange={(e) => updateFormData('discord', e.target.value)}
+                    placeholder="https://discord.gg/yourproject"
+                    className={`w-full bg-gray-700 border rounded-lg px-4 py-3 focus:border-yellow-500 focus:outline-none ${
+                      !formData.discord && !formData.telegram ? 'border-red-500/50' : 'border-gray-600'
+                    }`}
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm text-gray-400 mb-2">
+                    Telegram <span className="text-red-400">*</span>
+                  </label>
+                  <input
+                    type="url"
+                    value={formData.telegram}
+                    onChange={(e) => updateFormData('telegram', e.target.value)}
+                    placeholder="https://t.me/yourproject"
+                    className={`w-full bg-gray-700 border rounded-lg px-4 py-3 focus:border-yellow-500 focus:outline-none ${
+                      !formData.discord && !formData.telegram ? 'border-red-500/50' : 'border-gray-600'
+                    }`}
+                  />
+                </div>
+              </div>
+
+              {!formData.discord && !formData.telegram && (
+                <p className="text-red-400 text-sm">Please provide at least a Discord or Telegram link to continue.</p>
+              )}
+
+              <h3 className="text-lg font-semibold pt-4 border-t border-gray-700">Other Social Media <span className="text-gray-500 text-sm font-normal">(optional)</span></h3>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
@@ -721,29 +750,6 @@ export default function SubmitProjectPage() {
                   />
                 </div>
                 <div>
-                  <label className="block text-sm text-gray-400 mb-2">Telegram</label>
-                  <input
-                    type="url"
-                    value={formData.telegram}
-                    onChange={(e) => updateFormData('telegram', e.target.value)}
-                    placeholder="https://t.me/yourproject"
-                    className="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-3 focus:border-yellow-500 focus:outline-none"
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm text-gray-400 mb-2">Discord</label>
-                  <input
-                    type="url"
-                    value={formData.discord}
-                    onChange={(e) => updateFormData('discord', e.target.value)}
-                    placeholder="https://discord.gg/yourproject"
-                    className="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-3 focus:border-yellow-500 focus:outline-none"
-                  />
-                </div>
-                <div>
                   <label className="block text-sm text-gray-400 mb-2">LinkedIn</label>
                   <input
                     type="url"
@@ -753,9 +759,6 @@ export default function SubmitProjectPage() {
                     className="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-3 focus:border-yellow-500 focus:outline-none"
                   />
                 </div>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm text-gray-400 mb-2">Reddit</label>
                   <input
@@ -766,6 +769,9 @@ export default function SubmitProjectPage() {
                     className="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-3 focus:border-yellow-500 focus:outline-none"
                   />
                 </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm text-gray-400 mb-2">Medium / Blog</label>
                   <input
@@ -776,9 +782,6 @@ export default function SubmitProjectPage() {
                     className="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-3 focus:border-yellow-500 focus:outline-none"
                   />
                 </div>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm text-gray-400 mb-2">YouTube</label>
                   <input
@@ -786,16 +789,6 @@ export default function SubmitProjectPage() {
                     value={formData.youtube}
                     onChange={(e) => updateFormData('youtube', e.target.value)}
                     placeholder="https://youtube.com/@yourproject"
-                    className="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-3 focus:border-yellow-500 focus:outline-none"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm text-gray-400 mb-2">GitHub</label>
-                  <input
-                    type="url"
-                    value={formData.github}
-                    onChange={(e) => updateFormData('github', e.target.value)}
-                    placeholder="https://github.com/yourproject"
                     className="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-3 focus:border-yellow-500 focus:outline-none"
                   />
                 </div>
@@ -832,6 +825,22 @@ export default function SubmitProjectPage() {
                     className="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-3 focus:border-yellow-500 focus:outline-none"
                   />
                 </div>
+              </div>
+
+              <h3 className="text-lg font-semibold pt-4 border-t border-gray-700">Code Repository <span className="text-gray-500 text-sm font-normal">(optional)</span></h3>
+
+              <div>
+                <label className="block text-sm text-gray-400 mb-2">GitHub</label>
+                <input
+                  type="url"
+                  value={formData.github}
+                  onChange={(e) => updateFormData('github', e.target.value)}
+                  placeholder="https://github.com/yourproject"
+                  className="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-3 focus:border-yellow-500 focus:outline-none"
+                />
+                <p className="text-xs text-gray-500 mt-2">
+                  A public GitHub repository improves your project&apos;s trust score. Private repos or other source control systems are accepted but will count less until independently verified.
+                </p>
               </div>
             </div>
           )}
@@ -967,10 +976,6 @@ export default function SubmitProjectPage() {
                       <div className="font-bold text-lg mb-1">Free Listing</div>
                       <div className="flex items-center space-x-3 mb-3">
                         <span className="text-2xl text-green-400">$0</span>
-                        <span className="px-2 py-1 bg-green-500/20 text-green-400 text-xs font-medium rounded-full flex items-center">
-                          <Coins className="h-3 w-3 mr-1" />
-                          +50 $SCORE
-                        </span>
                       </div>
                       <ul className="text-sm text-gray-400 space-y-2">
                         <li className="flex items-center">
@@ -988,10 +993,6 @@ export default function SubmitProjectPage() {
                         <li className="flex items-center">
                           <Check className="h-4 w-4 text-green-500 mr-2 flex-shrink-0" />
                           Position based on community score
-                        </li>
-                        <li className="flex items-center">
-                          <Coins className="h-4 w-4 text-green-500 mr-2 flex-shrink-0" />
-                          Earn 50 $SCORE tokens!
                         </li>
                       </ul>
                     </div>
@@ -1114,13 +1115,9 @@ export default function SubmitProjectPage() {
                 <div className="p-6 bg-green-500/10 border border-green-500/50 rounded-lg text-center">
                   <Check className="h-12 w-12 text-green-500 mx-auto mb-3" />
                   <h3 className="text-xl font-bold text-green-500 mb-2">Project Submitted!</h3>
-                  <p className="text-gray-400 mb-3">
+                  <p className="text-gray-400">
                     Your project has been submitted and will appear in the directory.
                   </p>
-                  <div className="inline-flex items-center space-x-2 px-4 py-2 bg-green-500/20 rounded-full">
-                    <Coins className="h-5 w-5 text-green-400" />
-                    <span className="text-green-400 font-medium">+50 $SCORE earned!</span>
-                  </div>
                 </div>
               )}
 
@@ -1153,8 +1150,8 @@ export default function SubmitProjectPage() {
 
             {currentStep < 5 ? (
               <div className="flex items-center space-x-3">
-                {/* Skip button for optional steps (2, 3, 4) */}
-                {currentStep >= 2 && currentStep <= 4 && (
+                {/* Skip button for optional steps (2, 4) — step 3 requires a social link */}
+                {(currentStep === 2 || currentStep === 4) && (
                   <button
                     onClick={nextStep}
                     className="flex items-center space-x-2 px-6 py-3 border border-gray-600 text-gray-400 rounded-lg hover:border-gray-500 hover:text-gray-300 transition-colors"
