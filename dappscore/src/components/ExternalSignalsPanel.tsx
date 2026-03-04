@@ -19,24 +19,37 @@ interface GitHubData {
   stars?: number;
   forks?: number;
   pushedAt?: string;
-  createdAt?: string;
   daysSinceLastPush?: number;
   isForked?: boolean;
 }
 
-type LoadState<T> = { state: 'idle' } | { state: 'loading' } | { state: 'ok'; data: T } | { state: 'error'; msg: string };
+type LoadState<T> = { state: 'idle' } | { state: 'loading' } | { state: 'ok'; data: T } | { state: 'error' };
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
-function domainRating(ageInDays: number): { label: string; color: string; icon: React.ReactNode; risk: 'low' | 'medium' | 'high' | 'critical' } {
-  if (ageInDays >= 3 * 365) return { label: `${Math.floor(ageInDays / 365)} years old`, color: 'text-green-400', icon: <CheckCircle className="h-4 w-4" />, risk: 'low' };
-  if (ageInDays >= 365)     return { label: `${Math.floor(ageInDays / 365)}yr ${Math.floor((ageInDays % 365) / 30)}mo old`, color: 'text-green-400', icon: <CheckCircle className="h-4 w-4" />, risk: 'low' };
-  if (ageInDays >= 180)     return { label: `${Math.floor(ageInDays / 30)} months old`, color: 'text-yellow-400', icon: <Clock className="h-4 w-4" />, risk: 'medium' };
-  if (ageInDays >= 90)      return { label: `${Math.floor(ageInDays / 30)} months old`, color: 'text-orange-400', icon: <AlertTriangle className="h-4 w-4" />, risk: 'high' };
-  return { label: `Only ${ageInDays} days old`, color: 'text-red-400', icon: <AlertTriangle className="h-4 w-4" />, risk: 'critical' };
+function extractRootDomain(url: string): string {
+  return url
+    .replace(/^https?:\/\//, '')
+    .replace(/^www\./, '')
+    .split('/')[0]
+    .split('?')[0];
 }
 
-function githubRating(data: GitHubData): { label: string; sublabel: string; color: string; icon: React.ReactNode } {
+function parseGitHubUrl(url: string): { owner: string; repo: string } | null {
+  const match = url.match(/github\.com\/([^/]+)\/([^/]+)/);
+  if (!match) return null;
+  return { owner: match[1], repo: match[2].replace(/\.git$/, '') };
+}
+
+function domainRating(ageInDays: number) {
+  if (ageInDays >= 3 * 365) return { label: `${Math.floor(ageInDays / 365)} years old`, color: 'text-green-400', icon: <CheckCircle className="h-4 w-4" />, risk: 'low' as const };
+  if (ageInDays >= 365)     return { label: `${Math.floor(ageInDays / 365)}yr ${Math.floor((ageInDays % 365) / 30)}mo old`, color: 'text-green-400', icon: <CheckCircle className="h-4 w-4" />, risk: 'low' as const };
+  if (ageInDays >= 180)     return { label: `${Math.floor(ageInDays / 30)} months old`, color: 'text-yellow-400', icon: <Clock className="h-4 w-4" />, risk: 'medium' as const };
+  if (ageInDays >= 90)      return { label: `${Math.floor(ageInDays / 30)} months old`, color: 'text-orange-400', icon: <AlertTriangle className="h-4 w-4" />, risk: 'high' as const };
+  return { label: `Only ${ageInDays} days old`, color: 'text-red-400', icon: <AlertTriangle className="h-4 w-4" />, risk: 'critical' as const };
+}
+
+function githubRating(data: GitHubData) {
   if (data.status === 'private') {
     return { label: 'Private Repo', sublabel: 'Source not public yet', color: 'text-gray-400', icon: <Lock className="h-4 w-4" /> };
   }
@@ -47,8 +60,44 @@ function githubRating(data: GitHubData): { label: string; sublabel: string; colo
   return { label: 'Stale', sublabel: `Last commit ${days}d ago`, color: 'text-red-400', icon: <AlertTriangle className="h-4 w-4" /> };
 }
 
-function isValidGitHubUrl(url: string): boolean {
-  return /github\.com\/[^/]+\/[^/]+/.test(url);
+// ── Data fetchers (called directly from the browser; both APIs support CORS) ─
+
+async function fetchDomainAge(websiteUrl: string): Promise<DomainData> {
+  const rootDomain = extractRootDomain(websiteUrl);
+  const res = await fetch(`https://rdap.org/domain/${rootDomain}`, {
+    headers: { Accept: 'application/rdap+json' },
+  });
+  if (!res.ok) throw new Error('not found');
+  const data = await res.json();
+  const events: { eventAction: string; eventDate: string }[] = data.events ?? [];
+  const registration = events.find((e) => e.eventAction === 'registration');
+  const expiry = events.find((e) => e.eventAction === 'expiration');
+  if (!registration) throw new Error('no registration date');
+  const ageInDays = Math.floor((Date.now() - new Date(registration.eventDate).getTime()) / 86_400_000);
+  return { domain: rootDomain, registeredAt: registration.eventDate, expiresAt: expiry?.eventDate ?? null, ageInDays };
+}
+
+async function fetchGitHubActivity(githubUrl: string): Promise<GitHubData> {
+  const parsed = parseGitHubUrl(githubUrl);
+  if (!parsed) throw new Error('invalid url');
+  const { owner, repo } = parsed;
+  const res = await fetch(`https://api.github.com/repos/${owner}/${repo}`, {
+    headers: { Accept: 'application/vnd.github.v3+json' },
+  });
+  if (res.status === 404) return { status: 'private', owner, repo };
+  if (!res.ok) throw new Error('api error');
+  const data = await res.json();
+  const daysSinceLastPush = Math.floor((Date.now() - new Date(data.pushed_at).getTime()) / 86_400_000);
+  return {
+    status: 'public',
+    owner,
+    repo,
+    stars: data.stargazers_count as number,
+    forks: data.forks_count as number,
+    pushedAt: data.pushed_at as string,
+    daysSinceLastPush,
+    isForked: data.fork as boolean,
+  };
 }
 
 // ── Component ────────────────────────────────────────────────────────────────
@@ -62,32 +111,27 @@ export default function ExternalSignalsPanel({ websiteUrl, githubUrl }: Props) {
   const [domain, setDomain] = useState<LoadState<DomainData>>({ state: 'idle' });
   const [github, setGithub] = useState<LoadState<GitHubData>>({ state: 'idle' });
 
+  const validGithubUrl = githubUrl && parseGitHubUrl(githubUrl) ? githubUrl : undefined;
+
   useEffect(() => {
     if (!websiteUrl) return;
+    const rootDomain = extractRootDomain(websiteUrl);
+    if (!rootDomain.includes('.') || rootDomain.endsWith('.eth') || rootDomain.endsWith('.sol')) return;
     setDomain({ state: 'loading' });
-    fetch(`/api/domain-age?domain=${encodeURIComponent(websiteUrl)}`)
-      .then((r) => r.json())
-      .then((data) => {
-        if (data.error) setDomain({ state: 'error', msg: data.error });
-        else setDomain({ state: 'ok', data });
-      })
-      .catch(() => setDomain({ state: 'error', msg: 'Lookup failed' }));
+    fetchDomainAge(websiteUrl)
+      .then((data) => setDomain({ state: 'ok', data }))
+      .catch(() => setDomain({ state: 'error' }));
   }, [websiteUrl]);
 
   useEffect(() => {
-    if (!githubUrl || !isValidGitHubUrl(githubUrl)) return;
+    if (!validGithubUrl) return;
     setGithub({ state: 'loading' });
-    fetch(`/api/github-activity?repo=${encodeURIComponent(githubUrl)}`)
-      .then((r) => r.json())
-      .then((data) => {
-        if (data.error) setGithub({ state: 'error', msg: data.error });
-        else setGithub({ state: 'ok', data });
-      })
-      .catch(() => setGithub({ state: 'error', msg: 'Lookup failed' }));
-  }, [githubUrl]);
+    fetchGitHubActivity(validGithubUrl)
+      .then((data) => setGithub({ state: 'ok', data }))
+      .catch(() => setGithub({ state: 'error' }));
+  }, [validGithubUrl]);
 
-  const hasAnything = websiteUrl || (githubUrl && isValidGitHubUrl(githubUrl));
-  if (!hasAnything) return null;
+  if (!websiteUrl && !validGithubUrl) return null;
 
   return (
     <div className="bg-gray-800 rounded-xl p-6">
@@ -131,7 +175,7 @@ export default function ExternalSignalsPanel({ websiteUrl, githubUrl }: Props) {
         )}
 
         {/* GitHub Activity */}
-        {githubUrl && isValidGitHubUrl(githubUrl) && (
+        {validGithubUrl ? (
           <div className="flex items-start space-x-3">
             <div className="mt-0.5 p-2 bg-gray-700 rounded-lg">
               <Github className="h-4 w-4 text-gray-400" />
@@ -180,10 +224,7 @@ export default function ExternalSignalsPanel({ websiteUrl, githubUrl }: Props) {
               )}
             </div>
           </div>
-        )}
-
-        {/* No GitHub provided */}
-        {(!githubUrl || !isValidGitHubUrl(githubUrl)) && (
+        ) : (
           <div className="flex items-start space-x-3">
             <div className="mt-0.5 p-2 bg-gray-700 rounded-lg">
               <Github className="h-4 w-4 text-gray-400" />
@@ -197,7 +238,7 @@ export default function ExternalSignalsPanel({ websiteUrl, githubUrl }: Props) {
       </div>
 
       <p className="text-xs text-gray-600 mt-4">
-        Domain data via ICANN RDAP. GitHub data cached hourly.
+        Domain data via ICANN RDAP · GitHub data via public API
       </p>
     </div>
   );
