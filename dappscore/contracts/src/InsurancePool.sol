@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.24;
 
-import "@openzeppelin/contracts/access/Ownable.sol";
+import "@openzeppelin/contracts/access/Ownable2Step.sol";
 import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import "./ScoreToken.sol";
 
@@ -16,9 +16,13 @@ import "./ScoreToken.sol";
  * - If project is marked as scam, affected users can claim
  * - Stakers share losses proportionally, but earn premium yield
  * - Tiered coverage levels with different premiums
+ *
+ * Reward accounting uses the SushiSwap/MasterChef accumulator pattern:
+ *   rewardsPerShare grows as premiums arrive.
+ *   rewardDebt[user] = staked * rewardsPerShare at last checkpoint.
+ *   pending = staked * rewardsPerShare - rewardDebt  (delta only).
  */
-contract InsurancePool is Ownable, ReentrancyGuard {
-
+contract InsurancePool is Ownable2Step, ReentrancyGuard {
     struct Staker {
         uint256 stakedAmount;
         uint256 stakedAt;
@@ -29,7 +33,7 @@ contract InsurancePool is Ownable, ReentrancyGuard {
     struct Coverage {
         uint256 projectId;
         address purchaser;
-        uint256 coverageAmount;    // Max payout
+        uint256 coverageAmount; // Max payout
         uint256 premiumPaid;
         uint256 purchasedAt;
         uint256 expiresAt;
@@ -49,18 +53,38 @@ contract InsurancePool is Ownable, ReentrancyGuard {
         bool paid;
     }
 
+    // ============ Unstake cooldown request ============
+
+    struct UnstakeRequest {
+        uint256 amount;
+        uint256 requestedAt;
+    }
+
     // Contracts
     ScoreToken public scoreToken;
 
     // Pool State
     uint256 public totalStaked;
-    uint256 public totalCoverage;         // Total active coverage amount
+    uint256 public totalCoverage; // Total active coverage amount
     uint256 public totalPremiumsCollected;
     uint256 public totalClaimsPaid;
-    uint256 public rewardsPerShare;       // Accumulated rewards per staked token (scaled by 1e18)
 
-    // Mappings
+    /**
+     * @dev Accumulated rewards per staked token, scaled by 1e18.
+     *      Monotonically increases as premiums arrive.
+     */
+    uint256 public rewardsPerShare;
+
+    // Staker accounting
     mapping(address => Staker) public stakers;
+    /**
+     * @dev rewardDebt[user] = staked * rewardsPerShare at last checkpoint.
+     *      Tracks how much of rewardsPerShare has already been accounted for.
+     */
+    mapping(address => uint256) public rewardDebt;
+
+    mapping(address => UnstakeRequest) public unstakeRequests;
+
     mapping(uint256 => Coverage) public coverages;
     mapping(uint256 => Claim) public claims;
     address[] public stakerList;
@@ -68,18 +92,19 @@ contract InsurancePool is Ownable, ReentrancyGuard {
     uint256 public claimCount;
 
     // Configuration
-    uint256 public minStake = 100 * 10**18;           // 100 SCORE min stake
-    uint256 public unstakeCooldown = 7 days;          // Wait period after unstake request
-    uint256 public coverageDuration = 30 days;        // Coverage period
-    uint256 public premiumRateBps = 500;              // 5% premium for coverage
-    uint256 public maxCoverageRatio = 5000;           // Max 50% of pool can be covered
-    uint256 public claimDeductibleBps = 1000;         // 10% deductible on claims
+    uint256 public minStake = 100 * 10 ** 18; // 100 SCORE min stake
+    uint256 public unstakeCooldown = 7 days; // Cooldown between request and execution
+    uint256 public coverageDuration = 30 days; // Coverage period
+    uint256 public premiumRateBps = 500; // 5% premium for coverage
+    uint256 public maxCoverageRatio = 5000; // Max 50% of pool can be covered
+    uint256 public claimDeductibleBps = 1000; // 10% deductible on claims
 
     // Authorized claim approvers
     mapping(address => bool) public claimApprovers;
 
     // Events
     event Staked(address indexed staker, uint256 amount);
+    event UnstakeRequested(address indexed staker, uint256 amount, uint256 availableAt);
     event Unstaked(address indexed staker, uint256 amount);
     event RewardsClaimed(address indexed staker, uint256 amount);
     event CoveragePurchased(uint256 indexed coverageId, uint256 projectId, address purchaser, uint256 amount);
@@ -95,12 +120,13 @@ contract InsurancePool is Ownable, ReentrancyGuard {
     // ============ Staking Functions ============
 
     /**
-     * @notice Stake SCORE to provide insurance coverage
+     * @notice Stake SCORE to provide insurance coverage and earn premium yield
      */
     function stake(uint256 _amount) external nonReentrant {
         require(_amount >= minStake, "Below minimum");
 
-        _updateRewards(msg.sender);
+        // Checkpoint rewards with OLD amount before changing stake
+        _checkpoint(msg.sender);
 
         require(scoreToken.transferFrom(msg.sender, address(this), _amount), "Transfer failed");
 
@@ -112,37 +138,68 @@ contract InsurancePool is Ownable, ReentrancyGuard {
         stakers[msg.sender].stakedAmount += _amount;
         totalStaked += _amount;
 
+        // Reset debt to new balance so future rewards start from here
+        rewardDebt[msg.sender] = (stakers[msg.sender].stakedAmount * rewardsPerShare) / 1e18;
+
         emit Staked(msg.sender, _amount);
     }
 
     /**
-     * @notice Unstake SCORE (subject to cooldown and coverage obligations)
+     * @notice Request an unstake (begins cooldown period)
+     * @param _amount Amount to unstake
      */
-    function unstake(uint256 _amount) external nonReentrant {
-        Staker storage staker = stakers[msg.sender];
-
-        require(staker.stakedAmount >= _amount, "Insufficient stake");
+    function requestUnstake(uint256 _amount) external {
+        require(_amount > 0, "Amount must be > 0");
+        require(stakers[msg.sender].stakedAmount >= _amount, "Insufficient stake");
+        require(unstakeRequests[msg.sender].amount == 0, "Pending request exists");
 
         // Ensure pool remains solvent for active coverage
         uint256 remainingStake = totalStaked - _amount;
         uint256 requiredStake = (totalCoverage * 10000) / maxCoverageRatio;
         require(remainingStake >= requiredStake, "Would breach coverage ratio");
 
-        _updateRewards(msg.sender);
+        unstakeRequests[msg.sender] = UnstakeRequest({amount: _amount, requestedAt: block.timestamp});
 
-        staker.stakedAmount -= _amount;
-        totalStaked -= _amount;
+        emit UnstakeRequested(msg.sender, _amount, block.timestamp + unstakeCooldown);
+    }
 
-        require(scoreToken.transfer(msg.sender, _amount), "Transfer failed");
+    /**
+     * @notice Execute an unstake after the cooldown period has elapsed
+     */
+    function unstake() external nonReentrant {
+        UnstakeRequest storage req = unstakeRequests[msg.sender];
+        require(req.amount > 0, "No pending request");
+        require(block.timestamp >= req.requestedAt + unstakeCooldown, "Cooldown not elapsed");
 
-        emit Unstaked(msg.sender, _amount);
+        uint256 amount = req.amount;
+        require(stakers[msg.sender].stakedAmount >= amount, "Insufficient stake");
+
+        // Re-check solvency at execution time (coverage may have grown)
+        uint256 remainingStake = totalStaked - amount;
+        uint256 requiredStake = (totalCoverage * 10000) / maxCoverageRatio;
+        require(remainingStake >= requiredStake, "Would breach coverage ratio");
+
+        // Checkpoint rewards before amount changes
+        _checkpoint(msg.sender);
+
+        delete unstakeRequests[msg.sender];
+
+        stakers[msg.sender].stakedAmount -= amount;
+        totalStaked -= amount;
+
+        // Update debt for new (lower) balance
+        rewardDebt[msg.sender] = (stakers[msg.sender].stakedAmount * rewardsPerShare) / 1e18;
+
+        require(scoreToken.transfer(msg.sender, amount), "Transfer failed");
+
+        emit Unstaked(msg.sender, amount);
     }
 
     /**
      * @notice Claim accumulated staking rewards
      */
     function claimRewards() external nonReentrant {
-        _updateRewards(msg.sender);
+        _checkpoint(msg.sender);
 
         uint256 rewards = stakers[msg.sender].pendingRewards;
         require(rewards > 0, "No rewards");
@@ -155,16 +212,31 @@ contract InsurancePool is Ownable, ReentrancyGuard {
         emit RewardsClaimed(msg.sender, rewards);
     }
 
-    function _updateRewards(address _staker) internal {
+    /**
+     * @dev Checkpoint: move new rewards (delta) from rewardsPerShare into pendingRewards.
+     *      Must be called BEFORE any change to stakedAmount.
+     *
+     *      Standard MasterChef pattern:
+     *        newPending = stakedAmount * rewardsPerShare / 1e18 - rewardDebt
+     */
+    function _checkpoint(address _staker) internal {
         Staker storage staker = stakers[_staker];
-
         if (staker.stakedAmount > 0) {
-            uint256 pending = (staker.stakedAmount * rewardsPerShare) / 1e18;
-            staker.pendingRewards += pending;
+            uint256 totalAccrued = (staker.stakedAmount * rewardsPerShare) / 1e18;
+            uint256 newReward = totalAccrued - rewardDebt[_staker];
+            if (newReward > 0) {
+                staker.pendingRewards += newReward;
+            }
         }
+        // Debt is updated AFTER the pending calculation, but BEFORE any amount change
+        // (caller must update debt again if amount changes)
+        rewardDebt[_staker] = (stakers[_staker].stakedAmount * rewardsPerShare) / 1e18;
     }
 
-    function _distributePremmium(uint256 _premium) internal {
+    /**
+     * @dev Distribute a premium payment across all stakers by incrementing rewardsPerShare.
+     */
+    function _distributePremium(uint256 _premium) internal {
         if (totalStaked > 0) {
             rewardsPerShare += (_premium * 1e18) / totalStaked;
         }
@@ -174,15 +246,15 @@ contract InsurancePool is Ownable, ReentrancyGuard {
 
     /**
      * @notice Purchase insurance coverage for a project
-     * @param _projectId Project to insure
-     * @param _coverageAmount Maximum coverage amount
      */
-    function purchaseCoverage(uint256 _projectId, uint256 _coverageAmount) external nonReentrant returns (uint256) {
-        // Check coverage ratio
+    function purchaseCoverage(uint256 _projectId, uint256 _coverageAmount)
+        external
+        nonReentrant
+        returns (uint256)
+    {
         uint256 maxNewCoverage = (totalStaked * maxCoverageRatio / 10000) - totalCoverage;
         require(_coverageAmount <= maxNewCoverage, "Exceeds available coverage");
 
-        // Calculate premium
         uint256 premium = (_coverageAmount * premiumRateBps) / 10000;
         require(premium > 0, "Coverage too small");
 
@@ -205,8 +277,7 @@ contract InsurancePool is Ownable, ReentrancyGuard {
         totalCoverage += _coverageAmount;
         totalPremiumsCollected += premium;
 
-        // Distribute premium to stakers
-        _distributePremmium(premium);
+        _distributePremium(premium);
 
         emit CoveragePurchased(coverageId, _projectId, msg.sender, _coverageAmount);
 
@@ -215,15 +286,12 @@ contract InsurancePool is Ownable, ReentrancyGuard {
 
     /**
      * @notice Submit a claim against coverage
-     * @param _coverageId Coverage ID to claim against
-     * @param _lossAmount Actual loss amount
-     * @param _evidenceIpfs IPFS hash with evidence of loss
      */
-    function submitClaim(
-        uint256 _coverageId,
-        uint256 _lossAmount,
-        string calldata _evidenceIpfs
-    ) external nonReentrant returns (uint256) {
+    function submitClaim(uint256 _coverageId, uint256 _lossAmount, string calldata _evidenceIpfs)
+        external
+        nonReentrant
+        returns (uint256)
+    {
         Coverage storage coverage = coverages[_coverageId];
 
         require(coverage.purchaser == msg.sender, "Not coverage owner");
@@ -231,10 +299,7 @@ contract InsurancePool is Ownable, ReentrancyGuard {
         require(!coverage.claimed, "Already claimed");
         require(block.timestamp <= coverage.expiresAt, "Coverage expired");
 
-        uint256 requestedAmount = _lossAmount;
-        if (requestedAmount > coverage.coverageAmount) {
-            requestedAmount = coverage.coverageAmount;
-        }
+        uint256 requestedAmount = _lossAmount > coverage.coverageAmount ? coverage.coverageAmount : _lossAmount;
 
         // Apply deductible
         uint256 afterDeductible = requestedAmount - (requestedAmount * claimDeductibleBps / 10000);
@@ -272,7 +337,6 @@ contract InsurancePool is Ownable, ReentrancyGuard {
         claim.approved = true;
         claim.approvedAmount = _approvedAmount;
 
-        // Mark coverage as claimed
         Coverage storage coverage = coverages[claim.coverageId];
         coverage.claimed = true;
         coverage.active = false;
@@ -314,7 +378,7 @@ contract InsurancePool is Ownable, ReentrancyGuard {
     }
 
     /**
-     * @notice Expire inactive coverages
+     * @notice Expire an inactive coverage (anyone can call)
      */
     function expireCoverage(uint256 _coverageId) external {
         Coverage storage coverage = coverages[_coverageId];
@@ -340,38 +404,42 @@ contract InsurancePool is Ownable, ReentrancyGuard {
         return claims[_claimId];
     }
 
-    function getPoolStats() external view returns (
-        uint256 staked,
-        uint256 coverage,
-        uint256 premiums,
-        uint256 claimsPaid,
-        uint256 availableCoverage,
-        uint256 stakerCount
-    ) {
+    function getPoolStats()
+        external
+        view
+        returns (
+            uint256 staked,
+            uint256 coverage,
+            uint256 premiums,
+            uint256 claimsPaid,
+            uint256 availableCoverage,
+            uint256 stakerCount
+        )
+    {
         uint256 maxCoverage = (totalStaked * maxCoverageRatio) / 10000;
         uint256 available = maxCoverage > totalCoverage ? maxCoverage - totalCoverage : 0;
 
-        return (
-            totalStaked,
-            totalCoverage,
-            totalPremiumsCollected,
-            totalClaimsPaid,
-            available,
-            stakerList.length
-        );
+        return (totalStaked, totalCoverage, totalPremiumsCollected, totalClaimsPaid, available, stakerList.length);
     }
 
+    /**
+     * @notice Preview pending rewards without modifying state
+     */
     function getPendingRewards(address _staker) external view returns (uint256) {
         Staker memory staker = stakers[_staker];
-
         if (staker.stakedAmount == 0) return staker.pendingRewards;
 
-        uint256 pending = (staker.stakedAmount * rewardsPerShare) / 1e18;
-        return staker.pendingRewards + pending;
+        uint256 totalAccrued = (staker.stakedAmount * rewardsPerShare) / 1e18;
+        uint256 delta = totalAccrued - rewardDebt[_staker];
+        return staker.pendingRewards + delta;
     }
 
     function calculatePremium(uint256 _coverageAmount) external view returns (uint256) {
         return (_coverageAmount * premiumRateBps) / 10000;
+    }
+
+    function getUnstakeRequest(address _staker) external view returns (UnstakeRequest memory) {
+        return unstakeRequests[_staker];
     }
 
     // ============ Admin Functions ============
@@ -396,5 +464,10 @@ contract InsurancePool is Ownable, ReentrancyGuard {
         maxCoverageRatio = _maxCoverageRatio;
         claimDeductibleBps = _deductibleBps;
         coverageDuration = _duration;
+    }
+
+    function setUnstakeCooldown(uint256 _cooldown) external onlyOwner {
+        require(_cooldown <= 30 days, "Max 30 day cooldown");
+        unstakeCooldown = _cooldown;
     }
 }
