@@ -16,11 +16,9 @@ const mockProjects: Project[] = [
     chain: 'Base',
     totalSupply: '100,000,000',
     hardCap: '$2,000,000',
-    startDate: Math.floor(Date.now() / 1000) - 86400,
-    endDate: Math.floor(Date.now() / 1000) + 86400 * 14,
+    saleStartDate: Math.floor(Date.now() / 1000) - 86400,
+    saleEndDate: Math.floor(Date.now() / 1000) + 86400 * 14,
     trustLevel: 'Trusted',
-    isPremium: true,
-    premiumExpiresAt: Math.floor(Date.now() / 1000) + 86400 * 5,
     upvotes: 245,
     downvotes: 12,
     verified: true,
@@ -32,14 +30,9 @@ const mockProjects: Project[] = [
     symbol: 'GFW',
     description: 'Play-to-earn gaming platform with NFT integration and cross-game asset portability.',
     category: 'Gaming',
-    chain: 'Base',
-    totalSupply: '500,000,000',
-    hardCap: '$5,000,000',
-    startDate: Math.floor(Date.now() / 1000) + 86400 * 2,
-    endDate: Math.floor(Date.now() / 1000) + 86400 * 30,
+    chain: 'Arbitrum',
+    projectStage: 'testnet',
     trustLevel: 'NewListing',
-    isPremium: true,
-    premiumExpiresAt: Math.floor(Date.now() / 1000) + 86400 * 3,
     upvotes: 89,
     downvotes: 23,
     verified: false,
@@ -51,13 +44,13 @@ const mockProjects: Project[] = [
     symbol: 'AIDN',
     description: 'Decentralized AI training data marketplace powered by blockchain verification.',
     category: 'AI',
-    chain: 'Base',
+    chain: 'Ethereum',
+    projectStage: 'mainnet',
     totalSupply: '200,000,000',
     hardCap: '$3,500,000',
-    startDate: Math.floor(Date.now() / 1000) - 86400 * 3,
-    endDate: Math.floor(Date.now() / 1000) + 86400 * 21,
+    saleStartDate: Math.floor(Date.now() / 1000) - 86400 * 3,
+    saleEndDate: Math.floor(Date.now() / 1000) + 86400 * 21,
     trustLevel: 'Neutral',
-    isPremium: false,
     upvotes: 156,
     downvotes: 45,
     verified: true,
@@ -69,13 +62,9 @@ const mockProjects: Project[] = [
     symbol: 'QSC',
     description: 'Another DEX with promises of high yields and referral rewards.',
     category: 'DeFi',
-    chain: 'Base',
-    totalSupply: '1,000,000,000',
-    hardCap: '$500,000',
-    startDate: Math.floor(Date.now() / 1000) - 86400 * 5,
-    endDate: Math.floor(Date.now() / 1000) + 86400 * 10,
+    chain: 'BNB Chain',
+    projectStage: 'launched',
     trustLevel: 'Suspicious',
-    isPremium: false,
     upvotes: 12,
     downvotes: 89,
     verified: false,
@@ -87,13 +76,9 @@ const mockProjects: Project[] = [
     symbol: 'MSOC',
     description: 'Decentralized social media platform with creator monetization and zero censorship.',
     category: 'Social',
-    chain: 'Base',
-    totalSupply: '300,000,000',
-    hardCap: '$1,500,000',
-    startDate: Math.floor(Date.now() / 1000) + 86400 * 5,
-    endDate: Math.floor(Date.now() / 1000) + 86400 * 35,
+    chain: 'Solana',
+    projectStage: 'development',
     trustLevel: 'NewListing',
-    isPremium: false,
     upvotes: 34,
     downvotes: 8,
     verified: false,
@@ -105,13 +90,9 @@ const mockProjects: Project[] = [
     symbol: 'NFTP',
     description: 'Premium NFT marketplace with AI-powered pricing and fraud detection.',
     category: 'NFT',
-    chain: 'Base',
-    totalSupply: '150,000,000',
-    hardCap: '$2,500,000',
-    startDate: Math.floor(Date.now() / 1000) - 86400 * 2,
-    endDate: Math.floor(Date.now() / 1000) + 86400 * 18,
+    chain: 'Polygon',
+    projectStage: 'mainnet',
     trustLevel: 'Trusted',
-    isPremium: false,
     upvotes: 312,
     downvotes: 28,
     verified: true,
@@ -228,7 +209,7 @@ export default function HomePage() {
 
           <div className="flex items-center justify-between mb-8">
             <h2 className="text-2xl font-bold">
-              <span className="text-yellow-500">Live</span> Token Sales
+              <span className="text-yellow-500">Recent</span> Projects
             </h2>
             <Link
               href="/projects"
@@ -252,8 +233,8 @@ export default function HomePage() {
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
           <h2 className="text-3xl font-bold mb-4">Have a Project to List?</h2>
           <p className="text-gray-400 mb-8">
-            Get your project in front of thousands of crypto investors. Premium listings
-            get featured placement and higher visibility.
+            Get your project in front of thousands of crypto enthusiasts. All projects
+            are treated equally — community votes determine trust and visibility.
           </p>
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
             <Link
