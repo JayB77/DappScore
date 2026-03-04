@@ -60,6 +60,7 @@ interface TeamMember {
   bio: string;
   photoUrl: string;
   linkedin: string;
+  twitter: string;
 }
 
 // Mock existing projects for duplicate detection
@@ -124,6 +125,7 @@ export default function SubmitProjectPage() {
     website: '',
     whitepaper: '',
     pitchDeck: '',
+    twitter: '',
     telegram: '',
     discord: '',
     reddit: '',
@@ -145,7 +147,7 @@ export default function SubmitProjectPage() {
   ]);
 
   const [teamMembers, setTeamMembers] = useState<TeamMember[]>([
-    { name: '', role: '', bio: '', photoUrl: '', linkedin: '' }
+    { name: '', role: '', bio: '', photoUrl: '', linkedin: '', twitter: '' }
   ]);
 
   // Mark as submitted when payment is confirmed
@@ -201,7 +203,7 @@ export default function SubmitProjectPage() {
   };
 
   const addTeamMember = () => {
-    setTeamMembers((prev) => [...prev, { name: '', role: '', bio: '', photoUrl: '', linkedin: '' }]);
+    setTeamMembers((prev) => [...prev, { name: '', role: '', bio: '', photoUrl: '', linkedin: '', twitter: '' }]);
   };
 
   const removeTeamMember = (index: number) => {
@@ -738,6 +740,16 @@ export default function SubmitProjectPage() {
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
+                  <label className="block text-sm text-gray-400 mb-2">Twitter / X</label>
+                  <input
+                    type="url"
+                    value={formData.twitter}
+                    onChange={(e) => updateFormData('twitter', e.target.value)}
+                    placeholder="https://twitter.com/yourproject"
+                    className="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-3 focus:border-yellow-500 focus:outline-none"
+                  />
+                </div>
+                <div>
                   <label className="block text-sm text-gray-400 mb-2">LinkedIn</label>
                   <input
                     type="url"
@@ -898,15 +910,27 @@ export default function SubmitProjectPage() {
                     />
                   </div>
 
-                  <div>
-                    <label className="block text-sm text-gray-400 mb-2">LinkedIn</label>
-                    <input
-                      type="url"
-                      value={member.linkedin}
-                      onChange={(e) => updateTeamMember(index, 'linkedin', e.target.value)}
-                      placeholder="https://linkedin.com/in/..."
-                      className="w-full bg-gray-600 border border-gray-500 rounded-lg px-4 py-2 focus:border-yellow-500 focus:outline-none"
-                    />
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm text-gray-400 mb-2">LinkedIn</label>
+                      <input
+                        type="url"
+                        value={member.linkedin}
+                        onChange={(e) => updateTeamMember(index, 'linkedin', e.target.value)}
+                        placeholder="https://linkedin.com/in/..."
+                        className="w-full bg-gray-600 border border-gray-500 rounded-lg px-4 py-2 focus:border-yellow-500 focus:outline-none"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm text-gray-400 mb-2">Twitter / X</label>
+                      <input
+                        type="url"
+                        value={member.twitter}
+                        onChange={(e) => updateTeamMember(index, 'twitter', e.target.value)}
+                        placeholder="https://twitter.com/..."
+                        className="w-full bg-gray-600 border border-gray-500 rounded-lg px-4 py-2 focus:border-yellow-500 focus:outline-none"
+                      />
+                    </div>
                   </div>
                 </div>
               ))}

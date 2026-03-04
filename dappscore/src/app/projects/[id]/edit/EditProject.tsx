@@ -48,6 +48,7 @@ const mockProjectData = {
   projectStage: 'mainnet',
   websiteUrl: 'https://example.com',
   whitepaperUrl: 'https://example.com/whitepaper.pdf',
+  twitterUrl: 'https://twitter.com/defi_x',
   telegramUrl: 'https://t.me/defi_x',
   discordUrl: 'https://discord.gg/defi_x',
   githubUrl: 'https://github.com/defi_x',
@@ -78,6 +79,7 @@ export default function EditProjectPage() {
     projectStage: mockProjectData.projectStage,
     websiteUrl: mockProjectData.websiteUrl || '',
     whitepaperUrl: mockProjectData.whitepaperUrl || '',
+    twitterUrl: mockProjectData.twitterUrl || '',
     telegramUrl: mockProjectData.telegramUrl || '',
     discordUrl: mockProjectData.discordUrl || '',
     githubUrl: mockProjectData.githubUrl || '',
@@ -387,6 +389,18 @@ export default function EditProjectPage() {
                   onChange={handleInputChange}
                   disabled={!verified}
                   placeholder="https://"
+                  className="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-3 focus:border-yellow-500 focus:outline-none disabled:opacity-50"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-2">Twitter / X</label>
+                <input
+                  type="url"
+                  name="twitterUrl"
+                  value={formData.twitterUrl}
+                  onChange={handleInputChange}
+                  disabled={!verified}
+                  placeholder="https://twitter.com/..."
                   className="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-3 focus:border-yellow-500 focus:outline-none disabled:opacity-50"
                 />
               </div>
