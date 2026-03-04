@@ -1,22 +1,19 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useAccount, useSignMessage, useChainId } from 'wagmi';
+import { useAccount, useSignMessage } from 'wagmi';
 import { ConnectButton } from '@rainbow-me/rainbowkit';
 import {
   Check, ChevronLeft, ChevronRight, Wallet, Upload, AlertCircle,
-  Plus, Trash2, Crown, AlertTriangle, Shield, ExternalLink, Loader2,
-  SkipForward, Clock
+  Plus, Trash2, AlertTriangle, Shield, Loader2,
+  SkipForward
 } from 'lucide-react';
-import { useUSDCPayment } from '@/hooks/useUSDCPayment';
-import { baseSepolia } from 'wagmi/chains';
 
 const steps = [
   { id: 1, name: 'General', description: 'Basic project info' },
   { id: 2, name: 'Details', description: 'Token & sale details' },
   { id: 3, name: 'Links', description: 'Social & resources' },
   { id: 4, name: 'Team', description: 'Team information' },
-  { id: 5, name: 'Payment', description: 'Listing option' },
 ];
 
 const categories = [
@@ -72,7 +69,6 @@ const existingProjects = [
 export default function SubmitProjectPage() {
   const { isConnected, address } = useAccount();
   const { signMessageAsync } = useSignMessage();
-  const chainId = useChainId();
   const [currentStep, setCurrentStep] = useState(1);
   const [isOwnProject, setIsOwnProject] = useState(false);
   const [hasTokenSale, setHasTokenSale] = useState(false);
@@ -81,22 +77,6 @@ export default function SubmitProjectPage() {
   const [duplicateWarning, setDuplicateWarning] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
-
-  // USDC Payment hook
-  const {
-    status: paymentStatus,
-    error: paymentError,
-    txHash,
-    formattedBalance,
-    formattedPrice,
-    isConfirming,
-    isConfirmed,
-    checkBalance,
-    payForPremium,
-    reset: resetPayment,
-  } = useUSDCPayment();
-
-  const isTestnet = chainId === baseSepolia.id;
 
   const [formData, setFormData] = useState({
     // General (only name, symbol, category, description are required)
@@ -137,9 +117,6 @@ export default function SubmitProjectPage() {
     tiktok: '',
     instagram: '',
 
-    // Payment
-    listingType: 'free',
-    paymentMethod: 'eth',
   });
 
   const [contractAddresses, setContractAddresses] = useState<ContractAddress[]>([
@@ -149,13 +126,6 @@ export default function SubmitProjectPage() {
   const [teamMembers, setTeamMembers] = useState<TeamMember[]>([
     { name: '', role: '', bio: '', photoUrl: '', linkedin: '', twitter: '' }
   ]);
-
-  // Mark as submitted when payment is confirmed
-  useEffect(() => {
-    if (isConfirmed && formData.listingType === 'premium' && !submitted) {
-      setSubmitted(true);
-    }
-  }, [isConfirmed, formData.listingType, submitted]);
 
   // Duplicate detection
   useEffect(() => {
@@ -235,7 +205,7 @@ export default function SubmitProjectPage() {
     setVerifying(false);
   };
 
-  const nextStep = () => setCurrentStep((prev) => Math.min(prev + 1, 5));
+  const nextStep = () => setCurrentStep((prev) => Math.min(prev + 1, 4));
   const prevStep = () => setCurrentStep((prev) => Math.max(prev - 1, 1));
 
   const isStepValid = () => {
@@ -945,198 +915,6 @@ export default function SubmitProjectPage() {
             </div>
           )}
 
-          {/* Step 5: Payment */}
-          {currentStep === 5 && (
-            <div className="space-y-6">
-              <h2 className="text-xl font-bold">Listing Options</h2>
-              <p className="text-gray-400 text-sm">Choose how you want your project listed</p>
-
-              {/* Testnet Banner */}
-              {isTestnet && (
-                <div className="p-3 bg-purple-500/10 border border-purple-500/50 rounded-lg">
-                  <p className="text-sm text-purple-400 flex items-center">
-                    <AlertCircle className="h-4 w-4 mr-2" />
-                    You&apos;re on Base Sepolia testnet. Use testnet USDC for premium listings.
-                  </p>
-                </div>
-              )}
-
-              <div className="space-y-4">
-                {/* Free Listing */}
-                <div
-                  onClick={() => !submitted && updateFormData('listingType', 'free')}
-                  className={`p-6 rounded-lg cursor-pointer border-2 transition-all ${
-                    formData.listingType === 'free'
-                      ? 'border-yellow-500 bg-yellow-500/10'
-                      : 'border-gray-600 hover:border-gray-500'
-                  } ${submitted ? 'opacity-50 cursor-not-allowed' : ''}`}
-                >
-                  <div className="flex justify-between items-start">
-                    <div>
-                      <div className="font-bold text-lg mb-1">Free Listing</div>
-                      <div className="flex items-center space-x-3 mb-3">
-                        <span className="text-2xl text-green-400">$0</span>
-                      </div>
-                      <ul className="text-sm text-gray-400 space-y-2">
-                        <li className="flex items-center">
-                          <Check className="h-4 w-4 text-green-500 mr-2 flex-shrink-0" />
-                          Listed in the directory
-                        </li>
-                        <li className="flex items-center">
-                          <Check className="h-4 w-4 text-green-500 mr-2 flex-shrink-0" />
-                          Community voting enabled
-                        </li>
-                        <li className="flex items-center">
-                          <Check className="h-4 w-4 text-green-500 mr-2 flex-shrink-0" />
-                          Comments and feedback
-                        </li>
-                        <li className="flex items-center">
-                          <Check className="h-4 w-4 text-green-500 mr-2 flex-shrink-0" />
-                          Position based on community score
-                        </li>
-                      </ul>
-                    </div>
-                    <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center ${
-                      formData.listingType === 'free' ? 'border-yellow-500 bg-yellow-500' : 'border-gray-500'
-                    }`}>
-                      {formData.listingType === 'free' && <Check className="h-4 w-4 text-black" />}
-                    </div>
-                  </div>
-                </div>
-
-                {/* Premium Listing - Coming Soon */}
-                <div
-                  className="p-6 rounded-lg border-2 border-gray-700 relative overflow-hidden opacity-60 cursor-not-allowed"
-                >
-                  {/* Coming Soon Overlay */}
-                  <div className="absolute inset-0 bg-gray-900/50 flex items-center justify-center z-10">
-                    <div className="bg-gray-800 px-4 py-2 rounded-full flex items-center space-x-2">
-                      <Clock className="h-4 w-4 text-yellow-500" />
-                      <span className="text-yellow-500 font-medium">Coming Soon</span>
-                    </div>
-                  </div>
-                  <div className="absolute top-0 right-0 bg-gray-600 text-gray-400 text-xs font-bold px-3 py-1 rounded-bl-lg">
-                    FEATURED
-                  </div>
-                  <div className="flex justify-between items-start">
-                    <div>
-                      <div className="font-bold text-lg mb-1 flex items-center text-gray-500">
-                        <Crown className="h-5 w-5 text-gray-500 mr-2" />
-                        Premium Listing
-                      </div>
-                      <div className="text-2xl text-gray-500 mb-3">{formattedPrice} USDC</div>
-                      <ul className="text-sm text-gray-500 space-y-2">
-                        <li className="flex items-center">
-                          <Check className="h-4 w-4 text-gray-600 mr-2 flex-shrink-0" />
-                          Everything in Free
-                        </li>
-                        <li className="flex items-center">
-                          <Check className="h-4 w-4 text-gray-600 mr-2 flex-shrink-0" />
-                          Featured at top of listings for 7 days
-                        </li>
-                        <li className="flex items-center">
-                          <Check className="h-4 w-4 text-gray-600 mr-2 flex-shrink-0" />
-                          Premium badge on your listing
-                        </li>
-                        <li className="flex items-center">
-                          <Check className="h-4 w-4 text-gray-600 mr-2 flex-shrink-0" />
-                          Priority review and approval
-                        </li>
-                      </ul>
-                    </div>
-                    <div className="w-6 h-6 rounded-full border-2 border-gray-600" />
-                  </div>
-                </div>
-              </div>
-
-              {/* Premium Payment Section */}
-              {formData.listingType === 'premium' && !submitted && (
-                <div className="space-y-4 pt-4 border-t border-gray-700">
-                  <div className="flex justify-between items-center">
-                    <h3 className="font-semibold">Payment Details</h3>
-                    <span className="text-sm text-gray-400">
-                      Balance: <span className="text-white font-mono">{formattedBalance} USDC</span>
-                    </span>
-                  </div>
-
-                  {/* Payment Status */}
-                  {paymentError && (
-                    <div className="p-3 bg-red-500/10 border border-red-500/50 rounded-lg">
-                      <p className="text-sm text-red-400">{paymentError}</p>
-                    </div>
-                  )}
-
-                  {paymentStatus === 'confirming' && (
-                    <div className="p-4 bg-yellow-500/10 border border-yellow-500/50 rounded-lg">
-                      <div className="flex items-center space-x-3">
-                        <Loader2 className="h-5 w-5 text-yellow-500 animate-spin" />
-                        <div>
-                          <p className="font-medium text-yellow-500">Confirming transaction...</p>
-                          {txHash && (
-                            <a
-                              href={`https://sepolia.basescan.org/tx/${txHash}`}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="text-sm text-gray-400 hover:text-yellow-500 flex items-center mt-1"
-                            >
-                              View on BaseScan <ExternalLink className="h-3 w-3 ml-1" />
-                            </a>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  )}
-
-                  {isConfirmed && (
-                    <div className="p-4 bg-green-500/10 border border-green-500/50 rounded-lg">
-                      <div className="flex items-center space-x-3">
-                        <Check className="h-5 w-5 text-green-500" />
-                        <div>
-                          <p className="font-medium text-green-500">Payment confirmed!</p>
-                          {txHash && (
-                            <a
-                              href={`https://sepolia.basescan.org/tx/${txHash}`}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="text-sm text-gray-400 hover:text-green-500 flex items-center mt-1"
-                            >
-                              View on BaseScan <ExternalLink className="h-3 w-3 ml-1" />
-                            </a>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {/* Success Message */}
-              {submitted && (
-                <div className="p-6 bg-green-500/10 border border-green-500/50 rounded-lg text-center">
-                  <Check className="h-12 w-12 text-green-500 mx-auto mb-3" />
-                  <h3 className="text-xl font-bold text-green-500 mb-2">Project Submitted!</h3>
-                  <p className="text-gray-400">
-                    Your project has been submitted and will appear in the directory.
-                  </p>
-                </div>
-              )}
-
-              <div className="p-4 bg-blue-500/10 border border-blue-500/50 rounded-lg">
-                <div className="flex items-start space-x-3">
-                  <AlertCircle className="h-5 w-5 text-blue-400 flex-shrink-0 mt-0.5" />
-                  <div className="text-sm">
-                    <p className="font-medium text-blue-400">How it works</p>
-                    <p className="text-gray-400 mt-1">
-                      {formData.listingType === 'free'
-                        ? 'Your project will be listed and the community will vote on it. Projects rise or fall based on their community score.'
-                        : 'Pay with USDC to get your project featured at the top for 7 days. After that, position is determined by community score.'}
-                    </p>
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
-
           {/* Navigation */}
           <div className="flex justify-between mt-8 pt-6 border-t border-gray-700">
             <button
@@ -1148,7 +926,7 @@ export default function SubmitProjectPage() {
               <span>Back</span>
             </button>
 
-            {currentStep < 5 ? (
+            {currentStep < 4 ? (
               <div className="flex items-center space-x-3">
                 {/* Skip button for optional steps (2, 4) — step 3 requires a social link */}
                 {(currentStep === 2 || currentStep === 4) && (
@@ -1178,38 +956,47 @@ export default function SubmitProjectPage() {
                 <ChevronRight className="h-5 w-5" />
               </a>
             ) : (
-              <button
-                onClick={async () => {
-                  if (formData.listingType === 'premium') {
-                    setSubmitting(true);
-                    const success = await payForPremium();
-                    if (success) {
-                      // Wait for confirmation effect to trigger
-                      // The isConfirmed state will update and show success
-                    }
-                    setSubmitting(false);
-                  } else {
-                    // Free listing - just submit
+              <div className="flex items-center space-x-3">
+                <button
+                  onClick={nextStep}
+                  className="flex items-center space-x-2 px-6 py-3 border border-gray-600 text-gray-400 rounded-lg hover:border-gray-500 hover:text-gray-300 transition-colors"
+                >
+                  <SkipForward className="h-4 w-4" />
+                  <span>Skip</span>
+                </button>
+                <button
+                  onClick={async () => {
                     setSubmitting(true);
                     await new Promise(resolve => setTimeout(resolve, 1000));
                     setSubmitted(true);
                     setSubmitting(false);
-                  }
-                }}
-                disabled={submitting || (formData.listingType === 'premium' && isConfirming)}
-                className="flex items-center space-x-2 px-6 py-3 bg-yellow-500 text-black font-semibold rounded-lg hover:bg-yellow-400 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-              >
-                {submitting || isConfirming ? (
-                  <>
-                    <Loader2 className="h-5 w-5 animate-spin" />
-                    <span>{isConfirming ? 'Confirming...' : 'Processing...'}</span>
-                  </>
-                ) : (
-                  <span>{formData.listingType === 'free' ? 'Submit Project' : `Pay ${formattedPrice} USDC & Submit`}</span>
-                )}
-              </button>
+                  }}
+                  disabled={submitting}
+                  className="flex items-center space-x-2 px-6 py-3 bg-yellow-500 text-black font-semibold rounded-lg hover:bg-yellow-400 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                >
+                  {submitting ? (
+                    <>
+                      <Loader2 className="h-5 w-5 animate-spin" />
+                      <span>Submitting...</span>
+                    </>
+                  ) : (
+                    <span>Submit Project</span>
+                  )}
+                </button>
+              </div>
             )}
           </div>
+
+          {/* Success Message */}
+          {submitted && (
+            <div className="mt-6 p-6 bg-green-500/10 border border-green-500/50 rounded-lg text-center">
+              <Check className="h-12 w-12 text-green-500 mx-auto mb-3" />
+              <h3 className="text-xl font-bold text-green-500 mb-2">Project Submitted!</h3>
+              <p className="text-gray-400">
+                Your project has been submitted and will appear in the directory.
+              </p>
+            </div>
+          )}
         </div>
       </div>
     </div>
