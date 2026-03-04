@@ -4,7 +4,13 @@ import { useState, useEffect } from 'react';
 import { useAccount, useBalance } from 'wagmi';
 import { ConnectButton } from '@rainbow-me/rainbowkit';
 import { Coins, Clock, Users, Target, Wallet, Sparkles, Shield, TrendingUp, ChevronDown, Gift, Zap } from 'lucide-react';
-import { type PaymentMethod, PAYMENT_METHODS } from '@/config/wagmi';
+type PaymentMethod = 'ETH' | 'USDC' | 'USDT';
+
+const PAYMENT_METHODS: { id: PaymentMethod; name: string }[] = [
+  { id: 'ETH',  name: 'Ethereum (ETH)' },
+  { id: 'USDC', name: 'USD Coin (USDC)' },
+  { id: 'USDT', name: 'Tether (USDT)' },
+];
 
 type Stage = 1 | 2 | 3;
 
