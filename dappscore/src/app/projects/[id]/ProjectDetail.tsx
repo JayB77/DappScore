@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { useAccount } from 'wagmi';
 import { ConnectButton } from '@rainbow-me/rainbowkit';
 import ExternalSignalsPanel from '@/components/ExternalSignalsPanel';
+import ContractFingerprintPanel from '@/components/ContractFingerprintPanel';
 import {
   ThumbsUp,
   ThumbsDown,
@@ -65,6 +66,9 @@ const mockProject = {
     discord: '#',
     github: '#',
   },
+  contractAddresses: [
+    { chain: 'Base', address: '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913' },
+  ],
 };
 
 interface Comment {
@@ -566,6 +570,9 @@ export default function ProjectDetail() {
               websiteUrl={project.websiteUrl}
               githubUrl={project.socialLinks.github !== '#' ? project.socialLinks.github : undefined}
             />
+
+            {/* Contract Signals */}
+            <ContractFingerprintPanel contractAddresses={project.contractAddresses} />
 
             {/* Report Button */}
             <button className="w-full py-3 border border-red-500/50 text-red-400 rounded-lg hover:bg-red-500/10 flex items-center justify-center space-x-2">
