@@ -5,6 +5,7 @@ import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import { useAccount } from 'wagmi';
 import { ConnectButton } from '@rainbow-me/rainbowkit';
+import ExternalSignalsPanel from '@/components/ExternalSignalsPanel';
 import {
   ThumbsUp,
   ThumbsDown,
@@ -559,6 +560,12 @@ export default function ProjectDetail() {
                 </div>
               </div>
             </div>
+
+            {/* External Signals */}
+            <ExternalSignalsPanel
+              websiteUrl={project.websiteUrl}
+              githubUrl={project.socialLinks.github !== '#' ? project.socialLinks.github : undefined}
+            />
 
             {/* Report Button */}
             <button className="w-full py-3 border border-red-500/50 text-red-400 rounded-lg hover:bg-red-500/10 flex items-center justify-center space-x-2">
