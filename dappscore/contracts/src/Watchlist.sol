@@ -27,11 +27,10 @@ contract Watchlist is Ownable {
     }
 
     struct AlertPreferences {
-        bool onTrustChange;      // Alert when trust level changes
-        bool onNewVotes;         // Alert on significant vote changes
-        bool onPremiumExpiry;    // Alert when premium expires
-        bool onScamFlag;         // Alert if flagged as scam
-        uint256 voteThreshold;   // Min votes to trigger alert (default 10)
+        bool onTrustChange;  // Alert when trust level changes
+        bool onNewVotes;     // Alert on significant vote changes
+        bool onScamFlag;     // Alert if flagged as scam
+        uint256 voteThreshold; // Min votes to trigger alert (default 10)
     }
 
     // State
@@ -152,7 +151,6 @@ contract Watchlist is Ownable {
         projectAlerts[_listId][_projectId] = AlertPreferences({
             onTrustChange: true,
             onNewVotes: false,
-            onPremiumExpiry: false,
             onScamFlag: true,
             voteThreshold: 10
         });
@@ -176,7 +174,6 @@ contract Watchlist is Ownable {
                 projectAlerts[_listId][projectId] = AlertPreferences({
                     onTrustChange: true,
                     onNewVotes: false,
-                    onPremiumExpiry: false,
                     onScamFlag: true,
                     voteThreshold: 10
                 });
@@ -217,7 +214,6 @@ contract Watchlist is Ownable {
         uint256 _projectId,
         bool _onTrustChange,
         bool _onNewVotes,
-        bool _onPremiumExpiry,
         bool _onScamFlag,
         uint256 _voteThreshold
     ) external {
@@ -227,7 +223,6 @@ contract Watchlist is Ownable {
         projectAlerts[_listId][_projectId] = AlertPreferences({
             onTrustChange: _onTrustChange,
             onNewVotes: _onNewVotes,
-            onPremiumExpiry: _onPremiumExpiry,
             onScamFlag: _onScamFlag,
             voteThreshold: _voteThreshold
         });
