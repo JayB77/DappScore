@@ -9,6 +9,7 @@ const graphql = new GraphQLService();
 const searchSchema = z.object({
   query: z.string().optional(),
   category: z.string().optional(),
+  chain: z.string().optional(),
   trustLevel: z.string().optional(),
   status: z.string().optional(),
   sortBy: z.enum(['trustScore', 'votes', 'newest', 'endingSoon']).optional(),
@@ -24,6 +25,7 @@ router.get('/', async (req, res) => {
     const projects = await graphql.searchProjects({
       query: params.query,
       category: params.category,
+      chain: params.chain,
       trustLevel: params.trustLevel ? parseInt(params.trustLevel) : undefined,
       status: params.status ? parseInt(params.status) : undefined,
       sortBy: params.sortBy,

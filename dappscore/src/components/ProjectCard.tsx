@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { ThumbsUp, ThumbsDown, Clock, Shield, AlertTriangle, Crown } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
+import { CHAIN_BY_NAME } from '@/config/chains';
 
 export type TrustLevel = 'NewListing' | 'Trusted' | 'Neutral' | 'Suspicious' | 'SuspectedScam' | 'ProbableScam';
 
@@ -100,9 +101,20 @@ export function ProjectCard({ project }: { project: Project }) {
             <span className="px-2 py-1 bg-gray-700 rounded text-xs text-gray-300">
               {project.category}
             </span>
-            <span className="px-2 py-1 bg-gray-700 rounded text-xs text-gray-300">
-              {project.chain}
-            </span>
+            {(() => {
+              const chainInfo = CHAIN_BY_NAME.get(project.chain);
+              return (
+                <span className="flex items-center space-x-1 px-2 py-1 bg-gray-700 rounded text-xs text-gray-300">
+                  {chainInfo && (
+                    <span
+                      className="w-2 h-2 rounded-full flex-shrink-0"
+                      style={{ backgroundColor: chainInfo.color }}
+                    />
+                  )}
+                  <span>{chainInfo ? chainInfo.abbr : project.chain}</span>
+                </span>
+              );
+            })()}
           </div>
 
           {/* Trust Level & Votes */}

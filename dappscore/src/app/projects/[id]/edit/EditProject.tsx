@@ -8,6 +8,7 @@ import {
   Check, Save, ArrowLeft, Plus, Trash2, AlertCircle, Shield
 } from 'lucide-react';
 import Link from 'next/link';
+import { CHAIN_NAMES } from '@/config/chains';
 
 const categories = [
   'DeFi', 'Gaming', 'AI', 'NFT', 'Social', 'Infrastructure',
@@ -15,11 +16,7 @@ const categories = [
   'Oracle', 'Bridge', 'DEX', 'Lending', 'Yield', 'Other'
 ];
 
-const blockchains = [
-  'Base', 'Ethereum', 'Arbitrum', 'Optimism', 'Polygon',
-  'BNB Chain', 'Avalanche', 'Solana', 'Fantom', 'zkSync',
-  'Linea', 'Scroll', 'Other'
-];
+const blockchains = CHAIN_NAMES;
 
 const projectStages = [
   { value: 'concept', label: 'Concept / Idea' },
