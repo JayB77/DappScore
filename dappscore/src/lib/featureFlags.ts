@@ -140,11 +140,12 @@ export function setFeatureEnabled(id: string, enabled: boolean): void {
 // ── Hook ─────────────────────────────────────────────────────────────────────
 
 export function useFeatureFlag(id: string, defaultEnabled = true): boolean {
-  const [enabled, setEnabled] = useState<boolean>(() =>
-    getFeatureEnabled(id, defaultEnabled),
-  );
+  // Start with defaultEnabled so server and client render identically (no hydration mismatch).
+  // After mount, sync from localStorage and listen for admin-page changes.
+  const [enabled, setEnabled] = useState<boolean>(defaultEnabled);
 
   useEffect(() => {
+    setEnabled(getFeatureEnabled(id, defaultEnabled));
     const sync = () => setEnabled(getFeatureEnabled(id, defaultEnabled));
     window.addEventListener('storage', sync);
     return () => window.removeEventListener('storage', sync);
