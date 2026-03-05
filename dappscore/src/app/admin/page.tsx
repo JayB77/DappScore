@@ -2,13 +2,19 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { ArrowLeft, ExternalLink, CheckCircle, XCircle, AlertTriangle } from 'lucide-react';
+import { ArrowLeft, ExternalLink, CheckCircle, AlertTriangle, Lock, Wallet } from 'lucide-react';
+import { useAccount } from 'wagmi';
+import { ConnectButton } from '@rainbow-me/rainbowkit';
 import {
   FEATURE_CONFIGS,
   getFeatureEnabled,
   setFeatureEnabled,
   type FeatureCategory,
 } from '@/lib/featureFlags';
+
+// ── Access control ────────────────────────────────────────────────────────────
+
+const ADMIN_WALLET = '0x0cC77C9d660f2E7D10783014e0e3D510f7307A50'.toLowerCase();
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -26,21 +32,69 @@ function hasEnvKey(envVar: string): boolean {
   return !!(val && val.trim().length > 0);
 }
 
-// ── Component ─────────────────────────────────────────────────────────────────
+// ── Gate screens ─────────────────────────────────────────────────────────────
+
+function NotConnected() {
+  return (
+    <div className="min-h-screen flex items-center justify-center px-4">
+      <div className="bg-gray-800 rounded-2xl p-10 max-w-sm w-full text-center">
+        <div className="flex justify-center mb-4">
+          <div className="p-4 bg-gray-700 rounded-full">
+            <Wallet className="h-8 w-8 text-gray-400" />
+          </div>
+        </div>
+        <h2 className="text-lg font-bold mb-2">Connect Wallet</h2>
+        <p className="text-gray-400 text-sm mb-6">Admin access requires the deployer wallet.</p>
+        <ConnectButton />
+      </div>
+    </div>
+  );
+}
+
+function AccessDenied({ address }: { address: string }) {
+  return (
+    <div className="min-h-screen flex items-center justify-center px-4">
+      <div className="bg-gray-800 rounded-2xl p-10 max-w-sm w-full text-center">
+        <div className="flex justify-center mb-4">
+          <div className="p-4 bg-red-500/20 rounded-full">
+            <Lock className="h-8 w-8 text-red-400" />
+          </div>
+        </div>
+        <h2 className="text-lg font-bold mb-2 text-red-400">Access Denied</h2>
+        <p className="text-gray-400 text-sm mb-2">This page is restricted to the DappScore deployer wallet.</p>
+        <p className="font-mono text-xs text-gray-600 break-all">{address}</p>
+        <Link href="/" className="mt-6 inline-block text-sm text-gray-400 hover:text-white transition-colors">
+          ← Back to site
+        </Link>
+      </div>
+    </div>
+  );
+}
+
+// ── Admin UI ──────────────────────────────────────────────────────────────────
 
 export default function AdminPage() {
-  // Map of id → enabled
+  const { address, isConnected } = useAccount();
+  const isAdmin = isConnected && address?.toLowerCase() === ADMIN_WALLET;
+
   const [flags, setFlags] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
+    if (!isAdmin) return;
     const initial: Record<string, boolean> = {};
     for (const f of FEATURE_CONFIGS) {
       initial[f.id] = getFeatureEnabled(f.id, f.defaultEnabled);
     }
     setFlags(initial);
-  }, []);
+  }, [isAdmin]);
 
-  const toggle = (id: string, defaultEnabled: boolean) => {
+  // Gate: not connected
+  if (!isConnected) return <NotConnected />;
+
+  // Gate: wrong wallet
+  if (!isAdmin) return <AccessDenied address={address!} />;
+
+  const toggle = (id: string) => {
     const next = !flags[id];
     setFlags((prev) => ({ ...prev, [id]: next }));
     setFeatureEnabled(id, next);
@@ -61,11 +115,13 @@ export default function AdminPage() {
             <ArrowLeft className="h-4 w-4" />
             <span>Back to site</span>
           </Link>
-          <h1 className="text-2xl font-bold">Feature Flags</h1>
-          <p className="text-gray-400 text-sm mt-1">
-            Enable or disable individual features. Changes take effect immediately.
-            Useful if a third-party API goes down.
-          </p>
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-2xl font-bold">Feature Flags</h1>
+              <p className="text-gray-400 text-sm mt-1">Enable or disable individual features. Changes take effect immediately.</p>
+            </div>
+            <ConnectButton accountStatus="avatar" showBalance={false} />
+          </div>
         </div>
 
         {/* Feature groups */}
@@ -99,9 +155,8 @@ export default function AdminPage() {
                           </div>
                           <p className="text-xs text-gray-400 mt-1">{f.description}</p>
 
-                          {/* API key status */}
                           {f.apiKey && (
-                            <div className="mt-2 flex items-center gap-2 flex-wrap">
+                            <div className="mt-2 flex items-center gap-3 flex-wrap">
                               {apiKeyPresent ? (
                                 <span className="flex items-center gap-1 text-xs text-green-400">
                                   <CheckCircle className="h-3 w-3" />
@@ -126,9 +181,8 @@ export default function AdminPage() {
                           )}
                         </div>
 
-                        {/* Toggle */}
                         <button
-                          onClick={() => toggle(f.id, f.defaultEnabled)}
+                          onClick={() => toggle(f.id)}
                           className={`flex-shrink-0 relative w-11 h-6 rounded-full transition-colors ${
                             enabled ? 'bg-yellow-500' : 'bg-gray-600'
                           }`}
@@ -149,9 +203,8 @@ export default function AdminPage() {
           ))}
         </div>
 
-        {/* Footer note */}
         <p className="text-xs text-gray-600 mt-8 text-center">
-          Flags are stored in your browser's localStorage · Keep this URL private
+          Flags stored in browser localStorage · Restricted to deployer wallet
         </p>
       </div>
     </div>
