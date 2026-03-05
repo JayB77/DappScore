@@ -9,6 +9,7 @@ import ExternalSignalsPanel from '@/components/ExternalSignalsPanel';
 import ContractFingerprintPanel from '@/components/ContractFingerprintPanel';
 import DappScorePanel from '@/components/DappScorePanel';
 import HoneypotPanel from '@/components/HoneypotPanel';
+import DexLiquidityPanel from '@/components/DexLiquidityPanel';
 import { useProjectSignals } from '@/lib/useProjectSignals';
 import { useFeatureFlag } from '@/lib/featureFlags';
 import { useVoting } from '@/lib/useVoting';
@@ -660,6 +661,9 @@ export default function ProjectDetail() {
 
             {/* Honeypot Check */}
             <HoneypotPanel contractAddresses={project.contractAddresses} />
+
+            {/* DEX Liquidity */}
+            <DexLiquidityPanel contractAddresses={project.contractAddresses} />
 
             {/* Report Button */}
             <button className="w-full py-3 border border-red-500/50 text-red-400 rounded-lg hover:bg-red-500/10 flex items-center justify-center space-x-2">
