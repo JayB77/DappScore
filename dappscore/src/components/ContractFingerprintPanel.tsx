@@ -12,6 +12,7 @@ import {
   hasApiSupport,
   type ContractInfo,
 } from '@/lib/chainAdapters';
+import type { LoadState } from '@/lib/useProjectSignals';
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -64,34 +65,56 @@ function creatorLabel(info: ContractInfo): string {
 
 interface Props {
   contractAddresses: ContractAddress[];
+  /** If provided, skip internal fetching and use pre-fetched data from useProjectSignals */
+  preloaded?: Record<string, LoadState<ContractInfo>>;
 }
 
-export default function ContractFingerprintPanel({ contractAddresses }: Props) {
-  const [states, setStates] = useState<Record<string, ContractState>>({});
+export default function ContractFingerprintPanel({ contractAddresses, preloaded }: Props) {
+  const [selfFetched, setSelfFetched] = useState<Record<string, ContractState>>({});
 
+  // Only self-fetch when no preloaded data is provided
   useEffect(() => {
+    if (preloaded) return;
     for (const { chain, address } of contractAddresses) {
       if (!chain || !address) continue;
       const key = `${chain}:${address}`;
       const config = getChainConfig(chain);
 
       if (!config) {
-        setStates((prev) => ({ ...prev, [key]: { state: 'unsupported' } }));
+        setSelfFetched((prev) => ({ ...prev, [key]: { state: 'unsupported' } }));
         continue;
       }
 
       if (!hasApiSupport(chain)) {
-        setStates((prev) => ({ ...prev, [key]: { state: 'no-api' } }));
+        setSelfFetched((prev) => ({ ...prev, [key]: { state: 'no-api' } }));
         continue;
       }
 
-      setStates((prev) => ({ ...prev, [key]: { state: 'loading' } }));
+      setSelfFetched((prev) => ({ ...prev, [key]: { state: 'loading' } }));
       fetchContractInfo(chain, address)
-        .then((info) => setStates((prev) => ({ ...prev, [key]: { state: 'ok', info } })))
-        .catch(() => setStates((prev) => ({ ...prev, [key]: { state: 'error' } })));
+        .then((info) => setSelfFetched((prev) => ({ ...prev, [key]: { state: 'ok', info } })))
+        .catch(() => setSelfFetched((prev) => ({ ...prev, [key]: { state: 'error' } })));
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Map preloaded LoadState → ContractState shape the UI expects
+  function resolveState(chain: string, address: string): ContractState | undefined {
+    const key = `${chain}:${address}`;
+    if (!preloaded) return selfFetched[key];
+    const ls = preloaded[key];
+    if (!ls) {
+      // might be unsupported or no-api
+      const config = getChainConfig(chain);
+      if (!config) return { state: 'unsupported' };
+      if (!hasApiSupport(chain)) return { state: 'no-api' };
+      return undefined;
+    }
+    if (ls.state === 'loading') return { state: 'loading' };
+    if (ls.state === 'error')   return { state: 'error' };
+    if (ls.state === 'ok')      return { state: 'ok', info: ls.data };
+    return undefined;
+  }
 
   const valid = contractAddresses.filter((c) => c.chain && c.address);
   if (valid.length === 0) return null;
@@ -103,8 +126,8 @@ export default function ContractFingerprintPanel({ contractAddresses }: Props) {
       <div className="space-y-3">
         {valid.map(({ chain, address }) => {
           const key = `${chain}:${address}`;
-          const s = states[key];
           const explorerUrl = getExplorerUrl(chain, address);
+          const s = resolveState(chain, address);
 
           return (
             <div key={key} className="border border-gray-700 rounded-lg p-3">
