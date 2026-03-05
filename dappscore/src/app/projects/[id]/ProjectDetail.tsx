@@ -9,6 +9,8 @@ import ExternalSignalsPanel from '@/components/ExternalSignalsPanel';
 import ContractFingerprintPanel from '@/components/ContractFingerprintPanel';
 import DappScorePanel from '@/components/DappScorePanel';
 import { useProjectSignals } from '@/lib/useProjectSignals';
+import { useFeatureFlag } from '@/lib/featureFlags';
+import { useVoting } from '@/lib/useVoting';
 import {
   ThumbsUp,
   ThumbsDown,
@@ -26,6 +28,8 @@ import {
   ChevronUp,
   ChevronDown,
   Edit3,
+  Loader2,
+  Gift,
 } from 'lucide-react';
 
 // Mock project data
@@ -139,10 +143,28 @@ export default function ProjectDetail() {
     project.contractAddresses,
   );
 
+  // Feature flags — controlled via /admin
+  const showDappScore  = useFeatureFlag('dappScore', true);
+  const showContracts  = useFeatureFlag('contractFingerprint', true);
+
+  // On-chain voting + SCORE rewards
+  const {
+    existingVote,
+    pendingRewards,
+    isVoting,
+    isClaiming,
+    isContractDeployed,
+    castVote,
+    claimRewards: claimScoreRewards,
+  } = useVoting(project.id);
+
+  // Combine on-chain vote with optimistic local state
+  const effectiveVote = userVote ?? existingVote;
+
   const handleVote = (type: 'up' | 'down') => {
     if (!isConnected) return;
-    setUserVote(type);
-    // Would call contract here
+    setUserVote(type);   // optimistic
+    castVote(type);      // on-chain (no-ops if contract not deployed yet)
   };
 
   const handleComment = () => {
@@ -517,7 +539,7 @@ export default function ProjectDetail() {
                   <button
                     onClick={() => handleVote('up')}
                     className={`flex-1 py-3 rounded-lg font-semibold flex items-center justify-center space-x-2 transition-colors ${
-                      userVote === 'up'
+                      effectiveVote === 'up'
                         ? 'bg-green-500 text-white'
                         : 'bg-gray-700 hover:bg-green-500/20 text-green-400'
                     }`}
@@ -528,7 +550,7 @@ export default function ProjectDetail() {
                   <button
                     onClick={() => handleVote('down')}
                     className={`flex-1 py-3 rounded-lg font-semibold flex items-center justify-center space-x-2 transition-colors ${
-                      userVote === 'down'
+                      effectiveVote === 'down'
                         ? 'bg-red-500 text-white'
                         : 'bg-gray-700 hover:bg-red-500/20 text-red-400'
                     }`}
@@ -544,10 +566,45 @@ export default function ProjectDetail() {
                 </div>
               )}
 
-              {userVote && (
+              {/* Voting feedback */}
+              {isVoting && (
+                <div className="flex items-center justify-center space-x-2 text-sm text-gray-400 mt-4">
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  <span>Submitting vote…</span>
+                </div>
+              )}
+              {effectiveVote && !isVoting && (
                 <p className="text-center text-sm text-gray-400 mt-4">
-                  You will earn 10 $SCORE for voting
+                  {isContractDeployed ? 'Vote recorded on-chain' : 'Vote recorded'}
                 </p>
+              )}
+
+              {/* Pending SCORE rewards */}
+              {isContractDeployed && parseFloat(pendingRewards) > 0 && (
+                <div className="mt-4 p-3 bg-yellow-500/10 border border-yellow-500/30 rounded-lg">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center space-x-2">
+                      <Gift className="h-4 w-4 text-yellow-400" />
+                      <span className="text-sm text-yellow-400 font-medium">{pendingRewards} $SCORE pending</span>
+                    </div>
+                    <button
+                      onClick={claimScoreRewards}
+                      disabled={isClaiming}
+                      className="text-xs bg-yellow-500 text-black font-bold px-3 py-1 rounded-lg hover:bg-yellow-400 disabled:opacity-50 flex items-center space-x-1"
+                    >
+                      {isClaiming ? <Loader2 className="h-3 w-3 animate-spin" /> : null}
+                      <span>{isClaiming ? 'Claiming…' : 'Claim'}</span>
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* Teaser when contract not yet deployed */}
+              {!isContractDeployed && effectiveVote && (
+                <div className="mt-4 p-3 bg-yellow-500/10 border border-yellow-500/30 rounded-lg flex items-center space-x-2">
+                  <Gift className="h-4 w-4 text-yellow-400 flex-shrink-0" />
+                  <p className="text-xs text-yellow-400">You'll earn $SCORE rewards once the rewards contract launches</p>
+                </div>
               )}
             </div>
 
@@ -575,7 +632,7 @@ export default function ProjectDetail() {
             </div>
 
             {/* DappScore — composite signal panel (shown first in sidebar) */}
-            <DappScorePanel
+            {showDappScore && <DappScorePanel
               signals={signals}
               project={{
                 upvotes: project.upvotes,
@@ -584,20 +641,21 @@ export default function ProjectDetail() {
                 whitepaperUrl: project.whitepaperUrl,
                 socialLinks: project.socialLinks,
               }}
-            />
+            />}
 
             {/* External Signals */}
             <ExternalSignalsPanel
               websiteUrl={project.websiteUrl}
               githubUrl={project.socialLinks.github !== '#' ? project.socialLinks.github : undefined}
+              twitterUrl={project.socialLinks.twitter !== '#' ? project.socialLinks.twitter : undefined}
               preloaded={{ domain: signals.domain, github: signals.github }}
             />
 
             {/* Contract Signals */}
-            <ContractFingerprintPanel
+            {showContracts && <ContractFingerprintPanel
               contractAddresses={project.contractAddresses}
               preloaded={signals.contracts}
-            />
+            />}
 
             {/* Report Button */}
             <button className="w-full py-3 border border-red-500/50 text-red-400 rounded-lg hover:bg-red-500/10 flex items-center justify-center space-x-2">

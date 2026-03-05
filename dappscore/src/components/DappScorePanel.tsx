@@ -84,16 +84,11 @@ export default function DappScorePanel({ signals, project }: Props) {
               <span className="text-xs text-gray-400">{b.label}</span>
               <span className="text-xs text-gray-500">{b.detail}</span>
             </div>
-            <div className="flex items-center space-x-2">
-              <div className="flex-1 bg-gray-700 rounded-full h-1.5 overflow-hidden">
-                <div
-                  className={`h-full rounded-full transition-all duration-700 ${barColor(b.score, b.max)}`}
-                  style={{ width: `${(b.score / b.max) * 100}%` }}
-                />
-              </div>
-              <span className="text-xs text-gray-500 w-10 text-right shrink-0">
-                {b.score}/{b.max}
-              </span>
+            <div className="bg-gray-700 rounded-full h-1.5 overflow-hidden">
+              <div
+                className={`h-full rounded-full transition-all duration-700 ${barColor(b.score, b.max)}`}
+                style={{ width: `${(b.score / b.max) * 100}%` }}
+              />
             </div>
           </div>
         ))}
