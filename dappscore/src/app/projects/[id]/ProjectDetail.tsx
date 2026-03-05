@@ -7,6 +7,8 @@ import { useAccount } from 'wagmi';
 import { ConnectButton } from '@rainbow-me/rainbowkit';
 import ExternalSignalsPanel from '@/components/ExternalSignalsPanel';
 import ContractFingerprintPanel from '@/components/ContractFingerprintPanel';
+import DappScorePanel from '@/components/DappScorePanel';
+import { useProjectSignals } from '@/lib/useProjectSignals';
 import {
   ThumbsUp,
   ThumbsDown,
@@ -129,6 +131,13 @@ export default function ProjectDetail() {
   const project = mockProject;
   const trustScore = Math.round((project.upvotes / (project.upvotes + project.downvotes)) * 100);
   const isOwner = address?.toLowerCase() === project.ownerAddress?.toLowerCase();
+
+  // Unified signal fetching — shared across all three signal panels
+  const signals = useProjectSignals(
+    project.websiteUrl,
+    project.socialLinks.github !== '#' ? project.socialLinks.github : undefined,
+    project.contractAddresses,
+  );
 
   const handleVote = (type: 'up' | 'down') => {
     if (!isConnected) return;
@@ -565,14 +574,30 @@ export default function ProjectDetail() {
               </div>
             </div>
 
+            {/* DappScore — composite signal panel (shown first in sidebar) */}
+            <DappScorePanel
+              signals={signals}
+              project={{
+                upvotes: project.upvotes,
+                downvotes: project.downvotes,
+                team: project.team,
+                whitepaperUrl: project.whitepaperUrl,
+                socialLinks: project.socialLinks,
+              }}
+            />
+
             {/* External Signals */}
             <ExternalSignalsPanel
               websiteUrl={project.websiteUrl}
               githubUrl={project.socialLinks.github !== '#' ? project.socialLinks.github : undefined}
+              preloaded={{ domain: signals.domain, github: signals.github }}
             />
 
             {/* Contract Signals */}
-            <ContractFingerprintPanel contractAddresses={project.contractAddresses} />
+            <ContractFingerprintPanel
+              contractAddresses={project.contractAddresses}
+              preloaded={signals.contracts}
+            />
 
             {/* Report Button */}
             <button className="w-full py-3 border border-red-500/50 text-red-400 rounded-lg hover:bg-red-500/10 flex items-center justify-center space-x-2">
