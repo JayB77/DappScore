@@ -9,6 +9,7 @@ import ExternalSignalsPanel from '@/components/ExternalSignalsPanel';
 import ContractFingerprintPanel from '@/components/ContractFingerprintPanel';
 import DappScorePanel from '@/components/DappScorePanel';
 import { useProjectSignals } from '@/lib/useProjectSignals';
+import { useFeatureFlag } from '@/lib/featureFlags';
 import { useVoting } from '@/lib/useVoting';
 import {
   ThumbsUp,
@@ -141,6 +142,10 @@ export default function ProjectDetail() {
     project.socialLinks.github !== '#' ? project.socialLinks.github : undefined,
     project.contractAddresses,
   );
+
+  // Feature flags — controlled via /admin
+  const showDappScore  = useFeatureFlag('dappScore', true);
+  const showContracts  = useFeatureFlag('contractFingerprint', true);
 
   // On-chain voting + SCORE rewards
   const {
@@ -627,7 +632,7 @@ export default function ProjectDetail() {
             </div>
 
             {/* DappScore — composite signal panel (shown first in sidebar) */}
-            <DappScorePanel
+            {showDappScore && <DappScorePanel
               signals={signals}
               project={{
                 upvotes: project.upvotes,
@@ -636,20 +641,21 @@ export default function ProjectDetail() {
                 whitepaperUrl: project.whitepaperUrl,
                 socialLinks: project.socialLinks,
               }}
-            />
+            />}
 
             {/* External Signals */}
             <ExternalSignalsPanel
               websiteUrl={project.websiteUrl}
               githubUrl={project.socialLinks.github !== '#' ? project.socialLinks.github : undefined}
+              twitterUrl={project.socialLinks.twitter !== '#' ? project.socialLinks.twitter : undefined}
               preloaded={{ domain: signals.domain, github: signals.github }}
             />
 
             {/* Contract Signals */}
-            <ContractFingerprintPanel
+            {showContracts && <ContractFingerprintPanel
               contractAddresses={project.contractAddresses}
               preloaded={signals.contracts}
-            />
+            />}
 
             {/* Report Button */}
             <button className="w-full py-3 border border-red-500/50 text-red-400 rounded-lg hover:bg-red-500/10 flex items-center justify-center space-x-2">
