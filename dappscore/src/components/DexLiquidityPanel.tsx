@@ -165,11 +165,7 @@ function ContractRow({ chain, address }: ContractAddress) {
         <span className="text-xs text-gray-500">Unable to fetch DEX data</span>
       )}
       {state.status === 'none' && (
-        <div className="flex items-center space-x-1.5">
-          <AlertTriangle className="h-3.5 w-3.5 text-orange-400" />
-          <span className="text-sm text-orange-400">No DEX pairs found</span>
-          <span className="text-xs px-1.5 py-0.5 bg-orange-500/20 text-orange-400 rounded">CAUTION</span>
-        </div>
+        <span className="text-sm text-gray-500">No DEX pairs found</span>
       )}
 
       {state.status === 'ok' && (() => {

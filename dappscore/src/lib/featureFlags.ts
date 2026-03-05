@@ -92,7 +92,7 @@ export const FEATURE_CONFIGS: FeatureConfig[] = [
   {
     id: 'tokenDistribution',
     label: 'Token Distribution',
-    description: 'Top-10 holder concentration analysis — whale risk detection via Etherscan',
+    description: 'Top-10 holder concentration, whale risk, burn address detection via Ethplorer (free key, Ethereum only)',
     category: 'market',
     defaultEnabled: false,
   },
