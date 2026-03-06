@@ -4,9 +4,40 @@ import { useEffect, useState } from 'react';
 import { Users, AlertTriangle, CheckCircle, Loader2, ExternalLink } from 'lucide-react';
 import { useFeatureFlag } from '@/lib/featureFlags';
 
-// ── Supported chains ──────────────────────────────────────────────────────────
-// Ethplorer supports Ethereum only. BSC/Polygon etc. require paid APIs.
-const SUPPORTED = new Set(['ethereum', 'eth']);
+// ── Chain config ──────────────────────────────────────────────────────────────
+// Maps the chain name stored on a project → Moralis chain id + block explorer URLs.
+// Moralis supports CORS for browser calls — restrict your key to your domain in
+// the Moralis dashboard: https://admin.moralis.io → API Keys → Edit → Allowed Origins.
+
+const CHAIN_CONFIG: Record<string, {
+  moralisId: string;
+  token:   (a: string) => string;
+  address: (a: string) => string;
+}> = {
+  ethereum:              { moralisId: 'eth',       token: a => `https://etherscan.io/token/${a}#balances`,             address: a => `https://etherscan.io/address/${a}` },
+  eth:                   { moralisId: 'eth',       token: a => `https://etherscan.io/token/${a}#balances`,             address: a => `https://etherscan.io/address/${a}` },
+  base:                  { moralisId: 'base',      token: a => `https://basescan.org/token/${a}#balances`,             address: a => `https://basescan.org/address/${a}` },
+  polygon:               { moralisId: 'polygon',   token: a => `https://polygonscan.com/token/${a}#balances`,          address: a => `https://polygonscan.com/address/${a}` },
+  matic:                 { moralisId: 'polygon',   token: a => `https://polygonscan.com/token/${a}#balances`,          address: a => `https://polygonscan.com/address/${a}` },
+  bsc:                   { moralisId: 'bsc',       token: a => `https://bscscan.com/token/${a}#balances`,              address: a => `https://bscscan.com/address/${a}` },
+  binance:               { moralisId: 'bsc',       token: a => `https://bscscan.com/token/${a}#balances`,              address: a => `https://bscscan.com/address/${a}` },
+  'binance smart chain': { moralisId: 'bsc',       token: a => `https://bscscan.com/token/${a}#balances`,              address: a => `https://bscscan.com/address/${a}` },
+  arbitrum:              { moralisId: 'arbitrum',  token: a => `https://arbiscan.io/token/${a}#balances`,              address: a => `https://arbiscan.io/address/${a}` },
+  'arbitrum one':        { moralisId: 'arbitrum',  token: a => `https://arbiscan.io/token/${a}#balances`,              address: a => `https://arbiscan.io/address/${a}` },
+  optimism:              { moralisId: 'optimism',  token: a => `https://optimistic.etherscan.io/token/${a}#balances`, address: a => `https://optimistic.etherscan.io/address/${a}` },
+  avalanche:             { moralisId: 'avalanche', token: a => `https://snowtrace.io/token/${a}#balances`,             address: a => `https://snowtrace.io/address/${a}` },
+  avax:                  { moralisId: 'avalanche', token: a => `https://snowtrace.io/token/${a}#balances`,             address: a => `https://snowtrace.io/address/${a}` },
+  fantom:                { moralisId: 'fantom',    token: a => `https://ftmscan.com/token/${a}#balances`,              address: a => `https://ftmscan.com/address/${a}` },
+  ftm:                   { moralisId: 'fantom',    token: a => `https://ftmscan.com/token/${a}#balances`,              address: a => `https://ftmscan.com/address/${a}` },
+  linea:                 { moralisId: 'linea',     token: a => `https://lineascan.build/token/${a}#balances`,          address: a => `https://lineascan.build/address/${a}` },
+  blast:                 { moralisId: 'blast',     token: a => `https://blastscan.io/token/${a}#balances`,             address: a => `https://blastscan.io/address/${a}` },
+  zksync:                { moralisId: 'zksync-era',token: a => `https://explorer.zksync.io/address/${a}`,              address: a => `https://explorer.zksync.io/address/${a}` },
+  'zksync era':          { moralisId: 'zksync-era',token: a => `https://explorer.zksync.io/address/${a}`,              address: a => `https://explorer.zksync.io/address/${a}` },
+  scroll:                { moralisId: 'scroll',    token: a => `https://scrollscan.com/token/${a}#balances`,           address: a => `https://scrollscan.com/address/${a}` },
+  celo:                  { moralisId: 'celo',      token: a => `https://celoscan.io/token/${a}#balances`,              address: a => `https://celoscan.io/address/${a}` },
+  gnosis:                { moralisId: 'gnosis',    token: a => `https://gnosisscan.io/token/${a}#balances`,            address: a => `https://gnosisscan.io/address/${a}` },
+  mantle:                { moralisId: 'mantle',    token: a => `https://explorer.mantle.xyz/token/${a}`,               address: a => `https://explorer.mantle.xyz/address/${a}` },
+};
 
 // ── Known addresses ───────────────────────────────────────────────────────────
 const KNOWN: Record<string, string> = {
@@ -19,7 +50,6 @@ const KNOWN: Record<string, string> = {
 
 interface Holder {
   address: string;
-  balance: number;
   share: number; // 0–100
 }
 
@@ -32,7 +62,8 @@ type State =
   | { status: 'loading' }
   | { status: 'ok'; holders: Holder[]; meta: TokenMeta }
   | { status: 'error' }
-  | { status: 'unsupported' };
+  | { status: 'unsupported' }
+  | { status: 'no-key' };
 
 interface ContractAddress { chain: string; address: string }
 
@@ -44,11 +75,11 @@ function concentrationRisk(holders: Holder[]) {
   const top3  = holders.slice(0, 3).reduce((s, h) => s + h.share, 0);
   const top10 = holders.reduce((s, h) => s + h.share, 0);
 
-  if (top1 > 50)  return { label: `Top holder owns ${top1.toFixed(1)}% of supply`,   color: 'text-red-400',    flag: 'CRITICAL' };
+  if (top1 > 50)  return { label: `Top holder owns ${top1.toFixed(1)}% of supply`,    color: 'text-red-400',    flag: 'CRITICAL' };
   if (top3 > 60)  return { label: `Top 3 wallets hold ${top3.toFixed(1)}% of supply`, color: 'text-red-400',    flag: 'HIGH RISK' };
   if (top10 > 80) return { label: `Top 10 hold ${top10.toFixed(1)}% — elevated`,       color: 'text-orange-400', flag: 'ELEVATED' };
   if (top10 > 50) return { label: `Top 10 hold ${top10.toFixed(1)}% — moderate`,       color: 'text-yellow-400' };
-  return                 { label: 'Well distributed',                                   color: 'text-green-400'  };
+  return                 { label: 'Well distributed',                                   color: 'text-green-400' };
 }
 
 function shareColor(pct: number): string {
@@ -71,49 +102,62 @@ function shortAddr(addr: string): string {
 
 // ── Fetcher ───────────────────────────────────────────────────────────────────
 
-async function fetchHolders(address: string): Promise<{ holders: Holder[]; meta: TokenMeta }> {
-  const [holdersRes, infoRes] = await Promise.all([
-    fetch(`https://api.ethplorer.io/getTopTokenHolders/${address}?apiKey=freekey&limit=10`),
-    fetch(`https://api.ethplorer.io/getTokenInfo/${address}?apiKey=freekey`),
-  ]);
-  const [holdersData, infoData] = await Promise.all([holdersRes.json(), infoRes.json()]) as [
-    { holders?: Holder[] },
-    { holdersCount?: number },
-  ];
-  return {
-    holders: holdersData.holders ?? [],
-    meta: { holdersCount: infoData.holdersCount ?? 0 },
-  };
+async function fetchHolders(
+  moralisId: string,
+  address: string,
+  apiKey: string,
+): Promise<{ holders: Holder[]; meta: TokenMeta }> {
+  const url = `https://deep-index.moralis.io/api/v2.2/erc20/${address}/owners`
+    + `?chain=${moralisId}&limit=10&order=DESC`;
+
+  const res = await fetch(url, { headers: { 'X-API-Key': apiKey } });
+  if (!res.ok) throw new Error(`${res.status}`);
+
+  const data = await res.json();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const holders = (data.result ?? []).map((h: any) => ({
+    address: h.owner_address as string,
+    share:   parseFloat(h.percentage_relative_to_total_supply ?? '0'),
+  }));
+
+  return { holders, meta: { holdersCount: data.total ?? 0 } };
 }
 
 // ── Single contract row ───────────────────────────────────────────────────────
 
 function ContractRow({ chain, address }: ContractAddress) {
   const [state, setState] = useState<State>({ status: 'idle' });
-  const supported = SUPPORTED.has(chain.toLowerCase());
+  const chainKey = chain.toLowerCase().trim();
+  const config   = CHAIN_CONFIG[chainKey];
 
   useEffect(() => {
-    if (!supported) { setState({ status: 'unsupported' }); return; }
+    if (!config) { setState({ status: 'unsupported' }); return; }
+
+    const apiKey = process.env.NEXT_PUBLIC_MORALIS_API_KEY;
+    if (!apiKey) { setState({ status: 'no-key' }); return; }
+
     setState({ status: 'loading' });
-    fetchHolders(address)
+    fetchHolders(config.moralisId, address, apiKey)
       .then(({ holders, meta }) => setState({ status: 'ok', holders, meta }))
       .catch(() => setState({ status: 'error' }));
-  }, [address, supported]);
+  }, [chain, address, config]);
 
   return (
     <div className="border border-gray-700 rounded-lg p-3 space-y-2">
       {/* Header */}
       <div className="flex items-center justify-between">
         <span className="text-xs font-semibold text-gray-400 uppercase tracking-wide">{chain}</span>
-        <a
-          href={`https://etherscan.io/token/${address}#balances`}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="flex items-center space-x-1 text-xs text-blue-400 hover:text-blue-300 transition-colors"
-        >
-          <span className="font-mono">{shortAddr(address)}</span>
-          <ExternalLink className="h-3 w-3" />
-        </a>
+        {config && (
+          <a
+            href={config.token(address)}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center space-x-1 text-xs text-blue-400 hover:text-blue-300 transition-colors"
+          >
+            <span className="font-mono">{shortAddr(address)}</span>
+            <ExternalLink className="h-3 w-3" />
+          </a>
+        )}
       </div>
 
       {state.status === 'loading' && (
@@ -122,7 +166,10 @@ function ContractRow({ chain, address }: ContractAddress) {
         </div>
       )}
       {state.status === 'unsupported' && (
-        <span className="text-xs text-gray-500">Holder analysis available for Ethereum only</span>
+        <span className="text-xs text-gray-500">Holder analysis not available for this chain</span>
+      )}
+      {state.status === 'no-key' && (
+        <span className="text-xs text-gray-500">Set NEXT_PUBLIC_MORALIS_API_KEY to enable holder data</span>
       )}
       {state.status === 'error' && (
         <span className="text-xs text-gray-500">Unable to fetch holder data</span>
@@ -176,7 +223,7 @@ function ContractRow({ chain, address }: ContractAddress) {
                           <span className="text-xs text-green-400">{known}</span>
                         ) : (
                           <a
-                            href={`https://etherscan.io/address/${h.address}`}
+                            href={config?.address(h.address) ?? `https://etherscan.io/address/${h.address}`}
                             target="_blank"
                             rel="noopener noreferrer"
                             className="text-xs text-gray-400 hover:text-blue-400 font-mono transition-colors truncate"
@@ -231,7 +278,7 @@ export default function TokenDistributionPanel({ contractAddresses }: Props) {
       </div>
 
       <p className="text-xs text-gray-600 mt-4">
-        Top holders via Ethplorer · Ethereum only · Burn addresses shown in green
+        Top holders via Moralis · Burn addresses shown in green
       </p>
     </div>
   );
