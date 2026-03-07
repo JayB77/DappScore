@@ -11,6 +11,7 @@ import DappScorePanel from '@/components/DappScorePanel';
 import HoneypotPanel from '@/components/HoneypotPanel';
 import DexLiquidityPanel from '@/components/DexLiquidityPanel';
 import TokenDistributionPanel from '@/components/TokenDistributionPanel';
+import DeployerHistoryPanel from '@/components/DeployerHistoryPanel';
 import { useProjectSignals } from '@/lib/useProjectSignals';
 import { useFeatureFlag } from '@/lib/featureFlags';
 import { useVoting } from '@/lib/useVoting';
@@ -665,6 +666,9 @@ export default function ProjectDetail() {
 
             {/* DEX Liquidity */}
             <DexLiquidityPanel contractAddresses={project.contractAddresses} />
+
+            {/* Deployer Wallet History */}
+            <DeployerHistoryPanel contractAddresses={project.contractAddresses} />
 
             {/* Token Distribution */}
             <TokenDistributionPanel contractAddresses={project.contractAddresses} />
