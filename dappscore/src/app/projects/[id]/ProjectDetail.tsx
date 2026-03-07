@@ -13,6 +13,7 @@ import DexLiquidityPanel from '@/components/DexLiquidityPanel';
 import TokenDistributionPanel from '@/components/TokenDistributionPanel';
 import DeployerHistoryPanel from '@/components/DeployerHistoryPanel';
 import LiquidityLockPanel from '@/components/LiquidityLockPanel';
+import AuditBadgePanel from '@/components/AuditBadgePanel';
 import { useProjectSignals } from '@/lib/useProjectSignals';
 import { useFeatureFlag } from '@/lib/featureFlags';
 import { useVoting } from '@/lib/useVoting';
@@ -79,6 +80,21 @@ const mockProject = {
   },
   contractAddresses: [
     { chain: 'Ethereum', address: '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48' },
+  ],
+  audits: [
+    {
+      firm: 'CertiK',
+      date: '2024-03',
+      reportUrl: 'https://skynet.certik.com/projects/example',
+      score: 92,
+      findings: { critical: 0, high: 0, medium: 2, low: 4 },
+    },
+    {
+      firm: 'Hacken',
+      date: '2023-11',
+      reportUrl: 'https://hacken.io/audits/example',
+      findings: { critical: 0, high: 1, medium: 3, low: 7 },
+    },
   ],
 };
 
@@ -667,6 +683,9 @@ export default function ProjectDetail() {
 
             {/* DEX Liquidity */}
             <DexLiquidityPanel contractAddresses={project.contractAddresses} />
+
+            {/* Security Audits */}
+            <AuditBadgePanel audits={project.audits} />
 
             {/* Liquidity Lock */}
             <LiquidityLockPanel contractAddresses={project.contractAddresses} />
