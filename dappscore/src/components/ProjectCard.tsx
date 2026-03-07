@@ -17,17 +17,29 @@ export type ProjectStage =
   | 'discontinued';
 
 export type AuditFirm =
+  // Tier-1 audit firms
   | 'CertiK'
   | 'Hacken'
   | 'OpenZeppelin'
+  | 'Consensys Diligence'
+  | 'Cyfrin'
+  | 'Trail of Bits'
+  | 'Quantstamp'
+  | 'PeckShield'
+  // Contest / competitive audit platforms
   | 'Code4rena'
   | 'Sherlock'
-  | 'Quantstamp'
-  | 'Trail of Bits'
-  | 'PeckShield'
-  | 'SlowMist'
   | 'Spearbit'
-  | 'Consensys Diligence'
+  // Other established firms
+  | 'SlowMist'
+  | 'Halborn'
+  | 'Zellic'
+  | 'Macro'
+  | 'Sigma Prime'
+  | 'Dedaub'
+  | 'ChainSecurity'
+  | 'BlockSec'
+  // Bug bounty
   | 'Immunefi';
 
 export interface AuditRecord {

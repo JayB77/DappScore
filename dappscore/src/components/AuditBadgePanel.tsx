@@ -7,18 +7,30 @@ import type { AuditRecord } from '@/components/ProjectCard';
 // ── Firm styling ──────────────────────────────────────────────────────────────
 
 const FIRM_STYLES: Record<string, { bg: string; text: string; border: string }> = {
-  'CertiK':               { bg: 'bg-blue-500/10',   text: 'text-blue-400',   border: 'border-blue-500/30'   },
-  'Hacken':               { bg: 'bg-cyan-500/10',    text: 'text-cyan-400',   border: 'border-cyan-500/30'   },
-  'OpenZeppelin':         { bg: 'bg-indigo-500/10',  text: 'text-indigo-400', border: 'border-indigo-500/30' },
-  'Code4rena':            { bg: 'bg-yellow-500/10',  text: 'text-yellow-400', border: 'border-yellow-500/30' },
-  'Sherlock':             { bg: 'bg-gray-500/10',    text: 'text-gray-300',   border: 'border-gray-500/30'   },
-  'Quantstamp':           { bg: 'bg-purple-500/10',  text: 'text-purple-400', border: 'border-purple-500/30' },
-  'Trail of Bits':        { bg: 'bg-orange-500/10',  text: 'text-orange-400', border: 'border-orange-500/30' },
-  'PeckShield':           { bg: 'bg-teal-500/10',    text: 'text-teal-400',   border: 'border-teal-500/30'   },
-  'SlowMist':             { bg: 'bg-red-500/10',     text: 'text-red-400',    border: 'border-red-500/30'    },
-  'Spearbit':             { bg: 'bg-sky-500/10',     text: 'text-sky-400',    border: 'border-sky-500/30'    },
-  'Consensys Diligence':  { bg: 'bg-amber-500/10',   text: 'text-amber-400',  border: 'border-amber-500/30'  },
-  'Immunefi':             { bg: 'bg-green-500/10',   text: 'text-green-400',  border: 'border-green-500/30'  },
+  // Tier-1 audit firms
+  'CertiK':              { bg: 'bg-blue-500/10',    text: 'text-blue-400',    border: 'border-blue-500/30'    },
+  'Hacken':              { bg: 'bg-cyan-500/10',    text: 'text-cyan-400',    border: 'border-cyan-500/30'    },
+  'OpenZeppelin':        { bg: 'bg-indigo-500/10',  text: 'text-indigo-400',  border: 'border-indigo-500/30'  },
+  'Consensys Diligence': { bg: 'bg-amber-500/10',   text: 'text-amber-400',   border: 'border-amber-500/30'   },
+  'Cyfrin':              { bg: 'bg-violet-500/10',  text: 'text-violet-400',  border: 'border-violet-500/30'  },
+  'Trail of Bits':       { bg: 'bg-orange-500/10',  text: 'text-orange-400',  border: 'border-orange-500/30'  },
+  'Quantstamp':          { bg: 'bg-purple-500/10',  text: 'text-purple-400',  border: 'border-purple-500/30'  },
+  'PeckShield':          { bg: 'bg-teal-500/10',    text: 'text-teal-400',    border: 'border-teal-500/30'    },
+  // Contest / competitive audit platforms
+  'Code4rena':           { bg: 'bg-yellow-500/10',  text: 'text-yellow-400',  border: 'border-yellow-500/30'  },
+  'Sherlock':            { bg: 'bg-gray-500/10',    text: 'text-gray-300',    border: 'border-gray-500/30'    },
+  'Spearbit':            { bg: 'bg-sky-500/10',     text: 'text-sky-400',     border: 'border-sky-500/30'     },
+  // Other established firms
+  'SlowMist':            { bg: 'bg-red-500/10',     text: 'text-red-400',     border: 'border-red-500/30'     },
+  'Halborn':             { bg: 'bg-rose-500/10',    text: 'text-rose-400',    border: 'border-rose-500/30'    },
+  'Zellic':              { bg: 'bg-fuchsia-500/10', text: 'text-fuchsia-400', border: 'border-fuchsia-500/30' },
+  'Macro':               { bg: 'bg-slate-500/10',   text: 'text-slate-300',   border: 'border-slate-500/30'   },
+  'Sigma Prime':         { bg: 'bg-lime-500/10',    text: 'text-lime-400',    border: 'border-lime-500/30'    },
+  'Dedaub':              { bg: 'bg-emerald-500/10', text: 'text-emerald-400', border: 'border-emerald-500/30' },
+  'ChainSecurity':       { bg: 'bg-blue-400/10',    text: 'text-blue-300',    border: 'border-blue-400/30'    },
+  'BlockSec':            { bg: 'bg-pink-500/10',    text: 'text-pink-400',    border: 'border-pink-500/30'    },
+  // Bug bounty
+  'Immunefi':            { bg: 'bg-green-500/10',   text: 'text-green-400',   border: 'border-green-500/30'   },
 };
 
 const DEFAULT_STYLE = { bg: 'bg-gray-600/10', text: 'text-gray-400', border: 'border-gray-600/30' };
@@ -34,14 +46,6 @@ function fmtDate(iso: string): string {
     return `${months[m] ?? ''} ${parts[0]}`;
   }
   return iso;
-}
-
-function findingsColor(findings: AuditRecord['findings']): string {
-  if (!findings) return 'text-gray-500';
-  if ((findings.critical ?? 0) > 0) return 'text-red-400';
-  if ((findings.high ?? 0) > 0)     return 'text-orange-400';
-  if ((findings.medium ?? 0) > 0)   return 'text-yellow-400';
-  return 'text-green-400';
 }
 
 function FindingsPill({
