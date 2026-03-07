@@ -4,46 +4,75 @@ import { useEffect, useState } from 'react';
 import { Users, AlertTriangle, CheckCircle, Loader2, ExternalLink } from 'lucide-react';
 import { useFeatureFlag } from '@/lib/featureFlags';
 
-// ── Chain config ──────────────────────────────────────────────────────────────
-// Maps the chain name stored on a project → Moralis chain id + block explorer URLs.
-// Moralis supports CORS for browser calls — restrict your key to your domain in
-// the Moralis dashboard: https://admin.moralis.io → API Keys → Edit → Allowed Origins.
+// ── Unified chain config ───────────────────────────────────────────────────────
+// One entry per chain name alias → how to fetch holders + explorer URLs.
 
-const CHAIN_CONFIG: Record<string, {
-  moralisId: string;
-  token:   (a: string) => string;
-  address: (a: string) => string;
-}> = {
-  ethereum:              { moralisId: 'eth',       token: a => `https://etherscan.io/token/${a}#balances`,             address: a => `https://etherscan.io/address/${a}` },
-  eth:                   { moralisId: 'eth',       token: a => `https://etherscan.io/token/${a}#balances`,             address: a => `https://etherscan.io/address/${a}` },
-  base:                  { moralisId: 'base',      token: a => `https://basescan.org/token/${a}#balances`,             address: a => `https://basescan.org/address/${a}` },
-  polygon:               { moralisId: 'polygon',   token: a => `https://polygonscan.com/token/${a}#balances`,          address: a => `https://polygonscan.com/address/${a}` },
-  matic:                 { moralisId: 'polygon',   token: a => `https://polygonscan.com/token/${a}#balances`,          address: a => `https://polygonscan.com/address/${a}` },
-  bsc:                   { moralisId: 'bsc',       token: a => `https://bscscan.com/token/${a}#balances`,              address: a => `https://bscscan.com/address/${a}` },
-  binance:               { moralisId: 'bsc',       token: a => `https://bscscan.com/token/${a}#balances`,              address: a => `https://bscscan.com/address/${a}` },
-  'binance smart chain': { moralisId: 'bsc',       token: a => `https://bscscan.com/token/${a}#balances`,              address: a => `https://bscscan.com/address/${a}` },
-  arbitrum:              { moralisId: 'arbitrum',  token: a => `https://arbiscan.io/token/${a}#balances`,              address: a => `https://arbiscan.io/address/${a}` },
-  'arbitrum one':        { moralisId: 'arbitrum',  token: a => `https://arbiscan.io/token/${a}#balances`,              address: a => `https://arbiscan.io/address/${a}` },
-  optimism:              { moralisId: 'optimism',  token: a => `https://optimistic.etherscan.io/token/${a}#balances`, address: a => `https://optimistic.etherscan.io/address/${a}` },
-  avalanche:             { moralisId: 'avalanche', token: a => `https://snowtrace.io/token/${a}#balances`,             address: a => `https://snowtrace.io/address/${a}` },
-  avax:                  { moralisId: 'avalanche', token: a => `https://snowtrace.io/token/${a}#balances`,             address: a => `https://snowtrace.io/address/${a}` },
-  fantom:                { moralisId: 'fantom',    token: a => `https://ftmscan.com/token/${a}#balances`,              address: a => `https://ftmscan.com/address/${a}` },
-  ftm:                   { moralisId: 'fantom',    token: a => `https://ftmscan.com/token/${a}#balances`,              address: a => `https://ftmscan.com/address/${a}` },
-  linea:                 { moralisId: 'linea',     token: a => `https://lineascan.build/token/${a}#balances`,          address: a => `https://lineascan.build/address/${a}` },
-  blast:                 { moralisId: 'blast',     token: a => `https://blastscan.io/token/${a}#balances`,             address: a => `https://blastscan.io/address/${a}` },
-  zksync:                { moralisId: 'zksync-era',token: a => `https://explorer.zksync.io/address/${a}`,              address: a => `https://explorer.zksync.io/address/${a}` },
-  'zksync era':          { moralisId: 'zksync-era',token: a => `https://explorer.zksync.io/address/${a}`,              address: a => `https://explorer.zksync.io/address/${a}` },
-  scroll:                { moralisId: 'scroll',    token: a => `https://scrollscan.com/token/${a}#balances`,           address: a => `https://scrollscan.com/address/${a}` },
-  celo:                  { moralisId: 'celo',      token: a => `https://celoscan.io/token/${a}#balances`,              address: a => `https://celoscan.io/address/${a}` },
-  gnosis:                { moralisId: 'gnosis',    token: a => `https://gnosisscan.io/token/${a}#balances`,            address: a => `https://gnosisscan.io/address/${a}` },
-  mantle:                { moralisId: 'mantle',    token: a => `https://explorer.mantle.xyz/token/${a}`,               address: a => `https://explorer.mantle.xyz/address/${a}` },
+type FetcherType = 'moralis' | 'solana' | 'tron' | 'ton' | 'near';
+
+interface ChainPanelConfig {
+  fetcherType: FetcherType;
+  moralisId?: string;           // only for 'moralis'
+  tokenUrl:   (a: string) => string;
+  addressUrl: (a: string) => string;
+}
+
+const CHAIN_CONFIG: Record<string, ChainPanelConfig> = {
+  // ── EVM via Moralis ───────────────────────────────────────────────────────
+  ethereum:              { fetcherType: 'moralis', moralisId: 'eth',        tokenUrl: a => `https://etherscan.io/token/${a}#balances`,             addressUrl: a => `https://etherscan.io/address/${a}` },
+  eth:                   { fetcherType: 'moralis', moralisId: 'eth',        tokenUrl: a => `https://etherscan.io/token/${a}#balances`,             addressUrl: a => `https://etherscan.io/address/${a}` },
+  base:                  { fetcherType: 'moralis', moralisId: 'base',       tokenUrl: a => `https://basescan.org/token/${a}#balances`,             addressUrl: a => `https://basescan.org/address/${a}` },
+  polygon:               { fetcherType: 'moralis', moralisId: 'polygon',    tokenUrl: a => `https://polygonscan.com/token/${a}#balances`,          addressUrl: a => `https://polygonscan.com/address/${a}` },
+  matic:                 { fetcherType: 'moralis', moralisId: 'polygon',    tokenUrl: a => `https://polygonscan.com/token/${a}#balances`,          addressUrl: a => `https://polygonscan.com/address/${a}` },
+  'polygon zkevm':       { fetcherType: 'moralis', moralisId: 'polygon-zkevm', tokenUrl: a => `https://zkevm.polygonscan.com/token/${a}#balances`, addressUrl: a => `https://zkevm.polygonscan.com/address/${a}` },
+  bsc:                   { fetcherType: 'moralis', moralisId: 'bsc',        tokenUrl: a => `https://bscscan.com/token/${a}#balances`,              addressUrl: a => `https://bscscan.com/address/${a}` },
+  bnb:                   { fetcherType: 'moralis', moralisId: 'bsc',        tokenUrl: a => `https://bscscan.com/token/${a}#balances`,              addressUrl: a => `https://bscscan.com/address/${a}` },
+  binance:               { fetcherType: 'moralis', moralisId: 'bsc',        tokenUrl: a => `https://bscscan.com/token/${a}#balances`,              addressUrl: a => `https://bscscan.com/address/${a}` },
+  'bnb smart chain':     { fetcherType: 'moralis', moralisId: 'bsc',        tokenUrl: a => `https://bscscan.com/token/${a}#balances`,              addressUrl: a => `https://bscscan.com/address/${a}` },
+  'binance smart chain': { fetcherType: 'moralis', moralisId: 'bsc',        tokenUrl: a => `https://bscscan.com/token/${a}#balances`,              addressUrl: a => `https://bscscan.com/address/${a}` },
+  arbitrum:              { fetcherType: 'moralis', moralisId: 'arbitrum',   tokenUrl: a => `https://arbiscan.io/token/${a}#balances`,              addressUrl: a => `https://arbiscan.io/address/${a}` },
+  'arbitrum one':        { fetcherType: 'moralis', moralisId: 'arbitrum',   tokenUrl: a => `https://arbiscan.io/token/${a}#balances`,              addressUrl: a => `https://arbiscan.io/address/${a}` },
+  optimism:              { fetcherType: 'moralis', moralisId: 'optimism',   tokenUrl: a => `https://optimistic.etherscan.io/token/${a}#balances`, addressUrl: a => `https://optimistic.etherscan.io/address/${a}` },
+  'op mainnet':          { fetcherType: 'moralis', moralisId: 'optimism',   tokenUrl: a => `https://optimistic.etherscan.io/token/${a}#balances`, addressUrl: a => `https://optimistic.etherscan.io/address/${a}` },
+  avalanche:             { fetcherType: 'moralis', moralisId: 'avalanche',  tokenUrl: a => `https://snowtrace.io/token/${a}#balances`,             addressUrl: a => `https://snowtrace.io/address/${a}` },
+  avax:                  { fetcherType: 'moralis', moralisId: 'avalanche',  tokenUrl: a => `https://snowtrace.io/token/${a}#balances`,             addressUrl: a => `https://snowtrace.io/address/${a}` },
+  fantom:                { fetcherType: 'moralis', moralisId: 'fantom',     tokenUrl: a => `https://ftmscan.com/token/${a}#balances`,              addressUrl: a => `https://ftmscan.com/address/${a}` },
+  ftm:                   { fetcherType: 'moralis', moralisId: 'fantom',     tokenUrl: a => `https://ftmscan.com/token/${a}#balances`,              addressUrl: a => `https://ftmscan.com/address/${a}` },
+  linea:                 { fetcherType: 'moralis', moralisId: 'linea',      tokenUrl: a => `https://lineascan.build/token/${a}#balances`,          addressUrl: a => `https://lineascan.build/address/${a}` },
+  blast:                 { fetcherType: 'moralis', moralisId: 'blast',      tokenUrl: a => `https://blastscan.io/token/${a}#balances`,             addressUrl: a => `https://blastscan.io/address/${a}` },
+  zksync:                { fetcherType: 'moralis', moralisId: 'zksync-era', tokenUrl: a => `https://explorer.zksync.io/address/${a}`,              addressUrl: a => `https://explorer.zksync.io/address/${a}` },
+  'zksync era':          { fetcherType: 'moralis', moralisId: 'zksync-era', tokenUrl: a => `https://explorer.zksync.io/address/${a}`,              addressUrl: a => `https://explorer.zksync.io/address/${a}` },
+  scroll:                { fetcherType: 'moralis', moralisId: 'scroll',     tokenUrl: a => `https://scrollscan.com/token/${a}#balances`,           addressUrl: a => `https://scrollscan.com/address/${a}` },
+  mantle:                { fetcherType: 'moralis', moralisId: 'mantle',     tokenUrl: a => `https://mantlescan.xyz/token/${a}#balances`,           addressUrl: a => `https://mantlescan.xyz/address/${a}` },
+  celo:                  { fetcherType: 'moralis', moralisId: 'celo',       tokenUrl: a => `https://celoscan.io/token/${a}#balances`,              addressUrl: a => `https://celoscan.io/address/${a}` },
+  gnosis:                { fetcherType: 'moralis', moralisId: 'gnosis',     tokenUrl: a => `https://gnosisscan.io/token/${a}#balances`,            addressUrl: a => `https://gnosisscan.io/address/${a}` },
+  xdai:                  { fetcherType: 'moralis', moralisId: 'gnosis',     tokenUrl: a => `https://gnosisscan.io/token/${a}#balances`,            addressUrl: a => `https://gnosisscan.io/address/${a}` },
+  moonbeam:              { fetcherType: 'moralis', moralisId: 'moonbeam',   tokenUrl: a => `https://moonscan.io/token/${a}#balances`,              addressUrl: a => `https://moonscan.io/address/${a}` },
+  cronos:                { fetcherType: 'moralis', moralisId: 'cronos',     tokenUrl: a => `https://cronoscan.com/token/${a}#balances`,            addressUrl: a => `https://cronoscan.com/address/${a}` },
+
+  // ── Solana (SPL tokens) — Moralis Solana Gateway, same key as EVM ────────
+  solana: { fetcherType: 'solana', tokenUrl: a => `https://solscan.io/token/${a}`,          addressUrl: a => `https://solscan.io/account/${a}` },
+  sol:    { fetcherType: 'solana', tokenUrl: a => `https://solscan.io/token/${a}`,          addressUrl: a => `https://solscan.io/account/${a}` },
+
+  // ── Tron (TRC-20) — TronScan public API, no key ───────────────────────────
+  tron: { fetcherType: 'tron', tokenUrl: a => `https://tronscan.org/#/token20/${a}`,        addressUrl: a => `https://tronscan.org/#/address/${a}` },
+  trx:  { fetcherType: 'tron', tokenUrl: a => `https://tronscan.org/#/token20/${a}`,        addressUrl: a => `https://tronscan.org/#/address/${a}` },
+
+  // ── TON (Jettons) — TonCenter v3 public API, no key ──────────────────────
+  ton: { fetcherType: 'ton', tokenUrl: a => `https://tonscan.org/jetton/${a}`,              addressUrl: a => `https://tonscan.org/address/${a}` },
+
+  // ── NEAR (FT tokens) — FastNEAR top holders + NearBlocks supply, no key ──
+  near: { fetcherType: 'near', tokenUrl: a => `https://nearblocks.io/token/${a}#holders`,   addressUrl: a => `https://nearblocks.io/address/${a}` },
 };
 
-// ── Known addresses ───────────────────────────────────────────────────────────
+// ── Known burn / system addresses ─────────────────────────────────────────────
 const KNOWN: Record<string, string> = {
+  // EVM
   '0x0000000000000000000000000000000000000000': 'Burn Address',
   '0x000000000000000000000000000000000000dead': 'Burn Address',
   '0xdead000000000000000042069420694206942069': 'Burn Address',
+  // Solana
+  '1nc1nerator11111111111111111111111111111124': 'Incinerator',
+  'So11111111111111111111111111111111111111112': 'Wrapped SOL Mint',
 };
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -97,47 +126,150 @@ function barFill(pct: number): string {
 }
 
 function shortAddr(addr: string): string {
+  if (!addr) return '—';
+  if (addr.length <= 12) return addr;
   return `${addr.slice(0, 6)}…${addr.slice(-4)}`;
 }
 
-// ── Fetcher ───────────────────────────────────────────────────────────────────
+// ── Fetchers ──────────────────────────────────────────────────────────────────
 
-async function fetchHolders(
+// EVM: Moralis ERC-20 owners endpoint
+async function fetchEvmHolders(
   moralisId: string,
   address: string,
   apiKey: string,
 ): Promise<{ holders: Holder[]; meta: TokenMeta }> {
-  const url = `https://deep-index.moralis.io/api/v2.2/erc20/${address}/owners`
-    + `?chain=${moralisId}&limit=10&order=DESC`;
-
-  const res = await fetch(url, { headers: { 'X-API-Key': apiKey } });
-  if (!res.ok) throw new Error(`${res.status}`);
-
+  const res = await fetch(
+    `https://deep-index.moralis.io/api/v2.2/erc20/${address}/owners?chain=${moralisId}&limit=10&order=DESC`,
+    { headers: { 'X-API-Key': apiKey } },
+  );
+  if (!res.ok) throw new Error(`Moralis ${res.status}`);
   const data = await res.json();
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const holders = (data.result ?? []).map((h: any) => ({
     address: h.owner_address as string,
     share:   parseFloat(h.percentage_relative_to_total_supply ?? '0'),
   }));
-
   return { holders, meta: { holdersCount: data.total ?? 0 } };
+}
+
+// Solana: Moralis Solana Gateway — same NEXT_PUBLIC_MORALIS_API_KEY as EVM.
+// Returns real wallet addresses directly (no ATA decoding needed).
+async function fetchSolanaHolders(
+  mint: string,
+  apiKey: string,
+): Promise<{ holders: Holder[]; meta: TokenMeta }> {
+  const res = await fetch(
+    `https://solana-gateway.moralis.io/token/mainnet/${mint}/top-holders?limit=10`,
+    { headers: { 'X-API-Key': apiKey } },
+  );
+  if (!res.ok) throw new Error(`Moralis Solana ${res.status}`);
+  const data = await res.json();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const holders = (data.result ?? []).map((h: any) => ({
+    address: h.owner_address as string,
+    share:   parseFloat(h.percentage_relative_to_total_supply ?? '0'),
+  }));
+  return { holders, meta: { holdersCount: data.total ?? 0 } };
+}
+
+// NEAR: FastNEAR top-holders (free, no key) + NearBlocks for total supply.
+// FastNEAR returns raw balance strings; we use BigInt division for precision.
+async function fetchNearHolders(contractId: string): Promise<{ holders: Holder[]; meta: TokenMeta }> {
+  const [topRes, metaRes] = await Promise.all([
+    fetch(`https://api.fastnear.com/v1/ft/${contractId}/top`),
+    fetch(`https://api.nearblocks.io/v1/fts/${contractId}`),
+  ]);
+  if (!topRes.ok) throw new Error(`FastNEAR ${topRes.status}`);
+
+  const topData  = await topRes.json();
+  const metaData = metaRes.ok ? await metaRes.json() : null;
+
+  const totalSupply = BigInt(metaData?.contracts?.[0]?.total_supply ?? '0');
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const holders: Holder[] = (topData.accounts ?? []).slice(0, 10).map((a: any) => {
+    const balance = BigInt(a.balance ?? '0');
+    const share   = totalSupply > 0n ? Number((balance * 10000n) / totalSupply) / 100 : 0;
+    return { address: a.account_id as string, share };
+  });
+
+  return { holders, meta: { holdersCount: topData.total_count ?? 0 } };
+}
+
+// Tron: TronScan public API — CORS-enabled, no key required
+async function fetchTronHolders(contractAddress: string): Promise<{ holders: Holder[]; meta: TokenMeta }> {
+  const res = await fetch(
+    `https://apilist.tronscanapi.com/api/token_trc20/holders?contractAddress=${contractAddress}&limit=10&start=0`,
+    { headers: { Accept: 'application/json' } },
+  );
+  if (!res.ok) throw new Error(`TronScan ${res.status}`);
+  const data = await res.json();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const holders: Holder[] = (data.trc20_tokens ?? []).map((h: any) => ({
+    address: h.address as string,
+    share:   parseFloat(h.percentage ?? '0'),
+  }));
+  return { holders, meta: { holdersCount: data.total ?? 0 } };
+}
+
+// TON: TonCenter v3 public API — CORS-enabled, no key required.
+// Wallets are returned as raw addresses; percentage is computed from total supply.
+async function fetchTonHolders(jettonAddress: string): Promise<{ holders: Holder[]; meta: TokenMeta }> {
+  const enc = encodeURIComponent(jettonAddress);
+
+  // Fetch jetton master info (for total supply) and top wallets in parallel
+  const [masterRes, walletsRes] = await Promise.all([
+    fetch(`https://toncenter.com/api/v3/jetton/masters?address=${enc}&limit=1`),
+    fetch(`https://toncenter.com/api/v3/jetton/wallets?jetton_address=${enc}&limit=10&sort=balance&direction=desc`),
+  ]);
+  if (!masterRes.ok || !walletsRes.ok) throw new Error('TonCenter error');
+
+  const [masterData, walletsData] = await Promise.all([masterRes.json(), walletsRes.json()]);
+
+  const totalSupply = BigInt(masterData.jetton_masters?.[0]?.total_supply ?? '0');
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const holders: Holder[] = (walletsData.jetton_wallets ?? []).map((w: any) => {
+    const balance = BigInt(w.balance ?? '0');
+    const share   = totalSupply > 0n ? Number((balance * 10000n) / totalSupply) / 100 : 0;
+    return { address: (w.owner ?? w.address) as string, share };
+  });
+
+  return { holders, meta: { holdersCount: walletsData.total ?? 0 } };
 }
 
 // ── Single contract row ───────────────────────────────────────────────────────
 
 function ContractRow({ chain, address }: ContractAddress) {
   const [state, setState] = useState<State>({ status: 'idle' });
-  const chainKey = chain.toLowerCase().trim();
-  const config   = CHAIN_CONFIG[chainKey];
+  const config = CHAIN_CONFIG[chain.toLowerCase().trim()];
 
   useEffect(() => {
     if (!config) { setState({ status: 'unsupported' }); return; }
 
-    const apiKey = process.env.NEXT_PUBLIC_MORALIS_API_KEY;
-    if (!apiKey) { setState({ status: 'no-key' }); return; }
-
     setState({ status: 'loading' });
-    fetchHolders(config.moralisId, address, apiKey)
+    let promise: Promise<{ holders: Holder[]; meta: TokenMeta }>;
+
+    switch (config.fetcherType) {
+      case 'moralis': {
+        const apiKey = process.env.NEXT_PUBLIC_MORALIS_API_KEY;
+        if (!apiKey) { setState({ status: 'no-key' }); return; }
+        promise = fetchEvmHolders(config.moralisId!, address, apiKey);
+        break;
+      }
+      case 'solana': {
+        const apiKey = process.env.NEXT_PUBLIC_MORALIS_API_KEY;
+        if (!apiKey) { setState({ status: 'no-key' }); return; }
+        promise = fetchSolanaHolders(address, apiKey);
+        break;
+      }
+      case 'tron':   promise = fetchTronHolders(address);   break;
+      case 'ton':    promise = fetchTonHolders(address);    break;
+      case 'near':   promise = fetchNearHolders(address);   break;
+    }
+
+    promise
       .then(({ holders, meta }) => setState({ status: 'ok', holders, meta }))
       .catch(() => setState({ status: 'error' }));
   }, [chain, address, config]);
@@ -147,9 +279,9 @@ function ContractRow({ chain, address }: ContractAddress) {
       {/* Header */}
       <div className="flex items-center justify-between">
         <span className="text-xs font-semibold text-gray-400 uppercase tracking-wide">{chain}</span>
-        {config && (
+        {config ? (
           <a
-            href={config.token(address)}
+            href={config.tokenUrl(address)}
             target="_blank"
             rel="noopener noreferrer"
             className="flex items-center space-x-1 text-xs text-blue-400 hover:text-blue-300 transition-colors"
@@ -157,6 +289,8 @@ function ContractRow({ chain, address }: ContractAddress) {
             <span className="font-mono">{shortAddr(address)}</span>
             <ExternalLink className="h-3 w-3" />
           </a>
+        ) : (
+          <span className="font-mono text-xs text-gray-600">{shortAddr(address)}</span>
         )}
       </div>
 
@@ -210,12 +344,12 @@ function ContractRow({ chain, address }: ContractAddress) {
               </div>
             )}
 
-            {/* Top holders */}
+            {/* Top holders list */}
             <div className="space-y-2">
               {holders.map((h, i) => {
-                const known = KNOWN[h.address.toLowerCase()];
+                const known = KNOWN[h.address.toLowerCase()] ?? KNOWN[h.address];
                 return (
-                  <div key={h.address}>
+                  <div key={`${h.address}-${i}`}>
                     <div className="flex items-center justify-between mb-0.5">
                       <div className="flex items-center space-x-1.5 min-w-0">
                         <span className="text-xs text-gray-600 w-4 flex-shrink-0">{i + 1}</span>
@@ -223,7 +357,7 @@ function ContractRow({ chain, address }: ContractAddress) {
                           <span className="text-xs text-green-400">{known}</span>
                         ) : (
                           <a
-                            href={config?.address(h.address) ?? `https://etherscan.io/address/${h.address}`}
+                            href={config.addressUrl(h.address)}
                             target="_blank"
                             rel="noopener noreferrer"
                             className="text-xs text-gray-400 hover:text-blue-400 font-mono transition-colors truncate"
@@ -278,7 +412,7 @@ export default function TokenDistributionPanel({ contractAddresses }: Props) {
       </div>
 
       <p className="text-xs text-gray-600 mt-4">
-        Top holders via Moralis · Burn addresses shown in green
+        Top holders · EVM + Solana via Moralis · Tron/TON/NEAR via public APIs · Burn addresses shown in green
       </p>
     </div>
   );
