@@ -39,20 +39,14 @@ function truncate(addr: string, chars = 4): string {
   return `${addr.slice(0, chars + 2)}…${addr.slice(-chars)}`;
 }
 
-function walletAgeLabel(firstTxTs: number | null): {
-  label: string;
-  days: number | null;
-  risk: 'ok' | 'warn' | 'danger';
-} {
-  if (firstTxTs === null) return { label: 'Age unknown', days: null, risk: 'warn' };
+function walletAgeLabel(firstTxTs: number | null): { label: string; days: number | null } {
+  if (firstTxTs === null) return { label: 'Age unknown', days: null };
   const days = Math.floor((Date.now() / 1000 - firstTxTs) / 86_400);
-  if (days < 7)   return { label: `${days}d old wallet`,  days, risk: 'danger' };
-  if (days < 30)  return { label: `${days}d old wallet`,  days, risk: 'warn' };
-  if (days < 365) return { label: `${days}d old wallet`,  days, risk: 'ok' };
+  if (days < 365) return { label: `${days}d old wallet`, days };
   const years = Math.floor(days / 365);
   const rem   = Math.floor((days % 365) / 30);
   const label = rem > 0 ? `${years}yr ${rem}mo wallet` : `${years}yr old wallet`;
-  return { label, days, risk: 'ok' };
+  return { label, days };
 }
 
 function deploymentCountRisk(n: number): 'ok' | 'warn' {
@@ -180,24 +174,10 @@ function ContractRow({ chain, address }: ContractAddress) {
               </a>
             </div>
 
-            {/* Wallet age */}
+            {/* Wallet age — informational only; new wallets can be a deliberate security choice */}
             <div className="flex items-center space-x-1.5">
-              <Clock className={`h-3.5 w-3.5 flex-shrink-0 ${
-                age.risk === 'danger' ? 'text-red-400' :
-                age.risk === 'warn'   ? 'text-orange-400' : 'text-gray-500'
-              }`} />
-              <span className={`text-sm ${
-                age.risk === 'danger' ? 'text-red-400' :
-                age.risk === 'warn'   ? 'text-orange-400' : 'text-gray-300'
-              }`}>
-                {age.label}
-              </span>
-              {age.risk === 'danger' && (
-                <span className="text-xs px-1.5 py-0.5 bg-red-500/20 text-red-400 rounded font-medium">RED FLAG</span>
-              )}
-              {age.risk === 'warn' && age.days !== null && (
-                <span className="text-xs px-1.5 py-0.5 bg-orange-500/20 text-orange-400 rounded">NEW WALLET</span>
-              )}
+              <Clock className="h-3.5 w-3.5 flex-shrink-0 text-gray-500" />
+              <span className="text-sm text-gray-300">{age.label}</span>
             </div>
 
             {/* Other deployments count */}
