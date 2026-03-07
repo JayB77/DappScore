@@ -190,7 +190,7 @@ async function fetchNearHolders(contractId: string): Promise<{ holders: Holder[]
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const holders: Holder[] = (topData.accounts ?? []).slice(0, 10).map((a: any) => {
     const balance = BigInt(a.balance ?? '0');
-    const share   = totalSupply > 0n ? Number((balance * 10000n) / totalSupply) / 100 : 0;
+    const share   = totalSupply > BigInt(0) ? Number((balance * BigInt(10000)) / totalSupply) / 100 : 0;
     return { address: a.account_id as string, share };
   });
 
@@ -232,7 +232,7 @@ async function fetchTonHolders(jettonAddress: string): Promise<{ holders: Holder
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const holders: Holder[] = (walletsData.jetton_wallets ?? []).map((w: any) => {
     const balance = BigInt(w.balance ?? '0');
-    const share   = totalSupply > 0n ? Number((balance * 10000n) / totalSupply) / 100 : 0;
+    const share   = totalSupply > BigInt(0) ? Number((balance * BigInt(10000)) / totalSupply) / 100 : 0;
     return { address: (w.owner ?? w.address) as string, share };
   });
 
