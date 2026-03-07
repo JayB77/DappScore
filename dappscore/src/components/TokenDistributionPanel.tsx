@@ -7,7 +7,7 @@ import { useFeatureFlag } from '@/lib/featureFlags';
 // ── Unified chain config ───────────────────────────────────────────────────────
 // One entry per chain name alias → how to fetch holders + explorer URLs.
 
-type FetcherType = 'moralis' | 'solana' | 'tron' | 'ton';
+type FetcherType = 'moralis' | 'solana' | 'tron' | 'ton' | 'near';
 
 interface ChainPanelConfig {
   fetcherType: FetcherType;
@@ -49,7 +49,7 @@ const CHAIN_CONFIG: Record<string, ChainPanelConfig> = {
   moonbeam:              { fetcherType: 'moralis', moralisId: 'moonbeam',   tokenUrl: a => `https://moonscan.io/token/${a}#balances`,              addressUrl: a => `https://moonscan.io/address/${a}` },
   cronos:                { fetcherType: 'moralis', moralisId: 'cronos',     tokenUrl: a => `https://cronoscan.com/token/${a}#balances`,            addressUrl: a => `https://cronoscan.com/address/${a}` },
 
-  // ── Solana (SPL tokens) — pure RPC, no key ────────────────────────────────
+  // ── Solana (SPL tokens) — Moralis Solana Gateway, same key as EVM ────────
   solana: { fetcherType: 'solana', tokenUrl: a => `https://solscan.io/token/${a}`,          addressUrl: a => `https://solscan.io/account/${a}` },
   sol:    { fetcherType: 'solana', tokenUrl: a => `https://solscan.io/token/${a}`,          addressUrl: a => `https://solscan.io/account/${a}` },
 
@@ -59,6 +59,9 @@ const CHAIN_CONFIG: Record<string, ChainPanelConfig> = {
 
   // ── TON (Jettons) — TonCenter v3 public API, no key ──────────────────────
   ton: { fetcherType: 'ton', tokenUrl: a => `https://tonscan.org/jetton/${a}`,              addressUrl: a => `https://tonscan.org/address/${a}` },
+
+  // ── NEAR (FT tokens) — FastNEAR top holders + NearBlocks supply, no key ──
+  near: { fetcherType: 'near', tokenUrl: a => `https://nearblocks.io/token/${a}#holders`,   addressUrl: a => `https://nearblocks.io/address/${a}` },
 };
 
 // ── Known burn / system addresses ─────────────────────────────────────────────
@@ -150,61 +153,48 @@ async function fetchEvmHolders(
   return { holders, meta: { holdersCount: data.total ?? 0 } };
 }
 
-// Solana: native RPC — no API key required.
-// getTokenLargestAccounts returns SPL token accounts (ATAs), not wallet addresses.
-// We resolve the owning wallet by reading each account's data and decoding
-// bytes 32–63 which hold the owner pubkey in the SPL token account layout.
-
-const B58 = '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz';
-function base58(bytes: Uint8Array): string {
-  let n = 0n;
-  for (const b of bytes) n = n * 256n + BigInt(b);
-  let s = '';
-  while (n > 0n) { s = B58[Number(n % 58n)] + s; n /= 58n; }
-  for (const b of bytes) { if (b !== 0) break; s = '1' + s; }
-  return s;
-}
-
-async function solRpc<T>(method: string, params: unknown[]): Promise<T> {
-  const res = await fetch('https://api.mainnet-beta.solana.com', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ jsonrpc: '2.0', id: 1, method, params }),
-  });
+// Solana: Moralis Solana Gateway — same NEXT_PUBLIC_MORALIS_API_KEY as EVM.
+// Returns real wallet addresses directly (no ATA decoding needed).
+async function fetchSolanaHolders(
+  mint: string,
+  apiKey: string,
+): Promise<{ holders: Holder[]; meta: TokenMeta }> {
+  const res = await fetch(
+    `https://solana-gateway.moralis.io/token/mainnet/${mint}/top-holders?limit=10`,
+    { headers: { 'X-API-Key': apiKey } },
+  );
+  if (!res.ok) throw new Error(`Moralis Solana ${res.status}`);
   const data = await res.json();
-  if (data.error) throw new Error(data.error.message);
-  return data.result as T;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const holders = (data.result ?? []).map((h: any) => ({
+    address: h.owner_address as string,
+    share:   parseFloat(h.percentage_relative_to_total_supply ?? '0'),
+  }));
+  return { holders, meta: { holdersCount: data.total ?? 0 } };
 }
 
-async function fetchSolanaHolders(mint: string): Promise<{ holders: Holder[]; meta: TokenMeta }> {
-  // Fetch top token accounts and total supply in parallel
-  const [largest, supply] = await Promise.all([
-    solRpc<{ value: { address: string; uiAmount: number }[] }>('getTokenLargestAccounts', [mint]),
-    solRpc<{ value: { uiAmount: number } }>('getTokenSupply', [mint]),
+// NEAR: FastNEAR top-holders (free, no key) + NearBlocks for total supply.
+// FastNEAR returns raw balance strings; we use BigInt division for precision.
+async function fetchNearHolders(contractId: string): Promise<{ holders: Holder[]; meta: TokenMeta }> {
+  const [topRes, metaRes] = await Promise.all([
+    fetch(`https://api.fastnear.com/v1/ft/${contractId}/top`),
+    fetch(`https://api.nearblocks.io/v1/fts/${contractId}`),
   ]);
+  if (!topRes.ok) throw new Error(`FastNEAR ${topRes.status}`);
 
-  const accounts = largest.value.slice(0, 10);
-  const totalSupply = supply.value.uiAmount;
+  const topData  = await topRes.json();
+  const metaData = metaRes.ok ? await metaRes.json() : null;
 
-  // Resolve wallet owners from ATA account data (single batched call)
-  const accountsInfo = await solRpc<{
-    value: ({ data: [string, string] } | null)[];
-  }>('getMultipleAccounts', [accounts.map(a => a.address), { encoding: 'base64' }]);
+  const totalSupply = BigInt(metaData?.contracts?.[0]?.total_supply ?? '0');
 
-  const holders: Holder[] = accounts.map((acc, i) => {
-    const b64 = accountsInfo.value[i]?.data?.[0];
-    let address = acc.address; // fallback: show ATA address
-    if (b64) {
-      const bytes = Uint8Array.from(atob(b64), c => c.charCodeAt(0));
-      if (bytes.length >= 64) address = base58(bytes.slice(32, 64)); // owner is at offset 32
-    }
-    return {
-      address,
-      share: totalSupply > 0 ? (acc.uiAmount / totalSupply) * 100 : 0,
-    };
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const holders: Holder[] = (topData.accounts ?? []).slice(0, 10).map((a: any) => {
+    const balance = BigInt(a.balance ?? '0');
+    const share   = totalSupply > 0n ? Number((balance * 10000n) / totalSupply) / 100 : 0;
+    return { address: a.account_id as string, share };
   });
 
-  return { holders, meta: { holdersCount: 0 } }; // total holder count not available via public RPC
+  return { holders, meta: { holdersCount: topData.total_count ?? 0 } };
 }
 
 // Tron: TronScan public API — CORS-enabled, no key required
@@ -268,9 +258,15 @@ function ContractRow({ chain, address }: ContractAddress) {
         promise = fetchEvmHolders(config.moralisId!, address, apiKey);
         break;
       }
-      case 'solana': promise = fetchSolanaHolders(address); break;
+      case 'solana': {
+        const apiKey = process.env.NEXT_PUBLIC_MORALIS_API_KEY;
+        if (!apiKey) { setState({ status: 'no-key' }); return; }
+        promise = fetchSolanaHolders(address, apiKey);
+        break;
+      }
       case 'tron':   promise = fetchTronHolders(address);   break;
       case 'ton':    promise = fetchTonHolders(address);    break;
+      case 'near':   promise = fetchNearHolders(address);   break;
     }
 
     promise
@@ -416,7 +412,7 @@ export default function TokenDistributionPanel({ contractAddresses }: Props) {
       </div>
 
       <p className="text-xs text-gray-600 mt-4">
-        Top holders · EVM via Moralis · Solana/Tron/TON via public RPC · Burn addresses shown in green
+        Top holders · EVM + Solana via Moralis · Tron/TON/NEAR via public APIs · Burn addresses shown in green
       </p>
     </div>
   );
