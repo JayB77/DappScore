@@ -16,6 +16,36 @@ export type ProjectStage =
   | 'launched'
   | 'discontinued';
 
+export type AuditFirm =
+  | 'CertiK'
+  | 'Hacken'
+  | 'OpenZeppelin'
+  | 'Code4rena'
+  | 'Sherlock'
+  | 'Quantstamp'
+  | 'Trail of Bits'
+  | 'PeckShield'
+  | 'SlowMist'
+  | 'Spearbit'
+  | 'Consensys Diligence'
+  | 'Immunefi';
+
+export interface AuditRecord {
+  firm: AuditFirm | string;
+  /** ISO date string, e.g. "2024-06" or "2024-06-15" */
+  date: string;
+  /** Link to the public report PDF / page */
+  reportUrl: string;
+  /** CertiK-style security score 0–100 */
+  score?: number;
+  findings?: {
+    critical?: number;
+    high?: number;
+    medium?: number;
+    low?: number;
+  };
+}
+
 export interface Project {
   id: number;
   name: string;
@@ -27,6 +57,7 @@ export interface Project {
   logoUrl?: string;
   websiteUrl?: string;
   contractAddresses?: { chain: string; address: string }[];
+  audits?: AuditRecord[];
   // Token sale — all optional; only populated when the project has an active/upcoming sale
   totalSupply?: string;
   hardCap?: string;
