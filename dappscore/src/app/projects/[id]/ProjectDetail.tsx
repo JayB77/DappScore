@@ -99,20 +99,20 @@ const mockProject = {
       findings: { critical: 0, high: 1, medium: 3, low: 7 },
     },
   ],
-};
-
-// Mock sale data — in prod this comes live from /api/v1/projects/[id]/sale
-const mockSaleData: SaleData = {
-  raised: 730_000,
-  goal: 2_000_000,
-  currency: 'USDC',
-  tokenPrice: 0.04,
-  startDate: Math.floor(Date.now() / 1000) - 86400 * 3,
-  endDate: Math.floor(Date.now() / 1000) + 86400 * 11,
-  minContribution: 100,
-  maxContribution: 10_000,
-  network: 'Base',
-  updatedAt: Math.floor(Date.now() / 1000) - 300,
+  // saleData is optional — panel only renders when present
+  // In production this is fetched live from /api/v1/projects/[id]/sale
+  saleData: {
+    raised: 730_000,
+    goal: 2_000_000,
+    currency: 'USDC',
+    tokenPrice: 0.04,
+    startDate: Math.floor(Date.now() / 1000) - 86400 * 3,
+    endDate: Math.floor(Date.now() / 1000) + 86400 * 11,
+    minContribution: 100,
+    maxContribution: 10_000,
+    network: 'Base',
+    updatedAt: Math.floor(Date.now() / 1000) - 300,
+  } satisfies SaleData,
 };
 
 interface Comment {
@@ -681,8 +681,10 @@ export default function ProjectDetail() {
               }}
             />}
 
-            {/* Token Sale */}
-            <TokenSalePanel projectId={project.id} mockData={mockSaleData} />
+            {/* Token Sale — only renders when project has sale data */}
+            {project.saleData && (
+              <TokenSalePanel projectId={project.id} mockData={project.saleData} />
+            )}
 
             {/* External Signals */}
             <ExternalSignalsPanel
