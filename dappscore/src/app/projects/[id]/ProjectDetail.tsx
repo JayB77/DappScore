@@ -14,6 +14,7 @@ import TokenDistributionPanel from '@/components/TokenDistributionPanel';
 import DeployerHistoryPanel from '@/components/DeployerHistoryPanel';
 import LiquidityLockPanel from '@/components/LiquidityLockPanel';
 import AuditBadgePanel from '@/components/AuditBadgePanel';
+import SocialProofPanel from '@/components/SocialProofPanel';
 import { useProjectSignals } from '@/lib/useProjectSignals';
 import { useFeatureFlag } from '@/lib/featureFlags';
 import { useVoting } from '@/lib/useVoting';
@@ -73,10 +74,10 @@ const mockProject = {
     { date: 'Q4 2024', event: 'Mobile App', completed: false },
   ],
   socialLinks: {
-    twitter: '#',
-    telegram: '#',
-    discord: '#',
-    github: '#',
+    twitter: 'https://x.com/uniswap',
+    telegram: 'https://t.me/uniswap',
+    discord: 'https://discord.gg/FCfyBSbCU5',
+    github: 'https://github.com/Uniswap/v3-core',
   },
   contractAddresses: [
     { chain: 'Ethereum', address: '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48' },
@@ -671,6 +672,9 @@ export default function ProjectDetail() {
               twitterUrl={project.socialLinks.twitter !== '#' ? project.socialLinks.twitter : undefined}
               preloaded={{ domain: signals.domain, github: signals.github }}
             />
+
+            {/* Community Social Proof */}
+            <SocialProofPanel socialLinks={project.socialLinks} />
 
             {/* Contract Signals */}
             {showContracts && <ContractFingerprintPanel

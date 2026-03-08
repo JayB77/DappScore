@@ -55,6 +55,13 @@ export const FEATURE_CONFIGS: FeatureConfig[] = [
 
   // ── Social ────────────────────────────────────────────────────────────────
   {
+    id: 'socialProof',
+    label: 'Community Social Proof',
+    description: 'Discord member/online count (public invite API) and Telegram link — positive signal only, never a penalty',
+    category: 'social',
+    defaultEnabled: true,
+  },
+  {
     id: 'twitterDisplay',
     label: 'Twitter/X Profile',
     description: 'Show project Twitter/X handle and link — no API key required',
