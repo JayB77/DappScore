@@ -16,6 +16,7 @@ import LiquidityLockPanel from '@/components/LiquidityLockPanel';
 import AuditBadgePanel from '@/components/AuditBadgePanel';
 import SocialProofPanel from '@/components/SocialProofPanel';
 import TokenSalePanel from '@/components/TokenSalePanel';
+import WhaleTrackerPanel from '@/components/WhaleTrackerPanel';
 import type { SaleData } from '@/types/sale';
 import { useProjectSignals } from '@/lib/useProjectSignals';
 import { useFeatureFlag } from '@/lib/featureFlags';
@@ -720,6 +721,9 @@ export default function ProjectDetail() {
 
             {/* Token Distribution */}
             <TokenDistributionPanel contractAddresses={project.contractAddresses} />
+
+            {/* Whale Tracker */}
+            <WhaleTrackerPanel contractAddresses={project.contractAddresses} />
 
             {/* Report Button */}
             <button className="w-full py-3 border border-red-500/50 text-red-400 rounded-lg hover:bg-red-500/10 flex items-center justify-center space-x-2">
