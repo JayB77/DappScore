@@ -684,11 +684,11 @@ export default function ProjectDetail() {
             {/* DEX Liquidity */}
             <DexLiquidityPanel contractAddresses={project.contractAddresses} />
 
-            {/* Security Audits */}
-            <AuditBadgePanel audits={project.audits} />
-
             {/* Liquidity Lock */}
             <LiquidityLockPanel contractAddresses={project.contractAddresses} />
+
+            {/* Security Audits */}
+            <AuditBadgePanel audits={project.audits} />
 
             {/* Deployer Wallet History */}
             <DeployerHistoryPanel contractAddresses={project.contractAddresses} />
