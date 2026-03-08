@@ -255,20 +255,49 @@ router.get('/patterns', (_req, res) => {
   res.json({ success: true, data: { patterns: KNOWN_PATTERNS } });
 });
 
+// ── Starknet: contract analysis via Starkscan ─────────────────────────────────
+
+async function analyzeStarknet(address: string): Promise<Flag[]> {
+  const info  = await getContractInfo('starknet', address);
+  const flags: Flag[] = [];
+
+  if (!info.verified) {
+    flags.push({
+      id: 'unverified-contract', name: 'Unverified Contract', severity: 'high',
+      description: 'Cairo contract source code is not verified on Starkscan. Cannot audit the code.',
+    });
+  }
+
+  if (info.proxy && !info.implementation) {
+    flags.push({
+      id: 'proxy-without-implementation', name: 'Proxy Without Implementation', severity: 'high',
+      description: 'Contract is a proxy but the implementation is unknown or unverified.',
+    });
+  }
+
+  return flags;
+}
+
 /** POST /api/v1/scam/analyze */
 router.post('/analyze', async (req, res) => {
   const { contractAddress, network = 'mainnet' } = req.body ?? {};
 
-  const isSolana = network === 'solana';
+  const isSolana   = network === 'solana';
+  const isStarknet = network === 'starknet';
 
   if (isSolana) {
-    // Solana: validate as base58 (44 chars typical)
+    // Solana: validate as base58 (32–44 chars)
     if (!contractAddress || !/^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(contractAddress)) {
       return res.status(400).json({ success: false, error: 'Valid Solana mint address required.' });
     }
+  } else if (isStarknet) {
+    // Starknet: 0x + up to 64 hex chars (256-bit field element)
+    if (!contractAddress || !/^0x[0-9a-fA-F]{1,64}$/.test(contractAddress)) {
+      return res.status(400).json({ success: false, error: 'Valid Starknet contract address required (0x + up to 64 hex chars).' });
+    }
   } else {
     if (!contractAddress || !/^0x[0-9a-fA-F]{40}$/.test(contractAddress)) {
-      return res.status(400).json({ success: false, error: 'Valid EVM contractAddress required.' });
+      return res.status(400).json({ success: false, error: 'Valid EVM contractAddress (0x + 40 hex chars) required.' });
     }
   }
 
@@ -277,6 +306,8 @@ router.post('/analyze', async (req, res) => {
 
     if (isSolana) {
       flags = await analyzeSolana(contractAddress);
+    } else if (isStarknet) {
+      flags = await analyzeStarknet(contractAddress);
     } else {
       const [heuristic, explorerFlags, onChainFlags] = await Promise.all([
         Promise.resolve(evmHeuristicFlags(contractAddress)),
@@ -371,7 +402,8 @@ router.post('/batch', async (req, res) => {
     return res.status(400).json({ success: false, error: 'Maximum 10 addresses per batch.' });
   }
 
-  const isSolana = network === 'solana';
+  const isSolana   = network === 'solana';
+  const isStarknet = network === 'starknet';
 
   try {
     const results = await Promise.all(
@@ -381,6 +413,8 @@ router.post('/batch', async (req, res) => {
 
           if (isSolana) {
             flags = await analyzeSolana(address);
+          } else if (isStarknet) {
+            flags = await analyzeStarknet(address);
           } else {
             const [heuristic, explorerFlags] = await Promise.all([
               Promise.resolve(evmHeuristicFlags(address)),
@@ -410,8 +444,9 @@ router.post('/batch', async (req, res) => {
 /** POST /api/v1/scam/report */
 const reportSchema = z.object({
   contractAddress: z.union([
-    z.string().regex(/^0x[0-9a-fA-F]{40}$/),  // EVM
+    z.string().regex(/^0x[0-9a-fA-F]{40}$/),          // EVM
     z.string().regex(/^[1-9A-HJ-NP-Za-km-z]{32,44}$/), // Solana base58
+    z.string().regex(/^0x[0-9a-fA-F]{1,64}$/),         // Starknet field element
   ]),
   network:   z.string().optional(),
   projectId: z.string().optional(),

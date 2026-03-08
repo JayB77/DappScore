@@ -26,7 +26,7 @@
  *   HELIUS_API_KEY             — Solana: Helius DAS + RPC
  */
 
-export type ExplorerFormat = 'etherscan' | 'blockscout' | 'helius' | 'none';
+export type ExplorerFormat = 'etherscan' | 'blockscout' | 'starkscan' | 'helius' | 'none';
 
 interface ExplorerConfig {
   format:  ExplorerFormat;
@@ -67,8 +67,9 @@ const EXPLORERS: Record<string, ExplorerConfig> = {
   // Solana — Helius
   solana:        { format: 'helius',   baseUrl: 'https://api.helius.xyz',                          envKey: 'HELIUS_API_KEY' },
 
-  // Non-EVM without good public APIs — best effort
-  starknet:      { format: 'none', baseUrl: '', envKey: null },
+  // Starknet — Starkscan public REST API
+  // Env: STARKSCAN_API_KEY (optional, increases rate limits)
+  starknet:      { format: 'blockscout', baseUrl: 'https://api.starkscan.co/api/v0', envKey: 'STARKSCAN_API_KEY' },
 };
 
 // ── Etherscan-compatible ──────────────────────────────────────────────────────
@@ -271,9 +272,47 @@ export async function getSolanaMintInfo(mintAddress: string): Promise<{
   return json.result?.value?.data?.parsed?.info ?? null;
 }
 
+// ── Starkscan (Starknet) ──────────────────────────────────────────────────────
+
+async function starkscanContractInfo(
+  config: ExplorerConfig,
+  address: string,
+): Promise<ContractInfo> {
+  const headers: Record<string, string> = { 'Accept': 'application/json' };
+  if (config.envKey && process.env[config.envKey]) {
+    headers['x-api-key'] = process.env[config.envKey]!;
+  }
+
+  const res = await fetch(`${config.baseUrl}/contract/${address}`, {
+    headers,
+    signal: AbortSignal.timeout(10_000),
+  });
+
+  if (res.status === 404) return { verified: false };
+  if (!res.ok) throw new Error(`Starkscan HTTP ${res.status}`);
+
+  const json = (await res.json()) as {
+    is_verified?: boolean;
+    contract_name?: string;
+    compiler_version?: string;
+    source_code?: string;
+    is_proxy?: boolean;
+    implementation_contract?: string;
+  };
+
+  return {
+    verified:        !!json.is_verified,
+    contractName:    json.contract_name ?? undefined,
+    compilerVersion: json.compiler_version ?? undefined,
+    sourceCode:      json.source_code ?? undefined,
+    proxy:           json.is_proxy ?? undefined,
+    implementation:  json.implementation_contract ?? undefined,
+  };
+}
+
 // ── Public API ────────────────────────────────────────────────────────────────
 
-/** Get contract verification status + source for any supported EVM chain. */
+/** Get contract verification status + source for any supported chain. */
 export async function getContractInfo(
   network: string,
   address: string,
@@ -282,8 +321,9 @@ export async function getContractInfo(
   if (!config || config.format === 'none') return { verified: false };
 
   try {
-    if (config.format === 'etherscan') return await etherscanContractInfo(config, address);
+    if (config.format === 'etherscan')  return await etherscanContractInfo(config, address);
     if (config.format === 'blockscout') return await blockscoutContractInfo(config, address);
+    if (config.format === 'starkscan')  return await starkscanContractInfo(config, address);
     return { verified: false };
   } catch (err) {
     console.warn(`[explorers] getContractInfo failed on ${network}:`, err);
