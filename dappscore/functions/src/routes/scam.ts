@@ -35,6 +35,7 @@ import {
   getSolanaMintInfo,
   explorerConfigured,
 } from '../lib/explorers';
+import { goplusTokenSecurity, goplusSupported, GoPlusResult } from '../lib/goplus';
 
 const router = Router();
 
@@ -136,6 +137,18 @@ async function evmOnChainFlags(network: string, address: string): Promise<Flag[]
   }
 
   return flags;
+}
+
+// ── EVM: GoPlus Security API (honeypot, taxes, mint, LP lock, holders, …) ────
+
+async function evmGoPlusFlags(network: string, address: string): Promise<{ flags: Flag[]; goplus: GoPlusResult | null }> {
+  if (!goplusSupported(network)) return { flags: [], goplus: null };
+
+  const result = await goplusTokenSecurity(network, address);
+  if (!result) return { flags: [], goplus: null };
+
+  // GoPlus already returns flags in our exact Flag shape — use them directly
+  return { flags: result.flags as Flag[], goplus: result };
 }
 
 // ── Solana: full analysis ─────────────────────────────────────────────────────
@@ -303,21 +316,29 @@ router.post('/analyze', async (req, res) => {
 
   try {
     let flags: Flag[];
+    let goplusResult: GoPlusResult | null = null;
 
     if (isSolana) {
       flags = await analyzeSolana(contractAddress);
     } else if (isStarknet) {
       flags = await analyzeStarknet(contractAddress);
     } else {
-      const [heuristic, explorerFlags, onChainFlags] = await Promise.all([
+      const [heuristic, explorerFlags, onChainFlags, goplusData] = await Promise.all([
         Promise.resolve(evmHeuristicFlags(contractAddress)),
         evmExplorerFlags(network, contractAddress),
         evmOnChainFlags(network, contractAddress),
+        evmGoPlusFlags(network, contractAddress),
       ]);
-      flags = [...heuristic, ...explorerFlags, ...onChainFlags];
+      goplusResult = goplusData.goplus;
+      // Merge flags — GoPlus may overlap with explorer (unverified-contract);
+      // prefer GoPlus flag if present, otherwise keep explorer flag.
+      const goplusIds = new Set(goplusData.flags.map(f => f.id));
+      const dedupedExplorer = explorerFlags.filter(f => !goplusIds.has(f.id));
+      flags = [...heuristic, ...dedupedExplorer, ...onChainFlags, ...goplusData.flags];
     }
 
-    const riskScore = calcRiskScore(flags);
+    // Use GoPlus weighted score for EVM (more precise), else use severity sum
+    const riskScore = goplusResult ? goplusResult.riskScore : calcRiskScore(flags);
 
     res.json({
       success: true,
@@ -327,6 +348,7 @@ router.post('/analyze', async (req, res) => {
         riskScore,
         riskLevel:  scoreToLevel(riskScore),
         flags,
+        ...(goplusResult ? { security: goplusResult.summary } : {}),
         analyzedAt: new Date().toISOString(),
       },
     });
@@ -363,16 +385,17 @@ router.post('/tokenomics', async (req, res) => {
     }
 
     // EVM
-    let metadata: unknown = null;
-    if (isAlchemyNetwork(network) && alchemyConfigured()) {
-      metadata = await alchemyRpc(network, 'alchemy_getTokenMetadata', [tokenAddress]).catch(() => null);
-    } else if (moralisConfigured() && moralisChainId(network)) {
-      metadata = await moralisTokenMetadata(network, tokenAddress).catch(() => null);
-    }
+    const [metadata, contractInfo, goplusData] = await Promise.all([
+      (isAlchemyNetwork(network) && alchemyConfigured())
+        ? alchemyRpc(network, 'alchemy_getTokenMetadata', [tokenAddress]).catch(() => null)
+        : (moralisConfigured() && moralisChainId(network))
+          ? moralisTokenMetadata(network, tokenAddress).catch(() => null)
+          : Promise.resolve(null),
+      explorerConfigured(network) ? getContractInfo(network, tokenAddress) : Promise.resolve(null),
+      evmGoPlusFlags(network, tokenAddress),
+    ]);
 
-    const contractInfo = explorerConfigured(network)
-      ? await getContractInfo(network, tokenAddress)
-      : null;
+    const goplus = goplusData.goplus;
 
     res.json({
       success: true,
@@ -381,7 +404,19 @@ router.post('/tokenomics', async (req, res) => {
         network,
         metadata,
         contractInfo,
-        note: 'Full holder distribution requires on-chain data — configure ALCHEMY_API_KEY / MORALIS_API_KEY.',
+        ...(goplus ? {
+          security: goplus.summary,
+          riskScore: goplus.riskScore,
+          flags: goplus.flags,
+          holders: {
+            count: goplus.summary.holderCount,
+            topHolderPercent: goplus.summary.topHolderPercent,
+            lpLockedPercent: goplus.summary.lpLockedPercent,
+            topHolders: goplus.raw.holders?.slice(0, 10) ?? [],
+            lpHolders: goplus.raw.lp_holders ?? [],
+            dex: goplus.raw.dex ?? [],
+          },
+        } : { note: 'Full security analysis requires GoPlus (supported on most EVM chains).' }),
         analyzedAt: new Date().toISOString(),
       },
     });
@@ -411,20 +446,29 @@ router.post('/batch', async (req, res) => {
         try {
           let flags: Flag[];
 
+          let goplusResult: GoPlusResult | null = null;
           if (isSolana) {
             flags = await analyzeSolana(address);
           } else if (isStarknet) {
             flags = await analyzeStarknet(address);
           } else {
-            const [heuristic, explorerFlags] = await Promise.all([
+            const [heuristic, explorerFlags, goplusData] = await Promise.all([
               Promise.resolve(evmHeuristicFlags(address)),
               evmExplorerFlags(network, address),
+              evmGoPlusFlags(network, address),
             ]);
-            flags = [...heuristic, ...explorerFlags];
+            goplusResult = goplusData.goplus;
+            const goplusIds = new Set(goplusData.flags.map(f => f.id));
+            const dedupedExplorer = explorerFlags.filter(f => !goplusIds.has(f.id));
+            flags = [...heuristic, ...dedupedExplorer, ...goplusData.flags];
           }
 
-          const riskScore = calcRiskScore(flags);
-          return [address, { address, network, riskScore, riskLevel: scoreToLevel(riskScore), flags, analyzedAt: new Date().toISOString() }];
+          const riskScore = goplusResult ? goplusResult.riskScore : calcRiskScore(flags);
+          return [address, {
+            address, network, riskScore, riskLevel: scoreToLevel(riskScore), flags,
+            ...(goplusResult ? { security: goplusResult.summary } : {}),
+            analyzedAt: new Date().toISOString(),
+          }];
         } catch (e) {
           return [address, { address, network, riskScore: -1, riskLevel: 'unknown', flags: [], error: String(e) }];
         }
