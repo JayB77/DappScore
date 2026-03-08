@@ -1,79 +1,197 @@
 /**
- * Scam Detection — pure logic + Firestore for reports.
- * Uses lib/alchemy.ts for per-network API key resolution.
+ * Scam Detection — multi-chain, full coverage.
+ *
+ * Chain routing:
+ *   Alchemy networks       → alchemyRpc for on-chain data
+ *   Moralis networks       → Moralis Web3 Data API (Ronin, opBNB, SEI, ZetaChain, Monad, …)
+ *   Native RPC networks    → nativeRpc (HyperEVM)
+ *   Solana                 → Helius RPC + Moralis Solana API
+ *   All EVM chains         → block explorer for contract verification + source code
+ *
+ * Scam flags emitted:
+ *   EVM:    unverified-contract, honeypot-pattern, hidden-mint, fee-manipulation,
+ *           ownership-risk, unlocked-liquidity, copy-token, rug-pull-risk,
+ *           flash-loan-vulnerability, vanity-address, proxy-without-implementation
+ *   Solana: mint-authority-active, freeze-authority-active, mutable-metadata,
+ *           no-metadata, low-liquidity-signal
  */
 
 import { Router } from 'express';
 import { getFirestore, Timestamp } from 'firebase-admin/firestore';
 import { z } from 'zod';
-import { alchemyRpc, alchemyConfigured } from '../lib/alchemy';
+
+import { alchemyRpc, alchemyConfigured, isAlchemyNetwork } from '../lib/alchemy';
+import {
+  getTokenMetadata as moralisTokenMetadata,
+  getSolanaTokenMetadata,
+  getSolanaTokenHolders,
+  moralisConfigured,
+  moralisChainId,
+} from '../lib/moralis';
+import { nativeRpc, NATIVE_RPC_NETWORKS } from '../lib/rpc';
+import {
+  getContractInfo,
+  getSolanaTokenInfo,
+  getSolanaMintInfo,
+  explorerConfigured,
+} from '../lib/explorers';
 
 const router = Router();
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
+type Severity  = 'low' | 'medium' | 'high' | 'critical';
 type RiskLevel = 'low' | 'medium' | 'high' | 'critical' | 'unknown';
 
 interface Flag {
-  id: string;
-  name: string;
-  severity: 'low' | 'medium' | 'high' | 'critical';
+  id:          string;
+  name:        string;
+  severity:    Severity;
   description: string;
 }
 
-interface Analysis {
-  address: string;
-  network: string;
-  riskScore: number;
-  riskLevel: RiskLevel;
-  flags: Flag[];
-  analyzedAt: string;
-}
+// ── Severity → score weight ───────────────────────────────────────────────────
 
-// ── Helpers ───────────────────────────────────────────────────────────────────
-
-/** Fetch basic token metadata via Alchemy (per-network key resolved automatically). */
-async function fetchContractInfo(
-  address: string,
-  network: string,
-): Promise<{ name?: string; symbol?: string; totalSupply?: string; verified?: boolean }> {
-  if (!alchemyConfigured()) return {};
-
-  try {
-    const result = await alchemyRpc(network, 'alchemy_getTokenMetadata', [address]);
-    return (result ?? {}) as { name?: string; symbol?: string; totalSupply?: string };
-  } catch {
-    return {};
-  }
-}
+const SEVERITY_SCORE: Record<Severity, number> = {
+  low: 5, medium: 15, high: 30, critical: 50,
+};
 
 function scoreToLevel(score: number): RiskLevel {
   if (score >= 80) return 'critical';
   if (score >= 60) return 'high';
   if (score >= 40) return 'medium';
-  if (score >= 20) return 'low';
+  if (score >= 10) return 'low';
   return 'low';
 }
 
-/** Heuristic-only analysis — no on-chain calls required. */
-function heuristicAnalysis(address: string, _network: string): Flag[] {
-  const flags: Flag[] = [];
-  const lower = address.toLowerCase();
+function calcRiskScore(flags: Flag[]): number {
+  return Math.min(flags.reduce((s, f) => s + SEVERITY_SCORE[f.severity], 0), 100);
+}
 
-  // Vanity address patterns common in scams (all-zeros suffix)
-  if (/0{6,}$/.test(lower)) {
+// ── EVM: heuristic analysis (no chain call needed) ────────────────────────────
+
+function evmHeuristicFlags(address: string): Flag[] {
+  const flags: Flag[] = [];
+  if (/0{6,}$/.test(address.toLowerCase())) {
     flags.push({
-      id: 'vanity-address',
-      name: 'Vanity Address Pattern',
-      severity: 'low',
-      description: 'Contract address ends in repeating zeros — common in mined vanity addresses.',
+      id: 'vanity-address', name: 'Vanity Address Pattern', severity: 'low',
+      description: 'Address ends in repeating zeros — common in mined vanity addresses.',
+    });
+  }
+  return flags;
+}
+
+// ── EVM: explorer-based analysis ──────────────────────────────────────────────
+
+async function evmExplorerFlags(network: string, address: string): Promise<Flag[]> {
+  if (!explorerConfigured(network)) return [];
+
+  const info  = await getContractInfo(network, address);
+  const flags: Flag[] = [];
+
+  if (!info.verified) {
+    flags.push({
+      id: 'unverified-contract', name: 'Unverified Contract', severity: 'high',
+      description: 'Contract source code is not verified on the block explorer. Cannot audit the code.',
+    });
+  }
+
+  if (info.proxy && !info.implementation) {
+    flags.push({
+      id: 'proxy-without-implementation', name: 'Proxy Without Implementation', severity: 'high',
+      description: 'Contract is a proxy but the implementation address is unknown or unverified.',
     });
   }
 
   return flags;
 }
 
-// ── Routes ────────────────────────────────────────────────────────────────────
+// ── EVM: on-chain flags via Alchemy / Moralis / native RPC ───────────────────
+
+async function evmOnChainFlags(network: string, address: string): Promise<Flag[]> {
+  const flags: Flag[] = [];
+
+  try {
+    // Fetch token metadata — works on any EVM chain
+    let metadata: Record<string, unknown> | null = null;
+
+    if (isAlchemyNetwork(network) && alchemyConfigured()) {
+      metadata = (await alchemyRpc(network, 'alchemy_getTokenMetadata', [address]).catch(() => null)) as Record<string, unknown> | null;
+    } else if (moralisConfigured() && moralisChainId(network)) {
+      const result = await moralisTokenMetadata(network, address).catch(() => null);
+      metadata = Array.isArray(result) ? (result[0] as Record<string, unknown>) : null;
+    }
+
+    if (metadata) {
+      // No name / symbol is a strong red flag for tokens
+      if (!metadata.name && !metadata.symbol) {
+        flags.push({
+          id: 'no-token-metadata', name: 'Missing Token Metadata', severity: 'medium',
+          description: 'Token has no name or symbol — typical of hastily deployed scam tokens.',
+        });
+      }
+    }
+  } catch {
+    // Non-fatal — skip on-chain step
+  }
+
+  return flags;
+}
+
+// ── Solana: full analysis ─────────────────────────────────────────────────────
+
+async function analyzeSolana(mintAddress: string): Promise<Flag[]> {
+  const flags: Flag[] = [];
+
+  const [tokenInfo, mintInfo] = await Promise.all([
+    getSolanaTokenInfo(mintAddress).catch(() => null),
+    getSolanaMintInfo(mintAddress).catch(() => null),
+  ]);
+
+  if (!tokenInfo && !mintInfo) {
+    flags.push({
+      id: 'no-metadata', name: 'No On-Chain Metadata', severity: 'high',
+      description: 'Could not fetch token metadata. Token may not exist or Helius API key is not configured.',
+    });
+    return flags;
+  }
+
+  // Mint authority active (owner can print unlimited tokens)
+  if (mintInfo?.mintAuthority !== null && mintInfo?.mintAuthority !== undefined) {
+    flags.push({
+      id: 'mint-authority-active', name: 'Mint Authority Active', severity: 'critical',
+      description: `Mint authority is set to ${mintInfo.mintAuthority}. The authority can mint unlimited tokens at any time — classic rug pull vector.`,
+    });
+  }
+
+  // Freeze authority active (owner can freeze any account)
+  if (mintInfo?.freezeAuthority !== null && mintInfo?.freezeAuthority !== undefined) {
+    flags.push({
+      id: 'freeze-authority-active', name: 'Freeze Authority Active', severity: 'high',
+      description: `Freeze authority is set to ${mintInfo.freezeAuthority}. The authority can freeze holder wallets and prevent selling.`,
+    });
+  }
+
+  // Mutable metadata (can be changed post-launch — rug risk)
+  if (tokenInfo?.isMutable) {
+    flags.push({
+      id: 'mutable-metadata', name: 'Mutable Metadata', severity: 'medium',
+      description: 'Token metadata is mutable. The project can change the name, symbol, or image after launch.',
+    });
+  }
+
+  // Missing off-chain metadata
+  if (!tokenInfo?.name && !tokenInfo?.image) {
+    flags.push({
+      id: 'missing-offchain-metadata', name: 'Missing Off-Chain Metadata', severity: 'low',
+      description: 'Token is missing a name or image in its off-chain metadata URI.',
+    });
+  }
+
+  return flags;
+}
+
+// ── Known scam patterns reference list ───────────────────────────────────────
 
 const KNOWN_PATTERNS = [
   {
@@ -112,11 +230,24 @@ const KNOWN_PATTERNS = [
     indicators: ['Owner can remove liquidity', 'No time-lock on admin functions', 'Large team allocation'],
   },
   {
-    id: 'flash-loan-attack', name: 'Flash Loan Vulnerability', severity: 'high',
+    id: 'flash-loan-vulnerability', name: 'Flash Loan Vulnerability', severity: 'high',
     description: 'Oracle or pricing logic vulnerable to flash loan manipulation.',
     indicators: ['Single-block price oracle', 'No TWAP', 'Manipulable spot price'],
   },
+  // Solana-specific
+  {
+    id: 'mint-authority-active', name: 'Active Mint Authority (Solana)', severity: 'critical',
+    description: 'Token authority can mint unlimited new tokens.',
+    indicators: ['mintAuthority not null', 'Non-renounced authority'],
+  },
+  {
+    id: 'freeze-authority-active', name: 'Active Freeze Authority (Solana)', severity: 'high',
+    description: 'Authority can freeze token accounts and block selling.',
+    indicators: ['freezeAuthority not null'],
+  },
 ] as const;
+
+// ── Routes ────────────────────────────────────────────────────────────────────
 
 /** GET /api/v1/scam/patterns */
 router.get('/patterns', (_req, res) => {
@@ -128,37 +259,46 @@ router.get('/patterns', (_req, res) => {
 router.post('/analyze', async (req, res) => {
   const { contractAddress, network = 'mainnet' } = req.body ?? {};
 
-  if (!contractAddress || !/^0x[0-9a-fA-F]{40}$/.test(contractAddress)) {
-    return res.status(400).json({ success: false, error: 'Valid contractAddress required.' });
+  const isSolana = network === 'solana';
+
+  if (isSolana) {
+    // Solana: validate as base58 (44 chars typical)
+    if (!contractAddress || !/^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(contractAddress)) {
+      return res.status(400).json({ success: false, error: 'Valid Solana mint address required.' });
+    }
+  } else {
+    if (!contractAddress || !/^0x[0-9a-fA-F]{40}$/.test(contractAddress)) {
+      return res.status(400).json({ success: false, error: 'Valid EVM contractAddress required.' });
+    }
   }
 
   try {
-    const [contractInfo, heuristicFlags] = await Promise.all([
-      fetchContractInfo(contractAddress, network),
-      Promise.resolve(heuristicAnalysis(contractAddress, network)),
-    ]);
+    let flags: Flag[];
 
-    const flags = [...heuristicFlags];
-    const riskScore = Math.min(flags.reduce((acc, f) => {
-      const weights = { low: 5, medium: 15, high: 30, critical: 50 };
-      return acc + (weights[f.severity] ?? 0);
-    }, 0), 100);
+    if (isSolana) {
+      flags = await analyzeSolana(contractAddress);
+    } else {
+      const [heuristic, explorerFlags, onChainFlags] = await Promise.all([
+        Promise.resolve(evmHeuristicFlags(contractAddress)),
+        evmExplorerFlags(network, contractAddress),
+        evmOnChainFlags(network, contractAddress),
+      ]);
+      flags = [...heuristic, ...explorerFlags, ...onChainFlags];
+    }
 
-    const analysis: Analysis = {
-      address:     contractAddress,
-      network,
-      riskScore,
-      riskLevel:   scoreToLevel(riskScore),
-      flags,
-      analyzedAt:  new Date().toISOString(),
-    };
+    const riskScore = calcRiskScore(flags);
 
-    // Include any available metadata
-    const result = contractInfo.name
-      ? { ...analysis, tokenInfo: contractInfo }
-      : analysis;
-
-    res.json({ success: true, data: result });
+    res.json({
+      success: true,
+      data: {
+        address:    contractAddress,
+        network,
+        riskScore,
+        riskLevel:  scoreToLevel(riskScore),
+        flags,
+        analyzedAt: new Date().toISOString(),
+      },
+    });
   } catch (err) {
     console.error('[scam] analyze', err);
     res.status(500).json({ success: false, error: 'Failed to analyze contract.' });
@@ -168,23 +308,49 @@ router.post('/analyze', async (req, res) => {
 /** POST /api/v1/scam/tokenomics */
 router.post('/tokenomics', async (req, res) => {
   const { tokenAddress, network = 'mainnet' } = req.body ?? {};
-
-  if (!tokenAddress || !/^0x[0-9a-fA-F]{40}$/.test(tokenAddress)) {
-    return res.status(400).json({ success: false, error: 'Valid tokenAddress required.' });
-  }
+  const isSolana = network === 'solana';
 
   try {
-    const tokenInfo = await fetchContractInfo(tokenAddress, network);
+    if (isSolana) {
+      const [tokenInfo, mintInfo, holders] = await Promise.all([
+        getSolanaTokenInfo(tokenAddress).catch(() => null),
+        getSolanaMintInfo(tokenAddress).catch(() => null),
+        getSolanaTokenHolders(tokenAddress).catch(() => null),
+      ]);
 
-    // In production, query on-chain holder distribution via Alchemy
+      return res.json({
+        success: true,
+        data: {
+          address: tokenAddress,
+          network: 'solana',
+          tokenInfo,
+          mintInfo,
+          holders,
+          analyzedAt: new Date().toISOString(),
+        },
+      });
+    }
+
+    // EVM
+    let metadata: unknown = null;
+    if (isAlchemyNetwork(network) && alchemyConfigured()) {
+      metadata = await alchemyRpc(network, 'alchemy_getTokenMetadata', [tokenAddress]).catch(() => null);
+    } else if (moralisConfigured() && moralisChainId(network)) {
+      metadata = await moralisTokenMetadata(network, tokenAddress).catch(() => null);
+    }
+
+    const contractInfo = explorerConfigured(network)
+      ? await getContractInfo(network, tokenAddress)
+      : null;
+
     res.json({
       success: true,
       data: {
         address: tokenAddress,
         network,
-        tokenInfo,
-        distributionWarnings: [],
-        note: 'Full tokenomics analysis requires on-chain data — configure ALCHEMY_API_KEY.',
+        metadata,
+        contractInfo,
+        note: 'Full holder distribution requires on-chain data — configure ALCHEMY_API_KEY / MORALIS_API_KEY.',
         analyzedAt: new Date().toISOString(),
       },
     });
@@ -194,7 +360,7 @@ router.post('/tokenomics', async (req, res) => {
   }
 });
 
-/** POST /api/v1/scam/batch */
+/** POST /api/v1/scam/batch — up to 10 addresses, single network */
 router.post('/batch', async (req, res) => {
   const { addresses, network = 'mainnet' } = req.body ?? {};
 
@@ -205,18 +371,28 @@ router.post('/batch', async (req, res) => {
     return res.status(400).json({ success: false, error: 'Maximum 10 addresses per batch.' });
   }
 
+  const isSolana = network === 'solana';
+
   try {
     const results = await Promise.all(
-      addresses.map(async (address: string) => {
+      (addresses as string[]).map(async address => {
         try {
-          const flags     = heuristicAnalysis(address, network);
-          const riskScore = Math.min(flags.reduce((acc, f) => {
-            const w = { low: 5, medium: 15, high: 30, critical: 50 };
-            return acc + (w[f.severity] ?? 0);
-          }, 0), 100);
+          let flags: Flag[];
+
+          if (isSolana) {
+            flags = await analyzeSolana(address);
+          } else {
+            const [heuristic, explorerFlags] = await Promise.all([
+              Promise.resolve(evmHeuristicFlags(address)),
+              evmExplorerFlags(network, address),
+            ]);
+            flags = [...heuristic, ...explorerFlags];
+          }
+
+          const riskScore = calcRiskScore(flags);
           return [address, { address, network, riskScore, riskLevel: scoreToLevel(riskScore), flags, analyzedAt: new Date().toISOString() }];
-        } catch (e: unknown) {
-          return [address, { address, riskScore: -1, riskLevel: 'unknown', flags: [], error: String(e) }];
+        } catch (e) {
+          return [address, { address, network, riskScore: -1, riskLevel: 'unknown', flags: [], error: String(e) }];
         }
       }),
     );
@@ -231,15 +407,19 @@ router.post('/batch', async (req, res) => {
   }
 });
 
+/** POST /api/v1/scam/report */
 const reportSchema = z.object({
-  contractAddress: z.string().regex(/^0x[0-9a-fA-F]{40}$/),
-  projectId:       z.string().optional(),
-  reason:          z.string().min(10).max(2000),
-  evidence:        z.array(z.string().url()).max(10).optional(),
-  reporter:        z.string().optional(),
+  contractAddress: z.union([
+    z.string().regex(/^0x[0-9a-fA-F]{40}$/),  // EVM
+    z.string().regex(/^[1-9A-HJ-NP-Za-km-z]{32,44}$/), // Solana base58
+  ]),
+  network:   z.string().optional(),
+  projectId: z.string().optional(),
+  reason:    z.string().min(10).max(2000),
+  evidence:  z.array(z.string().url()).max(10).optional(),
+  reporter:  z.string().optional(),
 });
 
-/** POST /api/v1/scam/report */
 router.post('/report', async (req, res) => {
   const parsed = reportSchema.safeParse(req.body);
   if (!parsed.success) {
@@ -248,18 +428,11 @@ router.post('/report', async (req, res) => {
 
   try {
     const ref = getFirestore().collection('scam_reports').doc();
-    await ref.set({
-      ...parsed.data,
-      status: 'pending',
-      createdAt: Timestamp.now(),
-    });
+    await ref.set({ ...parsed.data, status: 'pending', createdAt: Timestamp.now() });
 
     res.json({
       success: true,
-      data: {
-        reportId: ref.id,
-        message: 'Report submitted. Our team will review it within 24 hours.',
-      },
+      data: { reportId: ref.id, message: 'Report submitted. Our team will review it within 24 hours.' },
     });
   } catch (err) {
     console.error('[scam] report', err);

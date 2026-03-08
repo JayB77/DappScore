@@ -6,7 +6,7 @@
 import { Router } from 'express';
 import { getFirestore, Timestamp } from 'firebase-admin/firestore';
 import { z } from 'zod';
-import { alchemyRpc, SUPPORTED_NETWORKS } from '../lib/alchemy';
+import { alchemyRpc, ALCHEMY_NETWORKS } from '../lib/alchemy';
 
 const router = Router();
 

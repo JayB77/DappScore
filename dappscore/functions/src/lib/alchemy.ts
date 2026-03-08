@@ -6,48 +6,86 @@
  * network-specific key is absent.
  *
  * Env vars (all optional except at least one must be set):
- *   ALCHEMY_API_KEY            — fallback key used for any unspecified network
- *   ALCHEMY_API_KEY_MAINNET    — Ethereum mainnet
- *   ALCHEMY_API_KEY_POLYGON    — Polygon PoS
- *   ALCHEMY_API_KEY_BSC        — BNB Chain
- *   ALCHEMY_API_KEY_BASE       — Base
- *   ALCHEMY_API_KEY_ARBITRUM   — Arbitrum One
- *   ALCHEMY_API_KEY_OPTIMISM   — Optimism
- *   ALCHEMY_API_KEY_ZKSYNC     — zkSync Era
- *   ALCHEMY_API_KEY_LINEA      — Linea
- *   ALCHEMY_API_KEY_SCROLL     — Scroll
+ *   ALCHEMY_API_KEY              — fallback for any network without its own key
+ *
+ *   — EVM L1s —
+ *   ALCHEMY_API_KEY_MAINNET      — Ethereum mainnet
+ *   ALCHEMY_API_KEY_BSC          — BNB Smart Chain
+ *   ALCHEMY_API_KEY_AVALANCHE    — Avalanche C-Chain
+ *   ALCHEMY_API_KEY_FANTOM       — Fantom Opera (if/when Alchemy adds it)
+ *   ALCHEMY_API_KEY_CELO         — Celo
+ *
+ *   — Ethereum L2s —
+ *   ALCHEMY_API_KEY_ARBITRUM     — Arbitrum One
+ *   ALCHEMY_API_KEY_OPTIMISM     — Optimism
+ *   ALCHEMY_API_KEY_BASE         — Base
+ *   ALCHEMY_API_KEY_ZKSYNC       — zkSync Era
+ *   ALCHEMY_API_KEY_LINEA        — Linea
+ *   ALCHEMY_API_KEY_SCROLL       — Scroll
+ *   ALCHEMY_API_KEY_POLYGON      — Polygon PoS
+ *   ALCHEMY_API_KEY_POLYGON_ZKEVM — Polygon zkEVM
+ *   ALCHEMY_API_KEY_ZORA         — Zora Network
+ *   ALCHEMY_API_KEY_UNICHAIN     — Unichain (Uniswap)
+ *   ALCHEMY_API_KEY_MANTLE       — Mantle
+ *   ALCHEMY_API_KEY_BERACHAIN    — Berachain
+ *
+ *   — Non-EVM (Alchemy uses separate REST/JSON-RPC format) —
+ *   ALCHEMY_API_KEY_STARKNET     — Starknet
+ *   ALCHEMY_API_KEY_SOLANA       — Solana
  */
 
-// Maps our canonical network name → Alchemy subdomain + env-var suffix
+// Maps our canonical network key → Alchemy subdomain + env-var suffix
 const NETWORKS: Record<string, { host: string; envSuffix: string }> = {
-  mainnet:  { host: 'eth-mainnet',      envSuffix: 'MAINNET'  },
-  polygon:  { host: 'polygon-mainnet',  envSuffix: 'POLYGON'  },
-  bsc:      { host: 'bnb-mainnet',      envSuffix: 'BSC'      },
-  base:     { host: 'base-mainnet',     envSuffix: 'BASE'     },
-  arbitrum: { host: 'arb-mainnet',      envSuffix: 'ARBITRUM' },
-  optimism: { host: 'opt-mainnet',      envSuffix: 'OPTIMISM' },
-  zksync:   { host: 'zksync-mainnet',   envSuffix: 'ZKSYNC'   },
-  linea:    { host: 'linea-mainnet',    envSuffix: 'LINEA'    },
-  scroll:   { host: 'scroll-mainnet',   envSuffix: 'SCROLL'   },
+  // EVM L1s
+  mainnet:       { host: 'eth-mainnet',           envSuffix: 'MAINNET'       },
+  bsc:           { host: 'bnb-mainnet',            envSuffix: 'BSC'           },
+  avalanche:     { host: 'avax-mainnet',           envSuffix: 'AVALANCHE'     },
+  celo:          { host: 'celo-mainnet',           envSuffix: 'CELO'          },
+
+  // Ethereum L2s / sidechains
+  arbitrum:      { host: 'arb-mainnet',            envSuffix: 'ARBITRUM'      },
+  optimism:      { host: 'opt-mainnet',            envSuffix: 'OPTIMISM'      },
+  base:          { host: 'base-mainnet',           envSuffix: 'BASE'          },
+  zksync:        { host: 'zksync-mainnet',         envSuffix: 'ZKSYNC'        },
+  linea:         { host: 'linea-mainnet',          envSuffix: 'LINEA'         },
+  scroll:        { host: 'scroll-mainnet',         envSuffix: 'SCROLL'        },
+  polygon:       { host: 'polygon-mainnet',        envSuffix: 'POLYGON'       },
+  polygon_zkevm: { host: 'polygonzkevm-mainnet',   envSuffix: 'POLYGON_ZKEVM' },
+  zora:          { host: 'zora-mainnet',           envSuffix: 'ZORA'          },
+  unichain:      { host: 'unichain-mainnet',       envSuffix: 'UNICHAIN'      },
+  mantle:        { host: 'mantle-mainnet',         envSuffix: 'MANTLE'        },
+  berachain:     { host: 'berachain-mainnet',      envSuffix: 'BERACHAIN'     },
+
+  // Non-EVM (different RPC format — callers must handle accordingly)
+  starknet:      { host: 'starknet-mainnet',       envSuffix: 'STARKNET'      },
+  solana:        { host: 'solana-mainnet',         envSuffix: 'SOLANA'        },
 };
 
-export const SUPPORTED_NETWORKS = Object.keys(NETWORKS);
+/** All network keys that Alchemy handles. */
+export const ALCHEMY_NETWORKS = Object.keys(NETWORKS);
+
+/**
+ * Whether a given chain key is handled by Alchemy.
+ * Returns false for chains routed via Moralis or native RPC.
+ */
+export function isAlchemyNetwork(network: string): boolean {
+  return network in NETWORKS;
+}
 
 /**
  * Resolve the Alchemy base URL for the given network.
- * Throws if no key is available.
+ * Throws if no key is available for that network.
  */
 export function alchemyUrl(network: string): string {
   const net = NETWORKS[network] ?? NETWORKS['mainnet'];
 
-  // Prefer a network-specific key; fall back to the generic one.
   const key =
     process.env[`ALCHEMY_API_KEY_${net.envSuffix}`] ??
     process.env.ALCHEMY_API_KEY;
 
   if (!key) {
     throw new Error(
-      `No Alchemy API key found for network "${network}". ` +
+      `No Alchemy API key for "${network}". ` +
       `Set ALCHEMY_API_KEY_${net.envSuffix} or ALCHEMY_API_KEY.`,
     );
   }
@@ -55,7 +93,7 @@ export function alchemyUrl(network: string): string {
   return `https://${net.host}.g.alchemy.com/v2/${key}`;
 }
 
-/** Returns true if at least one Alchemy key is configured in env. */
+/** Returns true if at least one Alchemy key is configured. */
 export function alchemyConfigured(): boolean {
   return !!(
     process.env.ALCHEMY_API_KEY ||
@@ -83,28 +121,31 @@ export async function alchemyRpc(
   return json.result;
 }
 
-/** Fire a call against the Alchemy REST / Enhanced API endpoint (non-JSON-RPC). */
+/**
+ * Fire a call against an Alchemy Enhanced / REST API endpoint.
+ * Builds: https://<host>.g.alchemy.com/<path>?<params>
+ * The API key is appended automatically.
+ *
+ * @param network  canonical network key, e.g. "base"
+ * @param path     path starting with "/", e.g. "/nft/v3/getNFTsForOwner"
+ * @param params   query string params (excluding apiKey)
+ */
 export async function alchemyGet(
   network: string,
-  path: string,          // e.g. "/nft/v3/getNFTsForOwner"
+  path: string,
   params?: Record<string, string | number>,
 ): Promise<unknown> {
-  const base = alchemyUrl(network);
-  const url  = new URL(base.replace('/v2/', path.startsWith('/') ? '' : '/'));
-  // Re-build as: https://<host>.g.alchemy.com<path>?apiKey=<key>
-  // Alchemy REST endpoints use the key as a query param or in the path.
-  const qs   = new URLSearchParams(
-    Object.fromEntries(
-      Object.entries(params ?? {}).map(([k, v]) => [k, String(v)]),
-    ),
-  );
+  const net = NETWORKS[network] ?? NETWORKS['mainnet'];
+  const key =
+    process.env[`ALCHEMY_API_KEY_${net.envSuffix}`] ??
+    process.env.ALCHEMY_API_KEY;
 
-  const restUrl = `${alchemyUrl(network).replace('/v2/', '/').replace(/\/[^/]+$/, '')}${path}?apiKey=${url.pathname.split('/').pop()}&${qs}`;
+  if (!key) throw new Error(`No Alchemy API key for "${network}".`);
 
-  const res = await fetch(restUrl, {
-    signal: AbortSignal.timeout(15_000),
-  });
+  const qs = new URLSearchParams({ ...(params ?? {}), apiKey: key } as Record<string, string>);
+  const url = `https://${net.host}.g.alchemy.com${path}?${qs}`;
 
+  const res = await fetch(url, { signal: AbortSignal.timeout(15_000) });
   if (!res.ok) throw new Error(`Alchemy GET HTTP ${res.status} on ${network}: ${path}`);
   return res.json();
 }
