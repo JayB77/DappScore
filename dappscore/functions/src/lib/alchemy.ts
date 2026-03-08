@@ -4,8 +4,6 @@
  * Alchemy issues a separate API key per network/app. Configure each one
  * individually; the generic ALCHEMY_API_KEY is used as a fallback.
  *
- * All 28 DappScore chains are now supported on Alchemy (as of March 2026).
- *
  * NOTE: Starknet uses a different RPC path format:
  *   https://starknet-mainnet.g.alchemy.com/starknet/version/rpc/v0_9/{key}
  * All other chains use the standard: https://{host}.g.alchemy.com/v2/{key}
@@ -18,6 +16,7 @@
  *   ALCHEMY_API_KEY_BSC          — BNB Smart Chain
  *   ALCHEMY_API_KEY_AVALANCHE    — Avalanche C-Chain
  *   ALCHEMY_API_KEY_CELO         — Celo
+ *   ALCHEMY_API_KEY_GNOSIS       — Gnosis Chain
  *   ALCHEMY_API_KEY_RONIN        — Ronin (Sky Mavis / Axie)
  *   ALCHEMY_API_KEY_SEI          — SEI Network
  *   ALCHEMY_API_KEY_ZETACHAIN    — ZetaChain
@@ -26,6 +25,7 @@
  *   ALCHEMY_API_KEY_ARBITRUM     — Arbitrum One
  *   ALCHEMY_API_KEY_OPTIMISM     — Optimism
  *   ALCHEMY_API_KEY_BASE         — Base
+ *   ALCHEMY_API_KEY_BLAST        — Blast
  *   ALCHEMY_API_KEY_ZKSYNC       — zkSync Era
  *   ALCHEMY_API_KEY_LINEA        — Linea
  *   ALCHEMY_API_KEY_SCROLL       — Scroll
@@ -34,10 +34,13 @@
  *   ALCHEMY_API_KEY_ZORA         — Zora Network
  *   ALCHEMY_API_KEY_UNICHAIN     — Unichain (Uniswap)
  *   ALCHEMY_API_KEY_MANTLE       — Mantle
+ *   ALCHEMY_API_KEY_MODE         — Mode Network
+ *   ALCHEMY_API_KEY_FRAXTAL      — Fraxtal
  *   ALCHEMY_API_KEY_BERACHAIN    — Berachain
  *   ALCHEMY_API_KEY_OPBNB        — opBNB (BNB Chain L2)
  *
  *   — Newer EVM —
+ *   ALCHEMY_API_KEY_SONIC        — Sonic (Fantom successor)
  *   ALCHEMY_API_KEY_MONAD        — Monad mainnet
  *   ALCHEMY_API_KEY_HYPEREVM     — HyperEVM (Hyperliquid)
  *
@@ -64,6 +67,7 @@ const NETWORKS: Record<string, NetworkConfig> = {
   bsc:           { host: 'bnb-mainnet',            envSuffix: 'BSC'           },
   avalanche:     { host: 'avax-mainnet',           envSuffix: 'AVALANCHE'     },
   celo:          { host: 'celo-mainnet',           envSuffix: 'CELO'          },
+  gnosis:        { host: 'gnosis-mainnet',         envSuffix: 'GNOSIS'        },
   ronin:         { host: 'ronin-mainnet',          envSuffix: 'RONIN'         },
   sei:           { host: 'sei-mainnet',            envSuffix: 'SEI'           },
   zetachain:     { host: 'zetachain-mainnet',      envSuffix: 'ZETACHAIN'     },
@@ -72,6 +76,7 @@ const NETWORKS: Record<string, NetworkConfig> = {
   arbitrum:      { host: 'arb-mainnet',            envSuffix: 'ARBITRUM'      },
   optimism:      { host: 'opt-mainnet',            envSuffix: 'OPTIMISM'      },
   base:          { host: 'base-mainnet',           envSuffix: 'BASE'          },
+  blast:         { host: 'blast-mainnet',          envSuffix: 'BLAST'         },
   zksync:        { host: 'zksync-mainnet',         envSuffix: 'ZKSYNC'        },
   linea:         { host: 'linea-mainnet',          envSuffix: 'LINEA'         },
   scroll:        { host: 'scroll-mainnet',         envSuffix: 'SCROLL'        },
@@ -80,10 +85,13 @@ const NETWORKS: Record<string, NetworkConfig> = {
   zora:          { host: 'zora-mainnet',           envSuffix: 'ZORA'          },
   unichain:      { host: 'unichain-mainnet',       envSuffix: 'UNICHAIN'      },
   mantle:        { host: 'mantle-mainnet',         envSuffix: 'MANTLE'        },
+  mode:          { host: 'mode-mainnet',           envSuffix: 'MODE'          },
+  fraxtal:       { host: 'fraxtal-mainnet',        envSuffix: 'FRAXTAL'       },
   berachain:     { host: 'berachain-mainnet',      envSuffix: 'BERACHAIN'     },
   opbnb:         { host: 'opbnb-mainnet',          envSuffix: 'OPBNB'         },
 
   // Newer EVM
+  sonic:         { host: 'sonic-mainnet',          envSuffix: 'SONIC'         },
   monad:         { host: 'monad-mainnet',          envSuffix: 'MONAD'         },
   // HyperEVM: Alchemy subdomain is "hyperliquid" (no "-mainnet" suffix)
   hyperevm:      { host: 'hyperliquid',            envSuffix: 'HYPEREVM'      },

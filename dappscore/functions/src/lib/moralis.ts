@@ -1,8 +1,7 @@
 /**
  * Moralis Web3 Data API client — native fetch, no SDK.
  *
- * Used for chains Alchemy doesn't cover:
- *   Ronin, opBNB, SEI, ZetaChain, Monad (+ full overlap with EVM chains)
+ * Used for chains Alchemy doesn't cover (and as a secondary source for others).
  *
  * Moralis also has dedicated Solana endpoints under /v2/sol/...
  *
@@ -16,30 +15,48 @@ const SOLANA_URL = 'https://solana-gateway.moralis.io';
 
 // Moralis chain identifiers for EVM chains
 export const MORALIS_CHAIN_IDS: Record<string, string> = {
-  // Chains Alchemy also covers — Moralis works as a secondary source
-  mainnet:       '0x1',
-  bsc:           '0x38',
-  polygon:       '0x89',
-  avalanche:     '0xa86a',
-  fantom:        '0xfa',
-  arbitrum:      '0xa4b1',
-  optimism:      '0xa',
-  base:          '0x2105',
-  linea:         '0xe708',
-  celo:          '0xa4ec',
-  scroll:        '0x82750',
-  zksync:        '0x144',
-  polygon_zkevm: '0x44d',
-  mantle:        '0x1388',
-  berachain:     '0x138d5',
+  // ── EVM L1s ──────────────────────────────────────────────────────────────
+  mainnet:         '0x1',       // Ethereum mainnet (chain ID 1)
+  bsc:             '0x38',      // BNB Smart Chain (56)
+  polygon:         '0x89',      // Polygon PoS (137)
+  avalanche:       '0xa86a',    // Avalanche C-Chain (43114)
+  fantom:          '0xfa',      // Fantom (250)
+  sonic:           '0x92',      // Sonic (146)
+  celo:            '0xa4ec',    // Celo (42220)
+  gnosis:          '0x64',      // Gnosis Chain (100)
+  cronos:          '0x19',      // Cronos (25)
+  kaia:            '0x2019',    // Kaia / Klaytn (8217)
+  moonbeam:        '0x504',     // Moonbeam (1284)
+  moonriver:       '0x505',     // Moonriver (1285)
+  kava:            '0x8ae',     // Kava EVM (2222)
+  core:            '0x45c',     // Core DAO (1116)
+  ronin:           '0x7e4',     // Ronin (2020)
+  sei:             '0x531',     // SEI EVM (1329)
+  zetachain:       '0x1b59',    // ZetaChain (7000)
 
-  // Chains Moralis covers that Alchemy doesn't (or hasn't yet)
-  ronin:         '0x7e4',     // chain ID 2020
-  opbnb:         '0xcc',      // chain ID 204
-  sei:           '0x531',     // SEI EVM chain ID 1329
-  zetachain:     '0x1b59',    // chain ID 7000
-  unichain:      '0x515',     // chain ID 1301
-  zora:          '0x76adf1',  // chain ID 7777777
+  // ── Ethereum L2s / rollups ───────────────────────────────────────────────
+  arbitrum:        '0xa4b1',    // Arbitrum One (42161)
+  optimism:        '0xa',       // Optimism (10)
+  base:            '0x2105',    // Base (8453)
+  blast:           '0x13e31',   // Blast (81457)
+  zksync:          '0x144',     // zkSync Era (324)
+  linea:           '0xe708',    // Linea (59144)
+  scroll:          '0x82750',   // Scroll (534352)
+  polygon_zkevm:   '0x44d',     // Polygon zkEVM (1101)
+  mantle:          '0x1388',    // Mantle (5000)
+  mode:            '0x868b',    // Mode Network (34443)
+  taiko:           '0x28c58',   // Taiko (167000)
+  fraxtal:         '0xfc',      // Fraxtal (252)
+  manta:           '0xa9',      // Manta Pacific (169)
+  metis:           '0x440',     // Metis (1088)
+  opbnb:           '0xcc',      // opBNB (204)
+  unichain:        '0x515',     // Unichain (1301)
+  zora:            '0x76adf1',  // Zora Network (7777777)
+  berachain:       '0x138d5',   // Berachain (80094)
+  world_chain:     '0x1e0',     // World Chain (480)
+  immutable_zkevm: '0x343b',    // Immutable zkEVM (13371)
+  rootstock:       '0x1e',      // Rootstock / RSK (30)
+  merlin:          '0x1068',    // Merlin Chain (4200)
 };
 
 /** Canonical chain key → Moralis chain identifier. Returns null if unsupported. */
