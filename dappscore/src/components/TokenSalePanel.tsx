@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { Rocket, Clock, Loader2, ExternalLink, TrendingUp } from 'lucide-react';
 import { useFeatureFlag } from '@/lib/featureFlags';
-import type { SaleData } from '@/app/api/v1/projects/[id]/sale/route';
+import type { SaleData } from '@/types/sale';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 

@@ -16,7 +16,7 @@ import LiquidityLockPanel from '@/components/LiquidityLockPanel';
 import AuditBadgePanel from '@/components/AuditBadgePanel';
 import SocialProofPanel from '@/components/SocialProofPanel';
 import TokenSalePanel from '@/components/TokenSalePanel';
-import type { SaleData } from '@/app/api/v1/projects/[id]/sale/route';
+import type { SaleData } from '@/types/sale';
 import { useProjectSignals } from '@/lib/useProjectSignals';
 import { useFeatureFlag } from '@/lib/featureFlags';
 import { useVoting } from '@/lib/useVoting';
