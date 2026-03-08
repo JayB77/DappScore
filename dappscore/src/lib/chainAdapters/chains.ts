@@ -71,6 +71,13 @@ export const CHAINS: Record<string, ChainConfig> = {
   bera:               {                                                            explorerBase: 'https://berascan.com',               family: 'evm' },
   rootstock:          {                                                            explorerBase: 'https://rootstock.blockscout.com',   family: 'evm' },
   rsk:                {                                                            explorerBase: 'https://rootstock.blockscout.com',   family: 'evm' },
+  bob:                { apiBase: 'https://explorer.gobob.xyz/api/v2',             explorerBase: 'https://explorer.gobob.xyz',          family: 'evm' },
+  'build on bitcoin': { apiBase: 'https://explorer.gobob.xyz/api/v2',             explorerBase: 'https://explorer.gobob.xyz',          family: 'evm' },
+  'world chain':      { apiBase: 'https://worldchain-mainnet.explorer.alchemy.com/api/v2', explorerBase: 'https://worldscan.org',       family: 'evm' },
+  worldchain:         { apiBase: 'https://worldchain-mainnet.explorer.alchemy.com/api/v2', explorerBase: 'https://worldscan.org',       family: 'evm' },
+  soneium:            { apiBase: 'https://soneium.blockscout.com/api/v2',         explorerBase: 'https://soneium.blockscout.com',      family: 'evm' },
+  'immutable zkevm':  { apiBase: 'https://explorer.immutable.com/api/v2',         explorerBase: 'https://explorer.immutable.com',      family: 'evm' },
+  immutable:          { apiBase: 'https://explorer.immutable.com/api/v2',         explorerBase: 'https://explorer.immutable.com',      family: 'evm' },
 
   // ── Solana ────────────────────────────────────────────────────────────────
   solana:             { explorerBase: 'https://solscan.io',                       family: 'solana' },
@@ -82,6 +89,7 @@ export const CHAINS: Record<string, ChainConfig> = {
 
   // ── TON ───────────────────────────────────────────────────────────────────
   ton:                { explorerBase: 'https://tonscan.org',                      family: 'ton' },
+
 };
 
 export function getChainConfig(chain: string): ChainConfig | null {

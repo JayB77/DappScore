@@ -3,7 +3,7 @@
  *
  * Three explorer formats are used:
  *   1. Etherscan-compatible  — most EVM chains (same API format)
- *   2. Blockscout            — Zora, Unichain, ZetaChain, Ronin, SEI
+ *   2. Blockscout            — Zora, Unichain, ZetaChain, Ronin, SEI, and many newer chains
  *   3. Helius                — Solana (SPL token metadata + program info)
  *   4. Moralis (Solana)      — fallback for Solana token data
  *
@@ -14,12 +14,19 @@
  *   ARBISCAN_API_KEY
  *   OPTIMISM_ETHERSCAN_API_KEY
  *   BASESCAN_API_KEY
+ *   BLASTSCAN_API_KEY
  *   AVALANCHE_API_KEY          — Routescan (Snowtrace replacement)
  *   FTMSCAN_API_KEY
+ *   SONICSCAN_API_KEY
  *   CELOSCAN_API_KEY
+ *   GNOSISSCAN_API_KEY
+ *   CRONOSCAN_API_KEY
  *   LINEASCAN_API_KEY
  *   SCROLLSCAN_API_KEY
  *   MANTLESCAN_API_KEY
+ *   MODESCAN_API_KEY
+ *   TAIKOSCAN_API_KEY
+ *   FRAXSCAN_API_KEY
  *   BERASCAN_API_KEY
  *   OPBNBSCAN_API_KEY          — BscScan opBNB API
  *   RONIN_EXPLORER_API_KEY     — Sky Mavis / Ronin explorer
@@ -35,41 +42,63 @@ interface ExplorerConfig {
 }
 
 const EXPLORERS: Record<string, ExplorerConfig> = {
-  // Etherscan-compatible
-  mainnet:       { format: 'etherscan', baseUrl: 'https://api.etherscan.io/api',                   envKey: 'ETHERSCAN_API_KEY'           },
-  bsc:           { format: 'etherscan', baseUrl: 'https://api.bscscan.com/api',                    envKey: 'BSCSCAN_API_KEY'             },
-  polygon:       { format: 'etherscan', baseUrl: 'https://api.polygonscan.com/api',                envKey: 'POLYGONSCAN_API_KEY'         },
-  arbitrum:      { format: 'etherscan', baseUrl: 'https://api.arbiscan.io/api',                    envKey: 'ARBISCAN_API_KEY'            },
-  optimism:      { format: 'etherscan', baseUrl: 'https://api-optimistic.etherscan.io/api',        envKey: 'OPTIMISM_ETHERSCAN_API_KEY'  },
-  base:          { format: 'etherscan', baseUrl: 'https://api.basescan.org/api',                   envKey: 'BASESCAN_API_KEY'            },
-  avalanche:     { format: 'etherscan', baseUrl: 'https://api.routescan.io/v2/network/mainnet/evm/43114/etherscan/api', envKey: 'AVALANCHE_API_KEY' },
-  fantom:        { format: 'etherscan', baseUrl: 'https://api.ftmscan.com/api',                    envKey: 'FTMSCAN_API_KEY'             },
-  celo:          { format: 'etherscan', baseUrl: 'https://api.celoscan.io/api',                    envKey: 'CELOSCAN_API_KEY'            },
-  linea:         { format: 'etherscan', baseUrl: 'https://api.lineascan.build/api',                envKey: 'LINEASCAN_API_KEY'           },
-  scroll:        { format: 'etherscan', baseUrl: 'https://api.scrollscan.com/api',                 envKey: 'SCROLLSCAN_API_KEY'          },
-  polygon_zkevm: { format: 'etherscan', baseUrl: 'https://api-zkevm.polygonscan.com/api',          envKey: 'POLYGONSCAN_API_KEY'         },
-  mantle:        { format: 'etherscan', baseUrl: 'https://api.mantlescan.xyz/api',                 envKey: 'MANTLESCAN_API_KEY'          },
-  berachain:     { format: 'etherscan', baseUrl: 'https://api.berascan.com/api',                   envKey: 'BERASCAN_API_KEY'            },
-  opbnb:         { format: 'etherscan', baseUrl: 'https://api-opbnb.bscscan.com/api',              envKey: 'OPBNBSCAN_API_KEY'           },
-  sei:           { format: 'etherscan', baseUrl: 'https://seitrace.com/pacific-1/api',             envKey: null                         },
+  // ── Etherscan-compatible ────────────────────────────────────────────────
+  mainnet:         { format: 'etherscan', baseUrl: 'https://api.etherscan.io/api',                              envKey: 'ETHERSCAN_API_KEY'          },
+  bsc:             { format: 'etherscan', baseUrl: 'https://api.bscscan.com/api',                               envKey: 'BSCSCAN_API_KEY'            },
+  polygon:         { format: 'etherscan', baseUrl: 'https://api.polygonscan.com/api',                           envKey: 'POLYGONSCAN_API_KEY'        },
+  arbitrum:        { format: 'etherscan', baseUrl: 'https://api.arbiscan.io/api',                               envKey: 'ARBISCAN_API_KEY'           },
+  optimism:        { format: 'etherscan', baseUrl: 'https://api-optimistic.etherscan.io/api',                   envKey: 'OPTIMISM_ETHERSCAN_API_KEY' },
+  base:            { format: 'etherscan', baseUrl: 'https://api.basescan.org/api',                              envKey: 'BASESCAN_API_KEY'           },
+  blast:           { format: 'etherscan', baseUrl: 'https://api.blastscan.io/api',                              envKey: 'BLASTSCAN_API_KEY'          },
+  avalanche:       { format: 'etherscan', baseUrl: 'https://api.routescan.io/v2/network/mainnet/evm/43114/etherscan/api', envKey: 'AVALANCHE_API_KEY' },
+  fantom:          { format: 'etherscan', baseUrl: 'https://api.ftmscan.com/api',                               envKey: 'FTMSCAN_API_KEY'            },
+  sonic:           { format: 'etherscan', baseUrl: 'https://api.sonicscan.org/api',                             envKey: 'SONICSCAN_API_KEY'          },
+  celo:            { format: 'etherscan', baseUrl: 'https://api.celoscan.io/api',                               envKey: 'CELOSCAN_API_KEY'           },
+  gnosis:          { format: 'etherscan', baseUrl: 'https://api.gnosisscan.io/api',                             envKey: 'GNOSISSCAN_API_KEY'         },
+  cronos:          { format: 'etherscan', baseUrl: 'https://api.cronoscan.com/api',                             envKey: 'CRONOSCAN_API_KEY'          },
+  kaia:            { format: 'etherscan', baseUrl: 'https://api-cypress.klaytnscope.com/api',                   envKey: null                         },
+  moonbeam:        { format: 'etherscan', baseUrl: 'https://api.moonscan.io/api',                               envKey: 'MOONSCAN_API_KEY'           },
+  moonriver:       { format: 'etherscan', baseUrl: 'https://api-moonriver.moonscan.io/api',                     envKey: 'MOONSCAN_API_KEY'           },
+  kava:            { format: 'etherscan', baseUrl: 'https://kavascan.com/api',                                  envKey: null                         },
+  core:            { format: 'etherscan', baseUrl: 'https://openapi.coredao.org/api',                           envKey: null                         },
+  linea:           { format: 'etherscan', baseUrl: 'https://api.lineascan.build/api',                           envKey: 'LINEASCAN_API_KEY'          },
+  scroll:          { format: 'etherscan', baseUrl: 'https://api.scrollscan.com/api',                            envKey: 'SCROLLSCAN_API_KEY'         },
+  polygon_zkevm:   { format: 'etherscan', baseUrl: 'https://api-zkevm.polygonscan.com/api',                     envKey: 'POLYGONSCAN_API_KEY'        },
+  mantle:          { format: 'etherscan', baseUrl: 'https://api.mantlescan.xyz/api',                            envKey: 'MANTLESCAN_API_KEY'         },
+  mode:            { format: 'etherscan', baseUrl: 'https://api.modescan.io/api',                               envKey: 'MODESCAN_API_KEY'           },
+  taiko:           { format: 'etherscan', baseUrl: 'https://api.taikoscan.io/api',                              envKey: 'TAIKOSCAN_API_KEY'          },
+  fraxtal:         { format: 'etherscan', baseUrl: 'https://api.fraxscan.com/api',                              envKey: 'FRAXSCAN_API_KEY'           },
+  berachain:       { format: 'etherscan', baseUrl: 'https://api.berascan.com/api',                              envKey: 'BERASCAN_API_KEY'           },
+  opbnb:           { format: 'etherscan', baseUrl: 'https://api-opbnb.bscscan.com/api',                         envKey: 'OPBNBSCAN_API_KEY'          },
+  sei:             { format: 'etherscan', baseUrl: 'https://seitrace.com/pacific-1/api',                        envKey: null                         },
+  merlin:          { format: 'etherscan', baseUrl: 'https://scan.merlinchain.io/api',                           envKey: null                         },
+  neon_evm:        { format: 'etherscan', baseUrl: 'https://neonscan.org/api',                                  envKey: null                         },
 
-  // Blockscout-compatible (REST v2)
-  zora:          { format: 'blockscout', baseUrl: 'https://explorer.zora.energy/api/v2',           envKey: null },
-  unichain:      { format: 'blockscout', baseUrl: 'https://unichain.blockscout.com/api/v2',        envKey: null },
-  zetachain:     { format: 'blockscout', baseUrl: 'https://explorer.zetachain.com/api/v2',         envKey: null },
-  ronin:         { format: 'blockscout', baseUrl: 'https://app.roninchain.com/api/v2',             envKey: 'RONIN_EXPLORER_API_KEY' },
-  hyperevm:      { format: 'blockscout', baseUrl: 'https://hyperliquid.cloud.blockscout.com/api/v2', envKey: null },
-  monad:         { format: 'blockscout', baseUrl: 'https://testnet.monadexplorer.com/api/v2',      envKey: null },
+  // ── Blockscout-compatible (REST v2) ─────────────────────────────────────
+  zora:            { format: 'blockscout', baseUrl: 'https://explorer.zora.energy/api/v2',                      envKey: null                         },
+  unichain:        { format: 'blockscout', baseUrl: 'https://unichain.blockscout.com/api/v2',                   envKey: null                         },
+  zetachain:       { format: 'blockscout', baseUrl: 'https://explorer.zetachain.com/api/v2',                    envKey: null                         },
+  ronin:           { format: 'blockscout', baseUrl: 'https://app.roninchain.com/api/v2',                        envKey: 'RONIN_EXPLORER_API_KEY'     },
+  hyperevm:        { format: 'blockscout', baseUrl: 'https://hyperliquid.cloud.blockscout.com/api/v2',          envKey: null                         },
+  monad:           { format: 'blockscout', baseUrl: 'https://testnet.monadexplorer.com/api/v2',                 envKey: null                         },
+  aurora:          { format: 'blockscout', baseUrl: 'https://explorer.aurora.dev/api/v2',                       envKey: null                         },
+  metis:           { format: 'blockscout', baseUrl: 'https://andromeda-explorer.metis.io/api/v2',               envKey: null                         },
+  manta:           { format: 'blockscout', baseUrl: 'https://pacific-explorer.manta.network/api/v2',            envKey: null                         },
+  rootstock:       { format: 'blockscout', baseUrl: 'https://rootstock.blockscout.com/api/v2',                  envKey: null                         },
+  bob:             { format: 'blockscout', baseUrl: 'https://explorer.gobob.xyz/api/v2',                        envKey: null                         },
+  world_chain:     { format: 'blockscout', baseUrl: 'https://worldchain-mainnet.explorer.alchemy.com/api/v2',   envKey: null                         },
+  soneium:         { format: 'blockscout', baseUrl: 'https://soneium.blockscout.com/api/v2',                    envKey: null                         },
+  immutable_zkevm: { format: 'blockscout', baseUrl: 'https://explorer.immutable.com/api/v2',                    envKey: null                         },
 
-  // zksync has its own explorer API (Etherscan-compatible subset)
-  zksync:        { format: 'etherscan', baseUrl: 'https://block-explorer-api.mainnet.zksync.io/api', envKey: null },
+  // ── zkSync — Etherscan-compatible subset ─────────────────────────────────
+  zksync:          { format: 'etherscan', baseUrl: 'https://block-explorer-api.mainnet.zksync.io/api',          envKey: null                         },
 
-  // Solana — Helius
-  solana:        { format: 'helius',   baseUrl: 'https://api.helius.xyz',                          envKey: 'HELIUS_API_KEY' },
+  // ── Solana — Helius ──────────────────────────────────────────────────────
+  solana:          { format: 'helius',    baseUrl: 'https://api.helius.xyz',                                    envKey: 'HELIUS_API_KEY'             },
 
-  // Starknet — Starkscan public REST API
+  // ── Starknet — Starkscan public REST API ─────────────────────────────────
   // Env: STARKSCAN_API_KEY (optional, increases rate limits)
-  starknet:      { format: 'blockscout', baseUrl: 'https://api.starkscan.co/api/v0', envKey: 'STARKSCAN_API_KEY' },
+  starknet:        { format: 'blockscout', baseUrl: 'https://api.starkscan.co/api/v0',                          envKey: 'STARKSCAN_API_KEY'          },
 };
 
 // ── Etherscan-compatible ──────────────────────────────────────────────────────
