@@ -131,6 +131,13 @@ export const FEATURE_CONFIGS: FeatureConfig[] = [
     category: 'market',
     defaultEnabled: false,
   },
+  {
+    id: 'whaleTracker',
+    label: 'Whale Tracker',
+    description: 'Top token transfers in the last 24h — spot large wallet movements and burn events. Powered by Alchemy Asset Transfers API.',
+    category: 'market',
+    defaultEnabled: false,
+  },
 ];
 
 // ── Storage helpers ───────────────────────────────────────────────────────────
