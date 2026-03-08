@@ -1,10 +1,12 @@
 /**
- * Scam Detection — no external service deps, pure logic + Firestore for reports.
+ * Scam Detection — pure logic + Firestore for reports.
+ * Uses lib/alchemy.ts for per-network API key resolution.
  */
 
 import { Router } from 'express';
 import { getFirestore, Timestamp } from 'firebase-admin/firestore';
 import { z } from 'zod';
+import { alchemyRpc, alchemyConfigured } from '../lib/alchemy';
 
 const router = Router();
 
@@ -30,40 +32,16 @@ interface Analysis {
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
-/** Fetch basic token data from Alchemy token API (no SDK needed). */
+/** Fetch basic token metadata via Alchemy (per-network key resolved automatically). */
 async function fetchContractInfo(
   address: string,
   network: string,
 ): Promise<{ name?: string; symbol?: string; totalSupply?: string; verified?: boolean }> {
-  const apiKey = process.env.ALCHEMY_API_KEY;
-  if (!apiKey) return {};
-
-  const networkMap: Record<string, string> = {
-    mainnet: 'eth-mainnet',
-    polygon: 'polygon-mainnet',
-    bsc:     'bnb-mainnet',
-    base:    'base-mainnet',
-  };
-
-  const chain = networkMap[network] ?? 'eth-mainnet';
-  const url   = `https://${chain}.g.alchemy.com/v2/${apiKey}`;
+  if (!alchemyConfigured()) return {};
 
   try {
-    const res = await fetch(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        id: 1,
-        jsonrpc: '2.0',
-        method: 'alchemy_getTokenMetadata',
-        params: [address],
-      }),
-      signal: AbortSignal.timeout(8_000),
-    });
-
-    if (!res.ok) return {};
-    const json = await res.json() as { result?: Record<string, unknown> };
-    return (json.result ?? {}) as { name?: string; symbol?: string; totalSupply?: string };
+    const result = await alchemyRpc(network, 'alchemy_getTokenMetadata', [address]);
+    return (result ?? {}) as { name?: string; symbol?: string; totalSupply?: string };
   } catch {
     return {};
   }

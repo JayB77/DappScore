@@ -1,42 +1,14 @@
 /**
  * Whale Tracking — uses Alchemy REST API (no native-module SDK).
- * ALCHEMY_API_KEY must be set in environment.
+ * Supports per-network Alchemy API keys via lib/alchemy.ts.
  */
 
 import { Router } from 'express';
 import { getFirestore, Timestamp } from 'firebase-admin/firestore';
 import { z } from 'zod';
+import { alchemyRpc, SUPPORTED_NETWORKS } from '../lib/alchemy';
 
 const router = Router();
-
-const CHAIN_MAP: Record<string, string> = {
-  mainnet:  'eth-mainnet',
-  polygon:  'polygon-mainnet',
-  bsc:      'bnb-mainnet',
-  base:     'base-mainnet',
-  arbitrum: 'arb-mainnet',
-  optimism: 'opt-mainnet',
-};
-
-function alchemyUrl(network: string): string {
-  const key   = process.env.ALCHEMY_API_KEY;
-  const chain = CHAIN_MAP[network] ?? 'eth-mainnet';
-  if (!key) throw new Error('ALCHEMY_API_KEY is not configured.');
-  return `https://${chain}.g.alchemy.com/v2/${key}`;
-}
-
-async function alchemyRpc(network: string, method: string, params: unknown[]): Promise<unknown> {
-  const res = await fetch(alchemyUrl(network), {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ id: 1, jsonrpc: '2.0', method, params }),
-    signal: AbortSignal.timeout(15_000),
-  });
-  if (!res.ok) throw new Error(`Alchemy HTTP ${res.status}`);
-  const json = await res.json() as { result?: unknown; error?: { message: string } };
-  if (json.error) throw new Error(json.error.message);
-  return json.result;
-}
 
 /** Fetch top token holders via Alchemy getTokenTopHolders. */
 async function getTopHolders(tokenAddress: string, network: string, limit: number) {
