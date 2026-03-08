@@ -15,6 +15,8 @@ import DeployerHistoryPanel from '@/components/DeployerHistoryPanel';
 import LiquidityLockPanel from '@/components/LiquidityLockPanel';
 import AuditBadgePanel from '@/components/AuditBadgePanel';
 import SocialProofPanel from '@/components/SocialProofPanel';
+import TokenSalePanel from '@/components/TokenSalePanel';
+import type { SaleData } from '@/app/api/v1/projects/[id]/sale/route';
 import { useProjectSignals } from '@/lib/useProjectSignals';
 import { useFeatureFlag } from '@/lib/featureFlags';
 import { useVoting } from '@/lib/useVoting';
@@ -97,6 +99,20 @@ const mockProject = {
       findings: { critical: 0, high: 1, medium: 3, low: 7 },
     },
   ],
+};
+
+// Mock sale data — in prod this comes live from /api/v1/projects/[id]/sale
+const mockSaleData: SaleData = {
+  raised: 730_000,
+  goal: 2_000_000,
+  currency: 'USDC',
+  tokenPrice: 0.04,
+  startDate: Math.floor(Date.now() / 1000) - 86400 * 3,
+  endDate: Math.floor(Date.now() / 1000) + 86400 * 11,
+  minContribution: 100,
+  maxContribution: 10_000,
+  network: 'Base',
+  updatedAt: Math.floor(Date.now() / 1000) - 300,
 };
 
 interface Comment {
@@ -664,6 +680,9 @@ export default function ProjectDetail() {
                 socialLinks: project.socialLinks,
               }}
             />}
+
+            {/* Token Sale */}
+            <TokenSalePanel projectId={project.id} mockData={mockSaleData} />
 
             {/* External Signals */}
             <ExternalSignalsPanel

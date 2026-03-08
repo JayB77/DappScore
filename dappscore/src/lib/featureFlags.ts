@@ -83,6 +83,13 @@ export const FEATURE_CONFIGS: FeatureConfig[] = [
 
   // ── Market (upcoming features) ────────────────────────────────────────────
   {
+    id: 'tokenSale',
+    label: 'Token Sale Progress Bar',
+    description: 'Raise progress, countdown timer, and token price. Data pushed by project owners via authenticated API key — DappScore never holds funds.',
+    category: 'market',
+    defaultEnabled: true,
+  },
+  {
     id: 'honeypotDetector',
     label: 'Honeypot Detector',
     description: 'Can the token actually be sold? Powered by honeypot.is — no API key required',
