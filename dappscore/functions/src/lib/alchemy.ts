@@ -2,20 +2,27 @@
  * Alchemy REST client — no native-module SDK required (Node 20 native fetch).
  *
  * Alchemy issues a separate API key per network/app. Configure each one
- * individually; the generic ALCHEMY_API_KEY is used as a fallback when a
- * network-specific key is absent.
+ * individually; the generic ALCHEMY_API_KEY is used as a fallback.
  *
- * Env vars (all optional except at least one must be set):
- *   ALCHEMY_API_KEY              — fallback for any network without its own key
+ * All 28 DappScore chains are now supported on Alchemy (as of March 2026).
+ *
+ * NOTE: Starknet uses a different RPC path format:
+ *   https://starknet-mainnet.g.alchemy.com/starknet/version/rpc/v0_9/{key}
+ * All other chains use the standard: https://{host}.g.alchemy.com/v2/{key}
+ *
+ * Env vars:
+ *   ALCHEMY_API_KEY              — generic fallback for any unspecified network
  *
  *   — EVM L1s —
  *   ALCHEMY_API_KEY_MAINNET      — Ethereum mainnet
  *   ALCHEMY_API_KEY_BSC          — BNB Smart Chain
  *   ALCHEMY_API_KEY_AVALANCHE    — Avalanche C-Chain
- *   ALCHEMY_API_KEY_FANTOM       — Fantom Opera (if/when Alchemy adds it)
  *   ALCHEMY_API_KEY_CELO         — Celo
+ *   ALCHEMY_API_KEY_RONIN        — Ronin (Sky Mavis / Axie)
+ *   ALCHEMY_API_KEY_SEI          — SEI Network
+ *   ALCHEMY_API_KEY_ZETACHAIN    — ZetaChain
  *
- *   — Ethereum L2s —
+ *   — Ethereum L2s / rollups —
  *   ALCHEMY_API_KEY_ARBITRUM     — Arbitrum One
  *   ALCHEMY_API_KEY_OPTIMISM     — Optimism
  *   ALCHEMY_API_KEY_BASE         — Base
@@ -28,21 +35,40 @@
  *   ALCHEMY_API_KEY_UNICHAIN     — Unichain (Uniswap)
  *   ALCHEMY_API_KEY_MANTLE       — Mantle
  *   ALCHEMY_API_KEY_BERACHAIN    — Berachain
+ *   ALCHEMY_API_KEY_OPBNB        — opBNB (BNB Chain L2)
  *
- *   — Non-EVM (Alchemy uses separate REST/JSON-RPC format) —
- *   ALCHEMY_API_KEY_STARKNET     — Starknet
+ *   — Newer EVM —
+ *   ALCHEMY_API_KEY_MONAD        — Monad mainnet
+ *   ALCHEMY_API_KEY_HYPEREVM     — HyperEVM (Hyperliquid)
+ *
+ *   — Non-EVM —
+ *   ALCHEMY_API_KEY_STARKNET     — Starknet (Cairo; different RPC path)
  *   ALCHEMY_API_KEY_SOLANA       — Solana
  */
 
-// Maps our canonical network key → Alchemy subdomain + env-var suffix
-const NETWORKS: Record<string, { host: string; envSuffix: string }> = {
+interface NetworkConfig {
+  /** Alchemy subdomain, e.g. "eth-mainnet" */
+  host: string;
+  /** Env-var suffix, e.g. "MAINNET" → ALCHEMY_API_KEY_MAINNET */
+  envSuffix: string;
+  /**
+   * RPC path template. Defaults to "/v2/{key}".
+   * Only override for chains that use a non-standard path (e.g. Starknet).
+   */
+  pathTemplate?: string;
+}
+
+const NETWORKS: Record<string, NetworkConfig> = {
   // EVM L1s
   mainnet:       { host: 'eth-mainnet',           envSuffix: 'MAINNET'       },
   bsc:           { host: 'bnb-mainnet',            envSuffix: 'BSC'           },
   avalanche:     { host: 'avax-mainnet',           envSuffix: 'AVALANCHE'     },
   celo:          { host: 'celo-mainnet',           envSuffix: 'CELO'          },
+  ronin:         { host: 'ronin-mainnet',          envSuffix: 'RONIN'         },
+  sei:           { host: 'sei-mainnet',            envSuffix: 'SEI'           },
+  zetachain:     { host: 'zetachain-mainnet',      envSuffix: 'ZETACHAIN'     },
 
-  // Ethereum L2s / sidechains
+  // Ethereum L2s / rollups
   arbitrum:      { host: 'arb-mainnet',            envSuffix: 'ARBITRUM'      },
   optimism:      { host: 'opt-mainnet',            envSuffix: 'OPTIMISM'      },
   base:          { host: 'base-mainnet',           envSuffix: 'BASE'          },
@@ -55,42 +81,52 @@ const NETWORKS: Record<string, { host: string; envSuffix: string }> = {
   unichain:      { host: 'unichain-mainnet',       envSuffix: 'UNICHAIN'      },
   mantle:        { host: 'mantle-mainnet',         envSuffix: 'MANTLE'        },
   berachain:     { host: 'berachain-mainnet',      envSuffix: 'BERACHAIN'     },
+  opbnb:         { host: 'opbnb-mainnet',          envSuffix: 'OPBNB'         },
 
-  // Non-EVM (different RPC format — callers must handle accordingly)
-  starknet:      { host: 'starknet-mainnet',       envSuffix: 'STARKNET'      },
+  // Newer EVM
+  monad:         { host: 'monad-mainnet',          envSuffix: 'MONAD'         },
+  // HyperEVM: Alchemy subdomain is "hyperliquid" (no "-mainnet" suffix)
+  hyperevm:      { host: 'hyperliquid',            envSuffix: 'HYPEREVM'      },
+
+  // Non-EVM
+  // Starknet uses a different RPC path: /starknet/version/rpc/v0_9/{key}
+  starknet:      { host: 'starknet-mainnet',  envSuffix: 'STARKNET',
+                   pathTemplate: '/starknet/version/rpc/v0_9/{key}'           },
   solana:        { host: 'solana-mainnet',         envSuffix: 'SOLANA'        },
 };
 
-/** All network keys that Alchemy handles. */
+/** All network keys handled by Alchemy. */
 export const ALCHEMY_NETWORKS = Object.keys(NETWORKS);
 
-/**
- * Whether a given chain key is handled by Alchemy.
- * Returns false for chains routed via Moralis or native RPC.
- */
+/** Whether a given chain key is handled by Alchemy. */
 export function isAlchemyNetwork(network: string): boolean {
   return network in NETWORKS;
 }
 
-/**
- * Resolve the Alchemy base URL for the given network.
- * Throws if no key is available for that network.
- */
-export function alchemyUrl(network: string): string {
-  const net = NETWORKS[network] ?? NETWORKS['mainnet'];
-
+/** Resolve the API key for a network (network-specific → generic fallback). */
+function resolveKey(net: NetworkConfig): string {
   const key =
     process.env[`ALCHEMY_API_KEY_${net.envSuffix}`] ??
     process.env.ALCHEMY_API_KEY;
 
   if (!key) {
     throw new Error(
-      `No Alchemy API key for "${network}". ` +
+      `No Alchemy API key for this network. ` +
       `Set ALCHEMY_API_KEY_${net.envSuffix} or ALCHEMY_API_KEY.`,
     );
   }
+  return key;
+}
 
-  return `https://${net.host}.g.alchemy.com/v2/${key}`;
+/**
+ * Resolve the full Alchemy RPC URL for the given network.
+ * Respects per-network pathTemplate for chains like Starknet.
+ */
+export function alchemyUrl(network: string): string {
+  const net  = NETWORKS[network] ?? NETWORKS['mainnet'];
+  const key  = resolveKey(net);
+  const path = (net.pathTemplate ?? '/v2/{key}').replace('{key}', key);
+  return `https://${net.host}.g.alchemy.com${path}`;
 }
 
 /** Returns true if at least one Alchemy key is configured. */
@@ -123,12 +159,11 @@ export async function alchemyRpc(
 
 /**
  * Fire a call against an Alchemy Enhanced / REST API endpoint.
- * Builds: https://<host>.g.alchemy.com/<path>?<params>
- * The API key is appended automatically.
+ * Builds: https://<host>.g.alchemy.com/<path>?apiKey=<key>&<params>
  *
  * @param network  canonical network key, e.g. "base"
  * @param path     path starting with "/", e.g. "/nft/v3/getNFTsForOwner"
- * @param params   query string params (excluding apiKey)
+ * @param params   additional query string params
  */
 export async function alchemyGet(
   network: string,
@@ -136,11 +171,7 @@ export async function alchemyGet(
   params?: Record<string, string | number>,
 ): Promise<unknown> {
   const net = NETWORKS[network] ?? NETWORKS['mainnet'];
-  const key =
-    process.env[`ALCHEMY_API_KEY_${net.envSuffix}`] ??
-    process.env.ALCHEMY_API_KEY;
-
-  if (!key) throw new Error(`No Alchemy API key for "${network}".`);
+  const key = resolveKey(net);
 
   const qs = new URLSearchParams({ ...(params ?? {}), apiKey: key } as Record<string, string>);
   const url = `https://${net.host}.g.alchemy.com${path}?${qs}`;

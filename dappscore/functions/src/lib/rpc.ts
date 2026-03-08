@@ -1,21 +1,20 @@
 /**
- * Native public RPC client — for chains not covered by Alchemy or Moralis.
+ * Native public RPC client — fallback for when no Alchemy key is configured.
  *
- * Currently covers:
- *   HyperEVM  — Hyperliquid's EVM (chain ID 998)
- *   Monad     — high-performance EVM-compatible chain
+ * All chains here are also on Alchemy (as of March 2026). These public
+ * endpoints serve as zero-config fallbacks so the app works without API keys,
+ * albeit at lower rate limits.
  *
- * These use standard Ethereum JSON-RPC, so the same helper works for all.
- *
- * Env (optional — if set, used as a private RPC endpoint):
- *   RPC_URL_HYPEREVM  — override the public HyperEVM RPC
- *   RPC_URL_MONAD     — override the public Monad RPC
- *   RPC_URL_STARKNET  — Starknet full node (if not using Alchemy Starknet key)
+ * Env overrides (optional — set to use your own node):
+ *   RPC_URL_HYPEREVM  — default: https://rpc.hyperliquid.xyz/evm (100 req/min)
+ *   RPC_URL_MONAD     — default: https://rpc.monad.xyz
  */
 
 const PUBLIC_RPCS: Record<string, string> = {
+  // HyperEVM: 100 req/min, read-only, no WebSocket
   hyperevm: 'https://rpc.hyperliquid.xyz/evm',
-  monad:    'https://testnet-rpc.monad.xyz', // update to mainnet RPC when live
+  // Monad mainnet (multiple public endpoints — rpc.monad.xyz is QuickNode-hosted)
+  monad:    'https://rpc.monad.xyz',
 };
 
 /** Env-var overrides (e.g. your own node or a provider that isn't Alchemy/Moralis). */
