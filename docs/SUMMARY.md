@@ -1,17 +1,36 @@
 # Table of contents
 
-* [Introduction](README.md)
-* [Getting Started](getting-started.md)
+## Getting Started
+
+* [Welcome to DappScore](README.md)
+* [Quick Start](getting-started.md)
 * [FAQ](faq.md)
 
 ## Platform
 
 * [How It Works](platform/overview.md)
-* [Voting & Reputation](platform/voting-reputation.md)
-* [Trust vs Paid Features](platform/trust-vs-paid.md)
+* [Project Detail Page](platform/project-detail.md)
 * [Submitting Projects](platform/submitting-projects.md)
-* [Premium Listings](platform/premium-listings.md)
 * [Project Ownership](platform/project-ownership.md)
+* [Premium Listings](platform/premium-listings.md)
+* [Trust vs Paid Features](platform/trust-vs-paid.md)
+
+## Voting & Reputation
+
+* [How Voting Works](platform/voting-reputation.md)
+* [Scam Reporting](platform/scam-reporting.md)
+
+## Security Signals
+
+* [Overview](signals/overview.md)
+* [Honeypot Detector](signals/honeypot.md)
+* [DEX Liquidity](signals/dex-liquidity.md)
+* [Liquidity Lock](signals/liquidity-lock.md)
+* [Deployer History](signals/deployer-history.md)
+* [Token Distribution](signals/token-distribution.md)
+* [Audit Badges](signals/audit-badges.md)
+* [Social Proof](signals/social-proof.md)
+* [Whale Tracker](signals/whale-tracker.md)
 
 ## $SCORE Token
 
@@ -20,7 +39,25 @@
 * [Earning Rewards](token/earning-score.md)
 * [Token Sale](token/token-sale.md)
 
-## Resources
+## Multi-Chain Support
 
-* [Official Wallets](contracts/wallets.md)
+* [Supported Chains](multichain/overview.md)
+
+## Smart Contracts
+
 * [Security](contracts/overview.md)
+* [Contract Addresses](contracts/addresses.md)
+* [Official Wallets](contracts/wallets.md)
+
+## Roadmap
+
+* [Development Phases](roadmap.md)
+
+## Support
+
+* [FAQ](faq.md)
+* [Contact](support/contact.md)
+
+## Legal
+
+* [Disclaimer](legal/disclaimer.md)

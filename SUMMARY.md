@@ -1,55 +1,63 @@
 # Table of contents
 
-* [dappscore](README.md)
-  * [DappScore Deployment Guide](dappscore/DEPLOYMENT.md)
-  * [contracts](dappscore/contracts/README.md)
-    * [lib](dappscore/contracts/lib/README.md)
-      * [Forge Standard Library •](dappscore/contracts/lib/forge-std/README.md)
-        * [Contributing to Foundry](dappscore/contracts/lib/forge-std/CONTRIBUTING.md)
-        * [Release checklist](dappscore/contracts/lib/forge-std/RELEASE_CHECKLIST.md)
-      * [openzeppelin-contracts](dappscore/contracts/lib/openzeppelin-contracts/README.md)
-        * [Changelog](dappscore/contracts/lib/openzeppelin-contracts/CHANGELOG.md)
-        * [Contributor Covenant Code of Conduct](dappscore/contracts/lib/openzeppelin-contracts/CODE_OF_CONDUCT.md)
-        * [Contributing Guidelines](dappscore/contracts/lib/openzeppelin-contracts/CONTRIBUTING.md)
-        * [GUIDELINES](dappscore/contracts/lib/openzeppelin-contracts/GUIDELINES.md)
-        * [Releasing](dappscore/contracts/lib/openzeppelin-contracts/RELEASING.md)
-        * [Security Policy](dappscore/contracts/lib/openzeppelin-contracts/SECURITY.md)
-        * [.github](dappscore/contracts/lib/openzeppelin-contracts/.github/README.md)
-          * [PULL\_REQUEST\_TEMPLATE](dappscore/contracts/lib/openzeppelin-contracts/.github/PULL_REQUEST_TEMPLATE.md)
-          * [ISSUE\_TEMPLATE](dappscore/contracts/lib/openzeppelin-contracts/.github/issue_template/README.md)
-            * [bug\_report](dappscore/contracts/lib/openzeppelin-contracts/.github/ISSUE_TEMPLATE/bug_report.md)
-            * [feature\_request](dappscore/contracts/lib/openzeppelin-contracts/.github/ISSUE_TEMPLATE/feature_request.md)
-        * [audits](dappscore/contracts/lib/openzeppelin-contracts/audits/README.md)
-          * [2017-03](dappscore/contracts/lib/openzeppelin-contracts/audits/2017-03.md)
-        * [Running the certora verification tool](dappscore/contracts/lib/openzeppelin-contracts/certora/README.md)
-        * [test](dappscore/contracts/lib/openzeppelin-contracts/test/README.md)
-          * [Testing](dappscore/contracts/lib/openzeppelin-contracts/test/TESTING.md)
-        * [lib](dappscore/contracts/lib/openzeppelin-contracts/lib/README.md)
-          * [ERC4626 Property Tests](dappscore/contracts/lib/openzeppelin-contracts/lib/erc4626-tests/README.md)
-          * [Forge Standard Library •](dappscore/contracts/lib/openzeppelin-contracts/lib/forge-std/README.md)
-            * [Contributing to Foundry](dappscore/contracts/lib/openzeppelin-contracts/lib/forge-std/CONTRIBUTING.md)
-          * [Halmos Cheat Codes](dappscore/contracts/lib/openzeppelin-contracts/lib/halmos-cheatcodes/README.md)
-        * [scripts](dappscore/contracts/lib/openzeppelin-contracts/scripts/README.md)
-          * [upgradeable](dappscore/contracts/lib/openzeppelin-contracts/scripts/upgradeable/README.md)
-  * [public](dappscore/public/README.md)
-    * [nfts](dappscore/public/nfts/readme.md)
+## Getting Started
+
 * [👋 Welcome to DappScore](docs/README.md)
-  * [Table of contents](docs/SUMMARY.md)
-  * [❓ FAQ](docs/faq.md)
-  * [🎮 Getting Started](docs/getting-started.md)
-  * [contracts](docs/contracts/README.md)
-    * [🔒 Security](docs/contracts/overview.md)
-    * [🔐 Official Wallets](docs/contracts/wallets.md)
-  * [platform](docs/platform/README.md)
-    * [⚙️ How It Works](docs/platform/overview.md)
-    * [Premium Listings](docs/platform/premium-listings.md)
-    * [Project Ownership](docs/platform/project-ownership.md)
-    * [Submitting Projects](docs/platform/submitting-projects.md)
-    * [Trust vs Paid Features](docs/platform/trust-vs-paid.md)
-    * [Voting & Reputation](docs/platform/voting-reputation.md)
-  * [token](docs/token/README.md)
-    * [💰 Earning $SCORE](docs/token/earning-score.md)
-    * [🪙 $SCORE Token](docs/token/score-token.md)
-    * [Token Sale](docs/token/token-sale.md)
-    * [📊 Tokenomics](docs/token/tokenomics.md)
-* [voltswap](voltswap/README.md)
+* [🚀 Quick Start](docs/getting-started.md)
+* [❓ FAQ](docs/faq.md)
+
+## Platform
+
+* [⚙️ How It Works](docs/platform/overview.md)
+* [🔍 Project Detail Page](docs/platform/project-detail.md)
+* [📝 Submitting Projects](docs/platform/submitting-projects.md)
+* [🔑 Project Ownership](docs/platform/project-ownership.md)
+* [⭐ Premium Listings](docs/platform/premium-listings.md)
+* [🆚 Trust vs Paid Features](docs/platform/trust-vs-paid.md)
+
+## Voting & Reputation
+
+* [🗳️ How Voting Works](docs/platform/voting-reputation.md)
+* [🚨 Scam Reporting](docs/platform/scam-reporting.md)
+
+## Security Signals
+
+* [🛡️ Overview](docs/signals/overview.md)
+* [🍯 Honeypot Detector](docs/signals/honeypot.md)
+* [💧 DEX Liquidity](docs/signals/dex-liquidity.md)
+* [🔒 Liquidity Lock](docs/signals/liquidity-lock.md)
+* [🕵️ Deployer History](docs/signals/deployer-history.md)
+* [📊 Token Distribution](docs/signals/token-distribution.md)
+* [🏅 Audit Badges](docs/signals/audit-badges.md)
+* [👥 Social Proof](docs/signals/social-proof.md)
+* [🐋 Whale Tracker](docs/signals/whale-tracker.md)
+
+## $SCORE Token
+
+* [🪙 About $SCORE](docs/token/score-token.md)
+* [📊 Tokenomics](docs/token/tokenomics.md)
+* [💰 Earning Rewards](docs/token/earning-score.md)
+* [🎫 Token Sale](docs/token/token-sale.md)
+
+## Multi-Chain Support
+
+* [⛓️ Supported Chains](docs/multichain/overview.md)
+
+## Smart Contracts
+
+* [🔒 Security](docs/contracts/overview.md)
+* [📋 Contract Addresses](docs/contracts/addresses.md)
+* [🔐 Official Wallets](docs/contracts/wallets.md)
+
+## Roadmap
+
+* [🗺️ Development Phases](docs/roadmap.md)
+
+## Support
+
+* [❓ FAQ](docs/faq.md)
+* [📞 Contact](docs/support/contact.md)
+
+## Legal
+
+* [⚖️ Disclaimer](docs/legal/disclaimer.md)
