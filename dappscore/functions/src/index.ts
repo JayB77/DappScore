@@ -13,6 +13,7 @@ import webhookRoutes  from './routes/webhooks';
 import scamRoutes     from './routes/scam';
 import whaleRoutes    from './routes/whales';
 import adminRoutes    from './routes/admin';
+import airdropRoutes  from './routes/airdrop';
 
 initializeApp();
 
@@ -39,6 +40,9 @@ app.use('/api/v1/whales',        whaleRoutes);      // GET whale data + wallet l
 
 // ── Admin routes (ADMIN_API_KEY required) ─────────────────────────────────────
 app.use('/api/v1/admin',         adminRoutes);      // flags, overrides, sales, cache, reports, audit, health
+
+// ── Airdrop routes (AIRDROP_ADMIN_KEY required) ───────────────────────────────
+app.use('/api/v1/airdrop',       airdropRoutes);    // pre-launch $SCORE allocation management
 
 // ── 404 ───────────────────────────────────────────────────────────────────────
 app.use((_req, res) => {
