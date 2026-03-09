@@ -35,8 +35,6 @@
 
 * [About $SCORE](token/score-token.md)
 * [Tokenomics](token/tokenomics.md)
-* [Earning Rewards](token/earning-score.md)
-* [Token Sale](token/token-sale.md)
 
 ## Multi-Chain Support
 
