@@ -14,6 +14,7 @@ import scamRoutes     from './routes/scam';
 import whaleRoutes    from './routes/whales';
 import adminRoutes    from './routes/admin';
 import airdropRoutes  from './routes/airdrop';
+import claimRoutes    from './routes/claim';
 
 initializeApp();
 
@@ -41,8 +42,8 @@ app.use('/api/v1/whales',        whaleRoutes);      // GET whale data + wallet l
 // ── Admin routes (ADMIN_API_KEY required) ─────────────────────────────────────
 app.use('/api/v1/admin',         adminRoutes);      // flags, overrides, sales, cache, reports, audit, health
 
-// ── Airdrop routes (AIRDROP_ADMIN_KEY required) ───────────────────────────────
-app.use('/api/v1/airdrop',       airdropRoutes);    // pre-launch $SCORE allocation management
+// ── Claim routes (CLAIM_ADMIN_KEY required) ───────────────────────────────────
+app.use('/api/v1/claim',         claimRoutes);      // pre-launch $SCORE claim allocation management
 
 // ── 404 ───────────────────────────────────────────────────────────────────────
 app.use((_req, res) => {
