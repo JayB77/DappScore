@@ -45,5 +45,5 @@ If DexScreener returns no pairs, the panel shows **"No trading pairs found"**. T
 - Very new listings not yet indexed
 
 {% hint style="info" %}
-**No API key required.** DexScreener has a free public API with generous rate limits.
+DexScreener data is fetched in real time with no additional setup required.
 {% endhint %}

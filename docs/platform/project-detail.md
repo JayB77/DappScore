@@ -66,7 +66,7 @@ If the project has an active or past token sale, the Token Sale panel shows:
 - Time remaining until sale ends
 - Link to participate
 
-This data is provided by the project owner via an authenticated API key — DappScore never holds or processes sale funds.
+This data is provided by the project owner — DappScore never holds or processes sale funds.
 
 ---
 

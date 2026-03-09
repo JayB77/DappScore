@@ -53,5 +53,5 @@ The honeypot check runs on all chains where honeypot.is has coverage, including 
 - Very new tokens may return "Unknown" before indexing
 
 {% hint style="info" %}
-**No API key required.** Honeypot.is is a free public API.
+Honeypot detection runs automatically on all supported chains with no additional setup.
 {% endhint %}

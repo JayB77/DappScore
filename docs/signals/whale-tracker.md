@@ -62,8 +62,7 @@ Ethereum, Base, Polygon, BSC, Arbitrum, Optimism, Avalanche, Blast, Gnosis, Line
 
 - 24h window only — historical whale analysis not currently available
 - Non-EVM chains (Solana, TON, Tron) are not yet supported
-- Requires an Alchemy API key configured in the platform environment
 
 {% hint style="info" %}
-**Requires Alchemy API key.** The Whale Tracker is enabled by default when `ALCHEMY_API_KEY` is configured. It can be toggled independently in the admin panel.
+The Whale Tracker can be toggled independently in the admin panel.
 {% endhint %}
