@@ -49,7 +49,7 @@ Token distribution data is fetched from:
 
 | Chain | Source |
 |-------|--------|
-| Ethereum | Ethplorer (free API key) |
+| Ethereum | Ethplorer |
 | Base, Polygon, BSC, Arbitrum, Optimism, Avalanche, Fantom, Linea, and more | Moralis Token API |
 | Solana | Moralis Solana API |
 | Tron | TronGrid |

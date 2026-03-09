@@ -54,5 +54,5 @@ Ethereum, Base, BSC, Polygon, Arbitrum, Optimism, Avalanche, Fantom, Linea, Scro
 - Does not automatically flag contracts as scams — manual research is required
 
 {% hint style="info" %}
-**No API key required** for most chains. Etherscan-compatible APIs provide public access to contract creation records.
+Deployer history is fetched automatically across all supported chains using public block explorer data.
 {% endhint %}

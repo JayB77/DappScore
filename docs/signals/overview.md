@@ -10,17 +10,17 @@ These panels are designed to give you the facts — no opinions, no paid promoti
 
 When you open a project's detail page, DappScore fetches live data from public APIs and on-chain sources:
 
-| Panel | Data Source | API Key? |
-|-------|-------------|----------|
-| 🍯 Honeypot Detector | honeypot.is | No |
-| 💧 DEX Liquidity | DexScreener | No |
-| 🔒 Liquidity Lock | Team Finance / PinkLock | No |
-| 🕵️ Deployer History | Block explorer APIs | No |
-| 📊 Token Distribution | Ethplorer / Moralis | Optional |
-| 🏅 Audit Badges | 20-firm registry | No |
-| 👥 Social Proof | Discord / Telegram APIs | No |
-| 🐋 Whale Tracker | Alchemy Asset Transfers | Yes |
-| 🔍 Contract Fingerprint | Etherscan-compatible APIs | No |
+| Panel | Data Source |
+|-------|-------------|
+| 🍯 Honeypot Detector | honeypot.is |
+| 💧 DEX Liquidity | DexScreener |
+| 🔒 Liquidity Lock | Team Finance / PinkLock |
+| 🕵️ Deployer History | Block explorer APIs |
+| 📊 Token Distribution | Ethplorer / Moralis |
+| 🏅 Audit Badges | 20-firm registry |
+| 👥 Social Proof | Discord / Telegram |
+| 🐋 Whale Tracker | Alchemy |
+| 🔍 Contract Fingerprint | Etherscan-compatible APIs |
 
 ---
 
@@ -43,7 +43,7 @@ Each signal targets a specific scam or quality indicator:
 
 ## Feature Flags
 
-Each signal panel can be toggled independently in the admin panel at `/admin`. This lets platform operators enable only the signals relevant to their setup and available API keys.
+Each signal panel can be toggled independently in the admin panel at `/admin`.
 
 {% hint style="info" %}
 All signals are **informational only** — they complement community voting, they don't replace it. A project can pass all signal checks and still be a scam, or fail some checks for legitimate reasons.
