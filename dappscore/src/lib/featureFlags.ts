@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 
 // ── Feature definitions ───────────────────────────────────────────────────────
 
-export type FeatureCategory = 'core' | 'signals' | 'social' | 'market';
+export type FeatureCategory = 'token' | 'core' | 'signals' | 'social' | 'market';
 
 export interface FeatureConfig {
   id: string;
@@ -21,6 +21,15 @@ export interface FeatureConfig {
 }
 
 export const FEATURE_CONFIGS: FeatureConfig[] = [
+  // ── Token layer (master switch) ───────────────────────────────────────────
+  {
+    id: 'tokenRewards',
+    label: 'Token Rewards System',
+    description: 'Enables $SCORE token rewards, earnings display, and claim functionality across the entire platform. Turn OFF to run the platform without a token — voting and reputation still work normally.',
+    category: 'token',
+    defaultEnabled: false,
+  },
+
   // ── Core ──────────────────────────────────────────────────────────────────
   {
     id: 'dappScore',

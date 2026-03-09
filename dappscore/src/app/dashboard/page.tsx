@@ -34,6 +34,7 @@ import {
 } from 'lucide-react';
 import Link from 'next/link';
 import Image from 'next/image';
+import { useFeatureFlag } from '@/lib/featureFlags';
 
 type TabType = 'overview' | 'votes' | 'nfts' | 'projects' | 'settings';
 
@@ -41,6 +42,7 @@ export default function DashboardPage() {
   const { isConnected, address } = useAccount();
   const { data: ethBalance } = useBalance({ address });
   const [activeTab, setActiveTab] = useState<TabType>('overview');
+  const rewardsEnabled = useFeatureFlag('tokenRewards', false);
   const [copied, setCopied] = useState(false);
 
   // Mock data - will be replaced with real contract calls
@@ -187,10 +189,12 @@ export default function DashboardPage() {
               </div>
             </div>
             <div className="flex items-center space-x-6">
-              <div className="text-center">
-                <div className="text-2xl font-bold text-yellow-500">{userStats.tokensBalance.toLocaleString()}</div>
-                <div className="text-xs text-gray-400">$SCORE Balance</div>
-              </div>
+              {rewardsEnabled && (
+                <div className="text-center">
+                  <div className="text-2xl font-bold text-yellow-500">{userStats.tokensBalance.toLocaleString()}</div>
+                  <div className="text-xs text-gray-400">$SCORE Balance</div>
+                </div>
+              )}
               <div className="text-center">
                 <div className="text-2xl font-bold">{userStats.reputation}</div>
                 <div className="text-xs text-gray-400">Reputation</div>
@@ -340,13 +344,15 @@ export default function DashboardPage() {
                       </div>
                       <div className="text-xs text-gray-500">Reputation (2x) + NFT bonus (1.1x)</div>
                     </div>
-                    <div>
-                      <div className="flex justify-between text-sm mb-1">
-                        <span className="text-gray-400">Reward Multiplier</span>
-                        <span className="text-green-500 font-bold">1.15x</span>
+                    {rewardsEnabled && (
+                      <div>
+                        <div className="flex justify-between text-sm mb-1">
+                          <span className="text-gray-400">Reward Multiplier</span>
+                          <span className="text-green-500 font-bold">1.15x</span>
+                        </div>
+                        <div className="text-xs text-gray-500">Based on accuracy tier</div>
                       </div>
-                      <div className="text-xs text-gray-500">Based on accuracy tier</div>
-                    </div>
+                    )}
                     <div>
                       <div className="flex justify-between text-sm mb-1">
                         <span className="text-gray-400">Age Multiplier</span>
@@ -357,30 +363,40 @@ export default function DashboardPage() {
                   </div>
                 </div>
 
-                <div className="bg-gray-800 rounded-xl p-6">
-                  <h2 className="text-lg font-bold mb-4 flex items-center">
-                    <Coins className="h-5 w-5 mr-2 text-yellow-500" />
-                    Earnings
-                  </h2>
-                  <div className="space-y-3">
-                    <div className="flex justify-between">
-                      <span className="text-gray-400">Total Earned</span>
-                      <span className="font-bold">{userStats.tokensEarned.toLocaleString()} $SCORE</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-gray-400">From Voting</span>
-                      <span className="text-green-400">+890 $SCORE</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-gray-400">From Comments</span>
-                      <span className="text-green-400">+210 $SCORE</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-gray-400">Scam Bonuses</span>
-                      <span className="text-green-400">+150 $SCORE</span>
+                {rewardsEnabled ? (
+                  <div className="bg-gray-800 rounded-xl p-6">
+                    <h2 className="text-lg font-bold mb-4 flex items-center">
+                      <Coins className="h-5 w-5 mr-2 text-yellow-500" />
+                      Earnings
+                    </h2>
+                    <div className="space-y-3">
+                      <div className="flex justify-between">
+                        <span className="text-gray-400">Total Earned</span>
+                        <span className="font-bold">{userStats.tokensEarned.toLocaleString()} $SCORE</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-400">From Voting</span>
+                        <span className="text-green-400">+890 $SCORE</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-400">From Comments</span>
+                        <span className="text-green-400">+210 $SCORE</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-400">Scam Bonuses</span>
+                        <span className="text-green-400">+150 $SCORE</span>
+                      </div>
                     </div>
                   </div>
-                </div>
+                ) : (
+                  <div className="bg-gray-800 rounded-xl p-6 text-center">
+                    <Gift className="h-8 w-8 text-yellow-500/50 mx-auto mb-3" />
+                    <p className="text-sm font-medium text-gray-300">$SCORE Token Launching Soon</p>
+                    <p className="text-xs text-gray-500 mt-1">
+                      Your activity is being tracked. Early participants will receive a token allocation at launch.
+                    </p>
+                  </div>
+                )}
               </div>
             </div>
           </div>
@@ -721,10 +737,12 @@ export default function DashboardPage() {
               <Flame className="h-6 w-6" />
               <span className="text-xs mt-1">Submit</span>
             </Link>
-            <Link href="/token-sale" className="flex flex-col items-center text-gray-400 hover:text-yellow-500">
-              <Coins className="h-6 w-6" />
-              <span className="text-xs mt-1">Buy</span>
-            </Link>
+            {rewardsEnabled && (
+              <Link href="/token-sale" className="flex flex-col items-center text-gray-400 hover:text-yellow-500">
+                <Coins className="h-6 w-6" />
+                <span className="text-xs mt-1">Buy</span>
+              </Link>
+            )}
           </div>
         </div>
       </div>

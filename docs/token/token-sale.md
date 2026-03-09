@@ -1,5 +1,20 @@
 # Token Sale
 
+{% hint style="info" %}
+**The $SCORE token sale date has not yet been announced.**
+We are growing the DappScore community first. When the sale is ready to launch, full details will be published here and announced across all official channels. Follow us to stay updated.
+{% endhint %}
+
+---
+
+<!--
+  ── Content below is preserved for when the token sale goes live ─────────────
+  To restore this page, remove the hint above and this comment block.
+  ────────────────────────────────────────────────────────────────────────── -->
+
+<details>
+<summary>Token sale details (published at launch)</summary>
+
 Join the $SCORE public sale and become part of the DappScore community.
 
 ***
@@ -134,3 +149,5 @@ Once the sale concludes:
 ## Questions?
 
 Check our [FAQ](../faq.md) or reach out on our official channels (coming soon).
+
+</details>

@@ -19,13 +19,14 @@ const ADMIN_WALLET = '0x0cC77C9d660f2E7D10783014e0e3D510f7307A50'.toLowerCase();
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 const CATEGORY_LABELS: Record<FeatureCategory, string> = {
+  token:   'Token Layer',
   core:    'Core',
   signals: 'Trust Signals',
   social:  'Social',
   market:  'Market & Safety',
 };
 
-const CATEGORY_ORDER: FeatureCategory[] = ['core', 'signals', 'social', 'market'];
+const CATEGORY_ORDER: FeatureCategory[] = ['token', 'core', 'signals', 'social', 'market'];
 
 function hasEnvKey(envVar: string): boolean {
   const val = (process.env as Record<string, string | undefined>)[envVar];
@@ -128,19 +129,33 @@ export default function AdminPage() {
         <div className="space-y-8">
           {grouped.map(({ category, features }) => (
             <div key={category}>
-              <h2 className="text-xs font-bold uppercase tracking-widest text-gray-500 mb-3">
+              <h2 className={`text-xs font-bold uppercase tracking-widest mb-3 ${
+                category === 'token' ? 'text-yellow-500' : 'text-gray-500'
+              }`}>
                 {CATEGORY_LABELS[category]}
               </h2>
+              {category === 'token' && (
+                <p className="text-xs text-gray-500 mb-3">
+                  Master switch for all token functionality. Voting, reputation, and signals are unaffected.
+                </p>
+              )}
               <div className="space-y-2">
                 {features.map((f) => {
                   const enabled = flags[f.id] ?? f.defaultEnabled;
                   const apiKeyPresent = f.apiKey ? hasEnvKey(f.apiKey.envVar) : null;
+                  const isTokenMaster = f.id === 'tokenRewards';
 
                   return (
                     <div
                       key={f.id}
-                      className={`bg-gray-800 rounded-xl p-4 border transition-colors ${
-                        enabled ? 'border-gray-700' : 'border-gray-800 opacity-60'
+                      className={`rounded-xl p-4 border transition-colors ${
+                        isTokenMaster
+                          ? enabled
+                            ? 'bg-yellow-500/10 border-yellow-500/50'
+                            : 'bg-gray-800 border-gray-700'
+                          : enabled
+                          ? 'bg-gray-800 border-gray-700'
+                          : 'bg-gray-800 border-gray-800 opacity-60'
                       }`}
                     >
                       <div className="flex items-start justify-between gap-4">

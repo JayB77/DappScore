@@ -1,5 +1,20 @@
 # 💰 Earning $SCORE
 
+{% hint style="info" %}
+**$SCORE token rewards are coming soon.**
+DappScore is currently live without token rewards while we grow the community. Your votes, comments, and reputation are being tracked — early participants will receive a $SCORE allocation at launch. Full details will be published here when the launch date is confirmed.
+{% endhint %}
+
+---
+
+<!--
+  ── Content below is preserved for when token rewards go live ────────────────
+  To restore this page, remove the hint above and this comment block.
+  ────────────────────────────────────────────────────────────────────────── -->
+
+<details>
+<summary>Full reward details (published at token launch)</summary>
+
 Multiple ways to earn $SCORE tokens by contributing to DappScore.
 
 ---
@@ -109,3 +124,5 @@ Early participants earn the most! Emission decreases over time.
 | **5** | $SCORE arrives in wallet! |
 
 **Minimum claim**: 100 $SCORE
+
+</details>
