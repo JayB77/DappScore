@@ -12,8 +12,6 @@
 * [Project Detail Page](platform/project-detail.md)
 * [Submitting Projects](platform/submitting-projects.md)
 * [Project Ownership](platform/project-ownership.md)
-* [Premium Listings](platform/premium-listings.md)
-* [Trust vs Paid Features](platform/trust-vs-paid.md)
 
 ## Voting & Reputation
 
@@ -31,6 +29,7 @@
 * [Audit Badges](signals/audit-badges.md)
 * [Social Proof](signals/social-proof.md)
 * [Whale Tracker](signals/whale-tracker.md)
+* [Contract Fingerprint](signals/contract-fingerprint.md)
 
 ## $SCORE Token
 

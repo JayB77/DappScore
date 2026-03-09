@@ -38,6 +38,7 @@ Each signal targets a specific scam or quality indicator:
 | Audit Badges | Unaudited contracts |
 | Social Proof | Ghost projects with no real community |
 | Whale Tracker | Coordinated dumps, insider movements |
+| Contract Fingerprint | Hidden dangers baked into the contract code |
 
 ---
 
@@ -61,3 +62,4 @@ All signals are **informational only** — they complement community voting, the
 * [🏅 Audit Badges](audit-badges.md)
 * [👥 Social Proof](social-proof.md)
 * [🐋 Whale Tracker](whale-tracker.md)
+* [🔍 Contract Fingerprint](contract-fingerprint.md)

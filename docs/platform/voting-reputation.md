@@ -11,10 +11,11 @@ The voting and reputation system is at the core of DappScore's community-driven 
 
 Your voting accuracy directly affects your reputation and earnings. Before casting a vote:
 
-- **Research the project** - Check their website, team, social media, and smart contracts
+- **Research the project** - Check their website, team, and social media
 - **Verify claims** - Don't take project descriptions at face value
 - **Read comments** - See what other community members have discovered
-- **Check the contract** - Look for red flags like mint functions or hidden fees
+- **Use the Security Signals** - DappScore runs automatic on-chain checks on every project so you don't have to be a technical expert
+- **If you're comfortable with contracts** - You can dig deeper into the code yourself for additional red flags
 
 **Remember:** Voting correctly earns you rewards. Voting incorrectly hurts your reputation, reduces your vote weight, and decreases your future earnings. Take your time!
 {% endhint %}
