@@ -396,12 +396,94 @@ async function searchAndReply(ctx: Context, query: string) {
 async function lookupByAddress(ctx: Context, address: string) {
   ctx.reply(`🔍 Looking up ${truncateAddress(address)}...`);
 
-  // In real implementation, query subgraph for project with this contract address
-  // For now, return a placeholder
-  ctx.reply(
-    `Contract lookup coming soon!\n\n` +
-    `Check on website: ${FRONTEND_URL}/projects?address=${address}`
-  );
+  try {
+    // Query projects owned by this address AND user reputation for this address
+    const query = gql`
+      query LookupByAddress($owner: Bytes!, $userId: ID!) {
+        projects(
+          where: { owner: $owner, status: 1 }
+          orderBy: createdAt
+          orderDirection: desc
+          first: 5
+        ) {
+          id
+          name
+          symbol
+          trustLevel
+          upvotes
+          downvotes
+          totalVoters
+          verified
+          category
+        }
+        user(id: $userId) {
+          id
+          totalVotes
+          reputationPoints
+          scamsIdentified
+          stakedBalance
+          isAffiliate
+        }
+      }
+    `;
+
+    const data: any = await graphql.request(query, {
+      owner: address.toLowerCase(),
+      userId: address.toLowerCase(),
+    });
+
+    const projects: any[] = data.projects ?? [];
+    const user: any = data.user;
+
+    if (!projects.length && !user) {
+      return ctx.reply(
+        `No data found for ${truncateAddress(address)}.\n\n` +
+        `This address hasn't submitted projects or voted yet.\n` +
+        `🔗 ${FRONTEND_URL}/projects?address=${address}`
+      );
+    }
+
+    let message = `📋 Address: ${truncateAddress(address)}\n\n`;
+
+    if (projects.length > 0) {
+      message += `📁 Projects submitted (${projects.length}):\n`;
+      projects.forEach((p: any, i: number) => {
+        const trustInfo = TRUST_LEVELS[p.trustLevel] || TRUST_LEVELS[0];
+        const score = calculateTrustScore(p.upvotes, p.downvotes);
+        message += `\n${i + 1}. ${trustInfo.emoji} ${p.name}`;
+        if (p.symbol) message += ` (${p.symbol})`;
+        if (p.verified) message += ' ✅';
+        message += `\n   ${score}% trust | ${p.totalVoters} voters`;
+        if (p.category) message += ` | ${p.category}`;
+        message += '\n';
+      });
+      message += '\n';
+    }
+
+    if (user) {
+      message += `👤 Voter Profile:\n`;
+      message += `   🗳️ Total votes: ${formatNumber(user.totalVotes)}\n`;
+      message += `   ⭐ Reputation: ${formatNumber(user.reputationPoints)} pts\n`;
+      message += `   🕵️ Scams identified: ${formatNumber(user.scamsIdentified)}\n`;
+      if (parseInt(user.stakedBalance) > 0) {
+        message += `   🔒 Staked: ${formatNumber(user.stakedBalance)} SCORE\n`;
+      }
+      if (user.isAffiliate) {
+        message += `   🤝 Affiliate member\n`;
+      }
+      message += '\n';
+    }
+
+    message += `🔗 ${FRONTEND_URL}/user/${address}`;
+
+    ctx.reply(message);
+  } catch (error) {
+    console.error('Error looking up address:', error);
+    ctx.reply(
+      `Failed to look up ${truncateAddress(address)}.\n\n` +
+      `Try the website: ${FRONTEND_URL}/projects?address=${address}`
+    );
+  }
 }
 
 async function sendProjectDetails(ctx: Context, project: any) {

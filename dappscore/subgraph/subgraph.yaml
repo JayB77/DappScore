@@ -54,8 +54,10 @@ dataSources:
           handler: handleProjectUpdated
         - event: ProjectStatusChanged(indexed uint256,uint8)
           handler: handleProjectStatusChanged
-        - event: TrustLevelChanged(indexed uint256,uint8)
+        - event: ProjectTrustLevelChanged(indexed uint256,uint8)
           handler: handleTrustLevelChanged
+        - event: ProjectVerified(indexed uint256)
+          handler: handleProjectVerified
       file: ./src/project-registry.ts
 
   # VotingEngine

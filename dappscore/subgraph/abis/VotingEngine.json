@@ -1,0 +1,9 @@
+[
+  {"type":"event","name":"Voted","inputs":[{"name":"projectId","type":"uint256","indexed":true},{"name":"voter","type":"address","indexed":true},{"name":"voteType","type":"uint8","indexed":false}],"anonymous":false},
+  {"type":"event","name":"VoteChanged","inputs":[{"name":"projectId","type":"uint256","indexed":true},{"name":"voter","type":"address","indexed":true},{"name":"newVoteType","type":"uint8","indexed":false}],"anonymous":false},
+  {"type":"event","name":"RewardsClaimed","inputs":[{"name":"user","type":"address","indexed":true},{"name":"amount","type":"uint256","indexed":false}],"anonymous":false},
+  {"type":"event","name":"Staked","inputs":[{"name":"user","type":"address","indexed":true},{"name":"amount","type":"uint256","indexed":false}],"anonymous":false},
+  {"type":"event","name":"Unstaked","inputs":[{"name":"user","type":"address","indexed":true},{"name":"amount","type":"uint256","indexed":false}],"anonymous":false},
+  {"type":"event","name":"ProjectFlagged","inputs":[{"name":"projectId","type":"uint256","indexed":true}],"anonymous":false},
+  {"type":"event","name":"ProjectMarkedScam","inputs":[{"name":"projectId","type":"uint256","indexed":true}],"anonymous":false}
+]
