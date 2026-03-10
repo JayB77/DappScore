@@ -15,6 +15,7 @@ import whaleRoutes    from './routes/whales';
 import adminRoutes    from './routes/admin';
 import airdropRoutes  from './routes/airdrop';
 import claimRoutes    from './routes/claim';
+import apiKeyRoutes   from './routes/api-keys';
 
 initializeApp();
 
@@ -38,6 +39,9 @@ app.use('/api/v1/alerts',        alertRoutes);      // GET/POST/DELETE alerts + 
 app.use('/api/v1/webhooks',      webhookRoutes);    // GET/POST/PUT/DELETE webhooks + incoming (x-user-id)
 app.use('/api/v1/scam',          scamRoutes);       // POST analyze/tokenomics/batch/report  GET patterns
 app.use('/api/v1/whales',        whaleRoutes);      // GET whale data + wallet labels
+
+// ── API key management (x-user-id required) ──────────────────────────────────
+app.use('/api/v1/api-keys',      apiKeyRoutes);     // POST/GET/PATCH/DELETE + rotate
 
 // ── Admin routes (ADMIN_API_KEY required) ─────────────────────────────────────
 app.use('/api/v1/admin',         adminRoutes);      // flags, overrides, sales, cache, reports, audit, health

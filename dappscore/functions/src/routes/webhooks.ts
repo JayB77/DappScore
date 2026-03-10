@@ -264,11 +264,42 @@ router.post('/:id/rotate-secret', async (req, res) => {
 
 // ── Incoming webhook handlers ─────────────────────────────────────────────────
 
-/** POST /api/v1/webhooks/incoming/graph — The Graph event push */
+/** POST /api/v1/webhooks/incoming/graph — The Graph / Notifi event push */
 router.post('/incoming/graph', async (req, res) => {
   try {
-    console.info('[webhooks] incoming/graph', { event: req.body?.event });
-    // TODO: verify Hasura/Graph webhook secret header, then dispatch alerts
+    // Verify shared secret configured in the graph webhook provider
+    const secret = process.env.SUBGRAPH_WEBHOOK_SECRET;
+    if (secret) {
+      const provided = req.headers['x-webhook-secret'] as string | undefined;
+      if (provided !== secret) {
+        return res.status(401).json({ success: false, error: 'Unauthorized' });
+      }
+    }
+
+    const body = req.body as Record<string, unknown>;
+    const eventType = (body.event as string) || '';
+
+    console.info('[webhooks] incoming/graph', { event: eventType });
+
+    // Map subgraph event types to DappScore webhook events
+    const eventMap: Record<string, string> = {
+      'ProjectSubmitted':         'project.created',
+      'ProjectStatusChanged':     'project.trust_changed',
+      'ProjectTrustLevelChanged': 'project.trust_changed',
+      'ProjectMarkedScam':        'project.scam_flagged',
+      'ProjectFlagged':           'project.scam_flagged',
+      'MarketResolved':           'market.resolved',
+      'BountyCompleted':          'bounty.completed',
+      'Voted':                    'vote.cast',
+    };
+
+    const dispatchEvent = eventMap[eventType];
+    const data = body.data as Record<string, unknown> | undefined;
+
+    if (dispatchEvent && data) {
+      await dispatchGlobalWebhook(dispatchEvent, data);
+    }
+
     res.json({ success: true });
   } catch (err) {
     console.error('[webhooks] incoming/graph', err);
@@ -276,11 +307,62 @@ router.post('/incoming/graph', async (req, res) => {
   }
 });
 
-/** POST /api/v1/webhooks/incoming/alchemy — Alchemy address activity */
+/** POST /api/v1/webhooks/incoming/alchemy — Alchemy address activity (whale tracking) */
 router.post('/incoming/alchemy', async (req, res) => {
   try {
-    console.info('[webhooks] incoming/alchemy', { event: req.body?.event });
-    // TODO: process address activity notifications for whale tracking
+    // Verify Alchemy HMAC signature
+    const signingKey = process.env.ALCHEMY_SIGNING_KEY;
+    if (signingKey) {
+      const signature = req.headers['x-alchemy-signature'] as string | undefined;
+      const rawBody = JSON.stringify(req.body);
+      const expected = crypto
+        .createHmac('sha256', signingKey)
+        .update(rawBody)
+        .digest('hex');
+      if (signature !== expected) {
+        return res.status(401).json({ success: false, error: 'Invalid signature' });
+      }
+    }
+
+    const payload = req.body as {
+      type?: string;
+      event?: {
+        network?: string;
+        activity?: Array<{
+          fromAddress?: string;
+          toAddress?: string;
+          value?: number;
+          asset?: string;
+          hash?: string;
+        }>;
+      };
+    };
+
+    if (payload.type !== 'ADDRESS_ACTIVITY' || !payload.event?.activity) {
+      return res.json({ success: true });
+    }
+
+    // Flag transfers over 100k SCORE as whale activity
+    const WHALE_THRESHOLD = 100_000;
+
+    for (const activity of payload.event.activity) {
+      const value = activity.value ?? 0;
+      if (value < WHALE_THRESHOLD) continue;
+
+      const whaleData = {
+        fromAddress: activity.fromAddress,
+        toAddress:   activity.toAddress,
+        value,
+        asset:       activity.asset,
+        txHash:      activity.hash,
+        network:     payload.event.network,
+        timestamp:   new Date().toISOString(),
+      };
+
+      console.info('[webhooks] whale activity detected', whaleData);
+      await dispatchGlobalWebhook('whale.activity', whaleData);
+    }
+
     res.json({ success: true });
   } catch (err) {
     console.error('[webhooks] incoming/alchemy', err);
@@ -346,6 +428,64 @@ export async function dispatchWebhook(
 
     if (!ok) {
       // Re-read to check failureCount and possibly disable
+      const updated = await ref.get();
+      if ((updated.data()?.failureCount as number) >= 10) {
+        await ref.update({ active: false });
+      }
+    }
+  }));
+}
+
+/**
+ * Fan out an event to ALL active webhooks subscribed to the event (platform-wide).
+ * Used by incoming external webhooks (Graph, Alchemy) that aren't tied to a single user.
+ */
+export async function dispatchGlobalWebhook(
+  event: string,
+  data: unknown,
+): Promise<void> {
+  const snap = await getFirestore()
+    .collection('webhooks')
+    .where('active', '==', true)
+    .get();
+
+  await Promise.allSettled(snap.docs.map(async doc => {
+    const wh = doc.data() as Record<string, unknown>;
+    if (!Array.isArray(wh.events)) return;
+    const events = wh.events as string[];
+    if (!events.includes('all') && !events.includes(event)) return;
+
+    const payload = { event, timestamp: new Date().toISOString(), data };
+    const body    = JSON.stringify(payload);
+    const sig     = crypto.createHmac('sha256', wh.secret as string).update(body).digest('hex');
+
+    let status = 0;
+    let ok     = false;
+
+    try {
+      const httpRes = await fetch(wh.url as string, {
+        method: 'POST',
+        headers: {
+          'Content-Type':           'application/json',
+          'X-DappScore-Signature':  `sha256=${sig}`,
+          'X-DappScore-Event':      event,
+          'X-DappScore-Webhook-Id': doc.id,
+        },
+        body,
+        signal: AbortSignal.timeout(10_000),
+      });
+      status = httpRes.status;
+      ok     = httpRes.ok;
+    } catch { /* network failure */ }
+
+    const ref = doc.ref;
+    await ref.collection('logs').add({ event, status, ok, timestamp: Timestamp.now() });
+    await ref.update({
+      lastTriggered: Timestamp.now(),
+      failureCount: ok ? 0 : FieldValue.increment(1),
+    });
+
+    if (!ok) {
       const updated = await ref.get();
       if ((updated.data()?.failureCount as number) >= 10) {
         await ref.update({ active: false });

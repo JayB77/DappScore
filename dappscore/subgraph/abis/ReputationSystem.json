@@ -1,0 +1,7 @@
+[
+  {"type":"event","name":"ReputationUpdated","inputs":[{"name":"user","type":"address","indexed":true},{"name":"newPoints","type":"uint256","indexed":false},{"name":"reason","type":"string","indexed":false}],"anonymous":false},
+  {"type":"event","name":"ScamIdentified","inputs":[{"name":"user","type":"address","indexed":true},{"name":"projectId","type":"uint256","indexed":false}],"anonymous":false},
+  {"type":"event","name":"DecayApplied","inputs":[{"name":"user","type":"address","indexed":true},{"name":"decayAmount","type":"uint256","indexed":false}],"anonymous":false},
+  {"type":"event","name":"UserRegistered","inputs":[{"name":"user","type":"address","indexed":true}],"anonymous":false},
+  {"type":"function","name":"getReputation","stateMutability":"view","inputs":[{"name":"_user","type":"address"}],"outputs":[{"name":"","type":"tuple","components":[{"name":"points","type":"uint256"},{"name":"totalVotes","type":"uint256"},{"name":"accurateVotes","type":"uint256"},{"name":"scamsIdentified","type":"uint256"},{"name":"lastActivityTime","type":"uint256"},{"name":"accountCreatedAt","type":"uint256"},{"name":"decayAppliedAt","type":"uint256"}]}]}
+]

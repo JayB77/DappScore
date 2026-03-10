@@ -1,0 +1,13 @@
+[
+  {"type":"event","name":"Staked","inputs":[{"name":"staker","type":"address","indexed":true},{"name":"amount","type":"uint256","indexed":false}],"anonymous":false},
+  {"type":"event","name":"Unstaked","inputs":[{"name":"staker","type":"address","indexed":true},{"name":"amount","type":"uint256","indexed":false}],"anonymous":false},
+  {"type":"event","name":"CoveragePurchased","inputs":[{"name":"coverageId","type":"uint256","indexed":true},{"name":"projectId","type":"uint256","indexed":false},{"name":"purchaser","type":"address","indexed":false},{"name":"amount","type":"uint256","indexed":false}],"anonymous":false},
+  {"type":"event","name":"ClaimSubmitted","inputs":[{"name":"claimId","type":"uint256","indexed":true},{"name":"coverageId","type":"uint256","indexed":false},{"name":"claimant","type":"address","indexed":false},{"name":"amount","type":"uint256","indexed":false}],"anonymous":false},
+  {"type":"event","name":"ClaimApproved","inputs":[{"name":"claimId","type":"uint256","indexed":true},{"name":"approvedAmount","type":"uint256","indexed":false}],"anonymous":false},
+  {"type":"event","name":"ClaimPaid","inputs":[{"name":"claimId","type":"uint256","indexed":true},{"name":"claimant","type":"address","indexed":false},{"name":"amount","type":"uint256","indexed":false}],"anonymous":false},
+  {"type":"function","name":"getCoverage","stateMutability":"view","inputs":[{"name":"_coverageId","type":"uint256"}],"outputs":[{"name":"","type":"tuple","components":[{"name":"projectId","type":"uint256"},{"name":"purchaser","type":"address"},{"name":"coverageAmount","type":"uint256"},{"name":"premiumPaid","type":"uint256"},{"name":"purchasedAt","type":"uint256"},{"name":"expiresAt","type":"uint256"},{"name":"active","type":"bool"},{"name":"claimed","type":"bool"}]}]},
+  {"type":"function","name":"totalStaked","stateMutability":"view","inputs":[],"outputs":[{"name":"","type":"uint256"}]},
+  {"type":"function","name":"totalCoverage","stateMutability":"view","inputs":[],"outputs":[{"name":"","type":"uint256"}]},
+  {"type":"function","name":"totalPremiumsCollected","stateMutability":"view","inputs":[],"outputs":[{"name":"","type":"uint256"}]},
+  {"type":"function","name":"totalClaimsPaid","stateMutability":"view","inputs":[],"outputs":[{"name":"","type":"uint256"}]}
+]
