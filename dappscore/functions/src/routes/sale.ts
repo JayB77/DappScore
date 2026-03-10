@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { getFirestore } from 'firebase-admin/firestore';
 import { z } from 'zod';
+import { requireApiKey } from '../lib/api-key-auth';
 
 const router = Router();
 
@@ -21,32 +22,6 @@ const saleSchema = z.object({
   message: 'endDate must be after startDate',
 });
 
-// ── API key validation ────────────────────────────────────────────────────────
-// SALE_API_KEYS env var: JSON object mapping projectId → apiKey
-// e.g.  SALE_API_KEYS='{"42":"sk_sale_abc123"}'
-
-function validateApiKey(projectId: string, authHeader: string | null): boolean {
-  if (!authHeader?.startsWith('Bearer ')) return false;
-  const provided = authHeader.slice(7).trim();
-
-  let keys: Record<string, string> = {};
-  try {
-    keys = JSON.parse(process.env.SALE_API_KEYS ?? '{}');
-  } catch {
-    return false;
-  }
-
-  const expected = keys[projectId];
-  if (!expected || provided.length !== expected.length) return false;
-
-  // Constant-time comparison to prevent timing attacks
-  let mismatch = 0;
-  for (let i = 0; i < provided.length; i++) {
-    mismatch |= provided.charCodeAt(i) ^ expected.charCodeAt(i);
-  }
-  return mismatch === 0;
-}
-
 // ── GET /api/v1/projects/:id/sale ────────────────────────────────────────────
 
 router.get('/:id/sale', async (req, res) => {
@@ -64,14 +39,10 @@ router.get('/:id/sale', async (req, res) => {
 });
 
 // ── POST /api/v1/projects/:id/sale ───────────────────────────────────────────
+// Requires a Bearer API key with `sale:write` permission scoped to this project.
 
-router.post('/:id/sale', async (req, res) => {
+router.post('/:id/sale', requireApiKey('sale:write', 'id'), async (req, res) => {
   const { id } = req.params;
-
-  if (!validateApiKey(id, req.headers.authorization ?? null)) {
-    res.status(401).json({ error: 'Unauthorized.' });
-    return;
-  }
 
   const parsed = saleSchema.safeParse(req.body);
   if (!parsed.success) {
