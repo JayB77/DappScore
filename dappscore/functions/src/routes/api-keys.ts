@@ -66,55 +66,60 @@ router.post('/', async (req: Request, res: Response) => {
     return;
   }
 
-  const db = getFirestore();
+  try {
+    const db = getFirestore();
 
-  // Enforce per-user key limit
-  const countSnap = await db
-    .collection('api_keys')
-    .where('ownerId', '==', ownerId)
-    .where('active', '==', true)
-    .count()
-    .get();
+    // Enforce per-user key limit
+    const countSnap = await db
+      .collection('api_keys')
+      .where('ownerId', '==', ownerId)
+      .where('active', '==', true)
+      .count()
+      .get();
 
-  if (countSnap.data().count >= MAX_KEYS_PER_USER) {
-    res.status(429).json({
-      error: `Maximum of ${MAX_KEYS_PER_USER} active API keys per user. Revoke an existing key first.`,
+    if (countSnap.data().count >= MAX_KEYS_PER_USER) {
+      res.status(429).json({
+        error: `Maximum of ${MAX_KEYS_PER_USER} active API keys per user. Revoke an existing key first.`,
+      });
+      return;
+    }
+
+    const { key, hash, prefix } = generateApiKey();
+
+    const docData: Record<string, unknown> = {
+      keyHash: hash,
+      keyPrefix: prefix,
+      name: name.trim(),
+      ownerId,
+      permissions,
+      active: true,
+      createdAt: FieldValue.serverTimestamp(),
+      lastUsedAt: null,
+      revokedAt: null,
+      usageCount: 0,
+    };
+    if (projectId) docData.projectId = projectId.trim();
+
+    const docRef = await db.collection('api_keys').add(docData);
+
+    res.status(201).json({
+      id: docRef.id,
+      key,   // ← only time the full key is returned
+      keyPrefix: prefix,
+      name: name.trim(),
+      projectId: projectId ?? null,
+      permissions,
+      active: true,
+      usageCount: 0,
+      createdAt: new Date().toISOString(),
+      lastUsedAt: null,
+      revokedAt: null,
+      _warning: 'Save this key now — it will not be shown again.',
     });
-    return;
+  } catch (err) {
+    console.error('POST /api-keys error:', err);
+    res.status(500).json({ error: 'Internal server error.' });
   }
-
-  const { key, hash, prefix } = generateApiKey();
-
-  const docData: Record<string, unknown> = {
-    keyHash: hash,
-    keyPrefix: prefix,
-    name: name.trim(),
-    ownerId,
-    permissions,
-    active: true,
-    createdAt: FieldValue.serverTimestamp(),
-    lastUsedAt: null,
-    revokedAt: null,
-    usageCount: 0,
-  };
-  if (projectId) docData.projectId = projectId.trim();
-
-  const docRef = await db.collection('api_keys').add(docData);
-
-  res.status(201).json({
-    id: docRef.id,
-    key,   // ← only time the full key is returned
-    keyPrefix: prefix,
-    name: name.trim(),
-    projectId: projectId ?? null,
-    permissions,
-    active: true,
-    usageCount: 0,
-    createdAt: new Date().toISOString(),
-    lastUsedAt: null,
-    revokedAt: null,
-    _warning: 'Save this key now — it will not be shown again.',
-  });
 });
 
 // ── GET /api/v1/api-keys ──────────────────────────────────────────────────────
@@ -124,15 +129,20 @@ router.get('/', async (req: Request, res: Response) => {
   const ownerId = requireUserId(req, res);
   if (!ownerId) return;
 
-  const db = getFirestore();
-  const snap = await db
-    .collection('api_keys')
-    .where('ownerId', '==', ownerId)
-    .orderBy('createdAt', 'desc')
-    .get();
+  try {
+    const db = getFirestore();
+    const snap = await db
+      .collection('api_keys')
+      .where('ownerId', '==', ownerId)
+      .orderBy('createdAt', 'desc')
+      .get();
 
-  const keys = snap.docs.map(doc => formatDoc(doc.id, doc.data()));
-  res.json({ keys, total: keys.length });
+    const keys = snap.docs.map(doc => formatDoc(doc.id, doc.data()));
+    res.json({ keys, total: keys.length });
+  } catch (err) {
+    console.error('GET /api-keys error:', err);
+    res.status(500).json({ error: 'Internal server error.' });
+  }
 });
 
 // ── GET /api/v1/api-keys/:keyId ───────────────────────────────────────────────
@@ -141,19 +151,24 @@ router.get('/:keyId', async (req: Request, res: Response) => {
   const ownerId = requireUserId(req, res);
   if (!ownerId) return;
 
-  const db = getFirestore();
-  const doc = await db.collection('api_keys').doc(req.params.keyId).get();
+  try {
+    const db = getFirestore();
+    const doc = await db.collection('api_keys').doc(req.params.keyId).get();
 
-  if (!doc.exists) {
-    res.status(404).json({ error: 'API key not found.' });
-    return;
-  }
-  if (doc.data()!.ownerId !== ownerId) {
-    res.status(403).json({ error: 'Forbidden.' });
-    return;
-  }
+    if (!doc.exists) {
+      res.status(404).json({ error: 'API key not found.' });
+      return;
+    }
+    if (doc.data()!.ownerId !== ownerId) {
+      res.status(403).json({ error: 'Forbidden.' });
+      return;
+    }
 
-  res.json(formatDoc(doc.id, doc.data()!));
+    res.json(formatDoc(doc.id, doc.data()!));
+  } catch (err) {
+    console.error('GET /api-keys/:keyId error:', err);
+    res.status(500).json({ error: 'Internal server error.' });
+  }
 });
 
 // ── PATCH /api/v1/api-keys/:keyId ────────────────────────────────────────────
@@ -169,20 +184,25 @@ router.patch('/:keyId', async (req: Request, res: Response) => {
     return;
   }
 
-  const db = getFirestore();
-  const doc = await db.collection('api_keys').doc(req.params.keyId).get();
+  try {
+    const db = getFirestore();
+    const doc = await db.collection('api_keys').doc(req.params.keyId).get();
 
-  if (!doc.exists) {
-    res.status(404).json({ error: 'API key not found.' });
-    return;
-  }
-  if (doc.data()!.ownerId !== ownerId) {
-    res.status(403).json({ error: 'Forbidden.' });
-    return;
-  }
+    if (!doc.exists) {
+      res.status(404).json({ error: 'API key not found.' });
+      return;
+    }
+    if (doc.data()!.ownerId !== ownerId) {
+      res.status(403).json({ error: 'Forbidden.' });
+      return;
+    }
 
-  await doc.ref.update({ name: name.trim() });
-  res.json({ id: doc.id, name: name.trim() });
+    await doc.ref.update({ name: name.trim() });
+    res.json({ id: doc.id, name: name.trim() });
+  } catch (err) {
+    console.error('PATCH /api-keys/:keyId error:', err);
+    res.status(500).json({ error: 'Internal server error.' });
+  }
 });
 
 // ── DELETE /api/v1/api-keys/:keyId ───────────────────────────────────────────
@@ -192,24 +212,29 @@ router.delete('/:keyId', async (req: Request, res: Response) => {
   const ownerId = requireUserId(req, res);
   if (!ownerId) return;
 
-  const db = getFirestore();
-  const doc = await db.collection('api_keys').doc(req.params.keyId).get();
+  try {
+    const db = getFirestore();
+    const doc = await db.collection('api_keys').doc(req.params.keyId).get();
 
-  if (!doc.exists) {
-    res.status(404).json({ error: 'API key not found.' });
-    return;
-  }
-  if (doc.data()!.ownerId !== ownerId) {
-    res.status(403).json({ error: 'Forbidden.' });
-    return;
-  }
-  if (!doc.data()!.active) {
-    res.status(400).json({ error: 'Key is already revoked.' });
-    return;
-  }
+    if (!doc.exists) {
+      res.status(404).json({ error: 'API key not found.' });
+      return;
+    }
+    if (doc.data()!.ownerId !== ownerId) {
+      res.status(403).json({ error: 'Forbidden.' });
+      return;
+    }
+    if (!doc.data()!.active) {
+      res.status(400).json({ error: 'Key is already revoked.' });
+      return;
+    }
 
-  await doc.ref.update({ active: false, revokedAt: FieldValue.serverTimestamp() });
-  res.json({ id: doc.id, revoked: true });
+    await doc.ref.update({ active: false, revokedAt: FieldValue.serverTimestamp() });
+    res.json({ id: doc.id, revoked: true });
+  } catch (err) {
+    console.error('DELETE /api-keys/:keyId error:', err);
+    res.status(500).json({ error: 'Internal server error.' });
+  }
 });
 
 // ── POST /api/v1/api-keys/:keyId/rotate ──────────────────────────────────────
@@ -220,62 +245,65 @@ router.post('/:keyId/rotate', async (req: Request, res: Response) => {
   const ownerId = requireUserId(req, res);
   if (!ownerId) return;
 
-  const db = getFirestore();
-  const doc = await db.collection('api_keys').doc(req.params.keyId).get();
+  try {
+    const db = getFirestore();
+    const doc = await db.collection('api_keys').doc(req.params.keyId).get();
 
-  if (!doc.exists) {
-    res.status(404).json({ error: 'API key not found.' });
-    return;
-  }
-  const old = doc.data()!;
-  if (old.ownerId !== ownerId) {
-    res.status(403).json({ error: 'Forbidden.' });
-    return;
-  }
-  if (!old.active) {
-    res.status(400).json({ error: 'Cannot rotate a revoked key.' });
-    return;
-  }
+    if (!doc.exists) {
+      res.status(404).json({ error: 'API key not found.' });
+      return;
+    }
+    const old = doc.data()!;
+    if (old.ownerId !== ownerId) {
+      res.status(403).json({ error: 'Forbidden.' });
+      return;
+    }
+    if (!old.active) {
+      res.status(400).json({ error: 'Cannot rotate a revoked key.' });
+      return;
+    }
 
-  const { key, hash, prefix } = generateApiKey();
-  let newId = '';
+    const { key, hash, prefix } = generateApiKey();
+    let newId = '';
 
-  await db.runTransaction(async tx => {
-    // Revoke the old key
-    tx.update(doc.ref, { active: false, revokedAt: FieldValue.serverTimestamp() });
+    await db.runTransaction(async tx => {
+      tx.update(doc.ref, { active: false, revokedAt: FieldValue.serverTimestamp() });
 
-    // Create the replacement
-    const newRef = db.collection('api_keys').doc();
-    newId = newRef.id;
-    const newDoc: Record<string, unknown> = {
-      keyHash: hash,
+      const newRef = db.collection('api_keys').doc();
+      newId = newRef.id;
+      const newDoc: Record<string, unknown> = {
+        keyHash: hash,
+        keyPrefix: prefix,
+        name: old.name,
+        ownerId,
+        permissions: old.permissions,
+        active: true,
+        createdAt: FieldValue.serverTimestamp(),
+        lastUsedAt: null,
+        revokedAt: null,
+        usageCount: 0,
+        rotatedFrom: doc.id,
+      };
+      if (old.projectId) newDoc.projectId = old.projectId;
+      tx.set(newRef, newDoc);
+    });
+
+    res.json({
+      id: newId,
+      key,   // ← only time the full key is returned
       keyPrefix: prefix,
       name: old.name,
-      ownerId,
+      projectId: old.projectId ?? null,
       permissions: old.permissions,
       active: true,
-      createdAt: FieldValue.serverTimestamp(),
-      lastUsedAt: null,
-      revokedAt: null,
       usageCount: 0,
-      rotatedFrom: doc.id,
-    };
-    if (old.projectId) newDoc.projectId = old.projectId;
-    tx.set(newRef, newDoc);
-  });
-
-  res.json({
-    id: newId,
-    key,   // ← only time the full key is returned
-    keyPrefix: prefix,
-    name: old.name,
-    projectId: old.projectId ?? null,
-    permissions: old.permissions,
-    active: true,
-    usageCount: 0,
-    createdAt: new Date().toISOString(),
-    _warning: 'Save this key now — it will not be shown again. Previous key has been revoked.',
-  });
+      createdAt: new Date().toISOString(),
+      _warning: 'Save this key now — it will not be shown again. Previous key has been revoked.',
+    });
+  } catch (err) {
+    console.error('POST /api-keys/:keyId/rotate error:', err);
+    res.status(500).json({ error: 'Internal server error.' });
+  }
 });
 
 export default router;
