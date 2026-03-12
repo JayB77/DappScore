@@ -216,8 +216,8 @@ tr:last-child td{border-bottom:none}
   <h1>DappScore API</h1>
   <p>The DappScore API provides real-time access to trust scores, scam detection, whale tracking, prediction markets, and community voting data across all supported blockchain networks.</p>
   <div class="base-url-box">
-    <span class="label">Firebase</span>
-    <code>https://us-central1-&lt;project&gt;.cloudfunctions.net/api/v1</code>
+    <span class="label">Production</span>
+    <code>https://dappscore.io/api/v1</code>
   </div>
   <br>
   <div class="base-url-box">
@@ -307,11 +307,11 @@ tr:last-child td{border-bottom:none}
   <table>
     <thead><tr><th>Environment</th><th>Base URL</th><th>Notes</th></tr></thead>
     <tbody>
-      <tr><td>Firebase (Production)</td><td><code>https://us-central1-&lt;project&gt;.cloudfunctions.net/api/v1</code></td><td>Deployed Cloud Function, min 1 instance, 256MB, 60s timeout</td></tr>
+      <tr><td>Production</td><td><code>https://dappscore.io/api/v1</code></td><td>Served via Firebase Hosting → Cloud Function rewrite</td></tr>
       <tr><td>Express (Local Dev)</td><td><code>http://localhost:3001/api</code></td><td>Direct Express server, no <code>/v1</code> prefix</td></tr>
     </tbody>
   </table>
-  <div class="alert alert-info">ℹ️ All endpoint paths below use <code>/api/v1/...</code> (Firebase). For local Express dev, strip <code>/v1</code> — e.g. <code>/api/v1/projects</code> → <code>/api/projects</code>.</div>
+  <div class="alert alert-info">ℹ️ All endpoint paths below use <code>/api/v1/...</code> (Production). For local Express dev, strip <code>/v1</code> — e.g. <code>/api/v1/projects</code> → <code>/api/projects</code>.</div>
 </div>
 
 <hr class="section-hr">
