@@ -37,7 +37,7 @@ Once you have a key, authenticated endpoints use a standard Bearer token:
 ## Creating an API Key
 
 ```bash
-curl -X POST https://us-central1-<project>.cloudfunctions.net/api/v1/api-keys \
+curl -X POST https://dappscore.io/api/v1/api-keys \
   -H "x-user-id: 0xYourWalletAddress" \
   -H "Content-Type: application/json" \
   -d '{
@@ -93,7 +93,7 @@ You can have up to **10 active keys** per wallet.
 Pass your key as a Bearer token:
 
 ```bash
-curl -X POST https://us-central1-<project>.cloudfunctions.net/api/v1/projects/0xYourContract/sale \
+curl -X POST https://dappscore.io/api/v1/projects/0xYourContract/sale \
   -H "Authorization: Bearer sk_test_..." \
   -H "Content-Type: application/json" \
   -d '{ "raised": 250000, "goal": 1000000, "currency": "USDC" }'
@@ -106,14 +106,14 @@ curl -X POST https://us-central1-<project>.cloudfunctions.net/api/v1/projects/0x
 **List all your keys** (secret values are never returned, only the prefix):
 
 ```bash
-curl https://us-central1-<project>.cloudfunctions.net/api/v1/api-keys \
+curl https://dappscore.io/api/v1/api-keys \
   -H "x-user-id: 0xYourWalletAddress"
 ```
 
 **Rename a key:**
 
 ```bash
-curl -X PATCH https://us-central1-<project>.cloudfunctions.net/api/v1/api-keys/key_abc123 \
+curl -X PATCH https://dappscore.io/api/v1/api-keys/key_abc123 \
   -H "x-user-id: 0xYourWalletAddress" \
   -H "Content-Type: application/json" \
   -d '{ "name": "New Name" }'
@@ -122,13 +122,13 @@ curl -X PATCH https://us-central1-<project>.cloudfunctions.net/api/v1/api-keys/k
 **Rotate a key** (atomically revokes the old one and issues a new key with the same settings):
 
 ```bash
-curl -X POST https://us-central1-<project>.cloudfunctions.net/api/v1/api-keys/key_abc123/rotate \
+curl -X POST https://dappscore.io/api/v1/api-keys/key_abc123/rotate \
   -H "x-user-id: 0xYourWalletAddress"
 ```
 
 **Revoke a key** (permanent):
 
 ```bash
-curl -X DELETE https://us-central1-<project>.cloudfunctions.net/api/v1/api-keys/key_abc123 \
+curl -X DELETE https://dappscore.io/api/v1/api-keys/key_abc123 \
   -H "x-user-id: 0xYourWalletAddress"
 ```
