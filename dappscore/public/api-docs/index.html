@@ -206,7 +206,6 @@ tr:last-child td{border-bottom:none}
   <div class="nav-section">
     <div class="nav-section-title">Allocations</div>
     <a class="nav-link" href="#claim">Claim Allocations</a>
-    <a class="nav-link" href="#airdrop">Airdrop Allocations</a>
   </div>
   <div class="nav-section">
     <div class="nav-section-title">Admin</div>
@@ -1692,47 +1691,6 @@ Authorization: Bearer sk_live_...
     <div class="endpoint-body">
       <p style="color:var(--text2);margin-top:12px">Remove a claim allocation for a wallet address.</p>
     </div>
-  </div>
-</div>
-
-<hr class="section-hr">
-
-<!-- AIRDROP ALLOCATIONS -->
-<div class="section" id="airdrop">
-  <h2 class="section-title"><span class="icon">🪂</span>Airdrop Allocations</h2>
-  <p class="section-desc">Same structure as Claim Allocations but for the airdrop campaign. Requires the <code>AIRDROP_ADMIN_KEY</code> bearer token. Endpoints mirror <code>/api/v1/claim/*</code> at <code>/api/v1/airdrop/*</code>.</p>
-
-  <div class="endpoint">
-    <div class="endpoint-header">
-      <span class="method method-GET">GET</span>
-      <span class="endpoint-path">/api/v1/airdrop</span>
-      <span class="auth-chip auth-claim">AIRDROP_ADMIN_KEY</span>
-    </div>
-    <div class="endpoint-body"><p style="color:var(--text2);margin-top:12px">List all airdrop allocations with summary totals.</p></div>
-  </div>
-  <div class="endpoint">
-    <div class="endpoint-header">
-      <span class="method method-GET">GET</span>
-      <span class="endpoint-path">/api/v1/airdrop/:address</span>
-      <span class="auth-chip auth-claim">AIRDROP_ADMIN_KEY</span>
-    </div>
-    <div class="endpoint-body"><p style="color:var(--text2);margin-top:12px">Get airdrop allocation for a specific address.</p></div>
-  </div>
-  <div class="endpoint">
-    <div class="endpoint-header">
-      <span class="method method-PUT">PUT</span>
-      <span class="endpoint-path">/api/v1/airdrop/:address</span>
-      <span class="auth-chip auth-claim">AIRDROP_ADMIN_KEY</span>
-    </div>
-    <div class="endpoint-body"><p style="color:var(--text2);margin-top:12px">Create or update an airdrop allocation. Body: <code>{ votes, score, note? }</code></p></div>
-  </div>
-  <div class="endpoint">
-    <div class="endpoint-header">
-      <span class="method method-DELETE">DELETE</span>
-      <span class="endpoint-path">/api/v1/airdrop/:address</span>
-      <span class="auth-chip auth-claim">AIRDROP_ADMIN_KEY</span>
-    </div>
-    <div class="endpoint-body"><p style="color:var(--text2);margin-top:12px">Remove an airdrop allocation.</p></div>
   </div>
 </div>
 
