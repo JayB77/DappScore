@@ -13,7 +13,7 @@ import { getFeatureEnabled } from '@/lib/featureFlags';
 // ── Config ────────────────────────────────────────────────────────────────────
 
 const ADMIN_WALLET = '0x0cC77C9d660f2E7D10783014e0e3D510f7307A50'.toLowerCase();
-const API_BASE     = process.env.NEXT_PUBLIC_API_URL ?? '';
+const API_BASE     = process.env.NEXT_PUBLIC_API_URL ?? '/api';
 const CLAIM_KEY    = process.env.NEXT_PUBLIC_CLAIM_KEY ?? '';
 
 // ── Types ──────────────────────────────────────────────────────────────────────

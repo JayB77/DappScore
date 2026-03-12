@@ -93,7 +93,7 @@ async function fetchWhaleData(
   contractAddress: string,
   network: string,
 ): Promise<{ analysis: Analysis; recentLarge: Transfer[] }> {
-  const apiBase = process.env.NEXT_PUBLIC_API_URL ?? '';
+  const apiBase = process.env.NEXT_PUBLIC_API_URL ?? '/api';
 
   const [analysisRes, txRes] = await Promise.all([
     fetch(`${apiBase}/v1/whales/${contractAddress}/analysis?network=${network}`),

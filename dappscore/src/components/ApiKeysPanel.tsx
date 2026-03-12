@@ -3,8 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Key, Plus, RotateCw, Trash2, Copy, CheckCircle, Eye, EyeOff, AlertTriangle, Pencil } from 'lucide-react';
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? '';
-const API_CONFIGURED = !!API_BASE;
+const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? '/api';
 
 interface ApiKey {
   id: string;
@@ -76,7 +75,7 @@ export default function ApiKeysPanel({ walletAddress }: { walletAddress: string 
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [walletAddress]);
 
-  useEffect(() => { if (API_CONFIGURED) fetchKeys(); else setLoading(false); }, [fetchKeys]);
+  useEffect(() => { fetchKeys(); }, [fetchKeys]);
 
   async function handleCreate() {
     if (!createName.trim()) return;
@@ -178,18 +177,6 @@ export default function ApiKeysPanel({ walletAddress }: { walletAddress: string 
   }
 
   const activeKeys = keys.filter(k => k.active);
-
-  if (!API_CONFIGURED) {
-    return (
-      <div className="bg-gray-800 rounded-xl p-8 text-center">
-        <Key className="h-10 w-10 text-gray-600 mx-auto mb-3" />
-        <p className="font-semibold text-gray-300 mb-1">API not configured</p>
-        <p className="text-sm text-gray-500">
-          Set the <code className="bg-gray-700 px-1 py-0.5 rounded text-xs">NEXT_PUBLIC_API_URL</code> environment variable to your Firebase Functions base URL to enable API key management.
-        </p>
-      </div>
-    );
-  }
 
   return (
     <div className="space-y-6">
