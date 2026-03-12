@@ -194,7 +194,7 @@ export default function ApiKeysPanel({ walletAddress }: { walletAddress: string 
           </div>
           <div className="flex items-center gap-2 bg-gray-900 rounded-lg px-4 py-3 font-mono text-sm">
             <span className="flex-1 truncate text-green-400">
-              {showKey ? revealedKey.key : revealedKey.key.slice(0, 16) + '•'.repeat(24)}
+              {showKey ? revealedKey.key : revealedKey.key.slice(0, 20) + '•'.repeat(52)}
             </span>
             <button onClick={() => setShowKey(v => !v)} className="flex items-center gap-1.5 px-2 py-1 text-gray-400 hover:text-white text-xs shrink-0">
               {showKey ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
@@ -202,7 +202,7 @@ export default function ApiKeysPanel({ walletAddress }: { walletAddress: string 
             </button>
             <button onClick={() => copyToClipboard(revealedKey.key)} className="flex items-center gap-1.5 px-3 py-1 bg-yellow-500 text-black font-semibold rounded-lg hover:bg-yellow-400 text-xs shrink-0">
               {copiedKey ? <CheckCircle className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
-              {copiedKey ? 'Copied!' : 'Copy key'}
+              {copiedKey ? 'Copied!' : 'Copy'}
             </button>
           </div>
           <button
@@ -356,7 +356,7 @@ export default function ApiKeysPanel({ walletAddress }: { walletAddress: string 
                     <button
                       onClick={() => copyToClipboard(k.keyPrefix)}
                       className="font-mono hover:text-white flex items-center gap-1"
-                      title="Copy prefix"
+                      title="Copy"
                     >
                       {k.keyPrefix}… <Copy className="h-3 w-3 opacity-50" />
                     </button>

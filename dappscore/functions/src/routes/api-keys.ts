@@ -12,10 +12,10 @@ export type Permission = typeof VALID_PERMISSIONS[number];
 const MAX_KEYS_PER_USER = 10;
 
 function generateApiKey(): { key: string; hash: string; prefix: string } {
-  const raw = randomBytes(32).toString('hex'); // 64 hex chars = 256 bits
-  const key = `sk_test_${raw}`;
+  const raw = randomBytes(48).toString('base64url'); // 64 url-safe chars = 384 bits
+  const key = `sk_live_${raw}`;
   const hash = hashApiKey(key);
-  const prefix = key.slice(0, 16); // "sk_test_" + first 8 chars of random
+  const prefix = key.slice(0, 20); // "sk_live_" + first 12 chars of random
   return { key, hash, prefix };
 }
 
