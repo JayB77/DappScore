@@ -14,7 +14,7 @@ const tooManyRequests = (_req: Request, res: Response) => {
 export const apiKeyMgmtLimit = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 30,
-  keyGenerator: (req) => (req.headers['x-user-id'] as string) || req.ip || 'unknown',
+  keyGenerator: (req: Request) => (req.headers['x-user-id'] as string) || req.ip || 'unknown',
   handler: tooManyRequests,
   standardHeaders: true,
   legacyHeaders: false,
@@ -28,7 +28,7 @@ export const apiKeyMgmtLimit = rateLimit({
 export const apiKeyMutateLimit = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 10,
-  keyGenerator: (req) => (req.headers['x-user-id'] as string) || req.ip || 'unknown',
+  keyGenerator: (req: Request) => (req.headers['x-user-id'] as string) || req.ip || 'unknown',
   handler: tooManyRequests,
   standardHeaders: true,
   legacyHeaders: false,
@@ -41,7 +41,7 @@ export const apiKeyMutateLimit = rateLimit({
 export const globalLimit = rateLimit({
   windowMs: 60 * 1000,
   max: 300,
-  keyGenerator: (req) => req.ip || 'unknown',
+  keyGenerator: (req: Request) => req.ip || 'unknown',
   handler: tooManyRequests,
   standardHeaders: true,
   legacyHeaders: false,
