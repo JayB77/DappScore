@@ -1,10 +1,14 @@
 import { Router, Request, Response } from 'express';
-import { getFirestore, FieldValue } from 'firebase-admin/firestore';
+import { getFirestore, FieldValue, Timestamp } from 'firebase-admin/firestore';
 import { randomBytes } from 'crypto';
 import { requireUserId } from '../lib/auth';
 import { hashApiKey } from '../lib/api-key-auth';
+import { apiKeyMgmtLimit, apiKeyMutateLimit } from '../lib/rate-limit';
 
 const router = Router();
+
+// Apply rate limits to all management routes
+router.use(apiKeyMgmtLimit);
 
 export const VALID_PERMISSIONS = ['sale:write', 'webhooks:manage', 'data:read'] as const;
 export type Permission = typeof VALID_PERMISSIONS[number];
@@ -12,10 +16,10 @@ export type Permission = typeof VALID_PERMISSIONS[number];
 const MAX_KEYS_PER_USER = 10;
 
 function generateApiKey(): { key: string; hash: string; prefix: string } {
-  const raw = randomBytes(32).toString('hex'); // 64 hex chars = 256 bits
-  const key = `sk_test_${raw}`;
+  const raw = randomBytes(48).toString('base64url'); // 64 url-safe chars = 384 bits
+  const key = `sk_live_${raw}`;
   const hash = hashApiKey(key);
-  const prefix = key.slice(0, 16); // "sk_test_" + first 8 chars of random
+  const prefix = key.slice(0, 20); // "sk_live_" + first 12 chars of random
   return { key, hash, prefix };
 }
 
@@ -30,19 +34,35 @@ function formatDoc(id: string, d: FirebaseFirestore.DocumentData) {
     createdAt: d.createdAt?.toDate?.()?.toISOString() ?? null,
     lastUsedAt: d.lastUsedAt?.toDate?.()?.toISOString() ?? null,
     revokedAt: d.revokedAt?.toDate?.()?.toISOString() ?? null,
+    expiresAt: d.expiresAt?.toDate?.()?.toISOString() ?? null,
     usageCount: d.usageCount ?? 0,
   };
+}
+
+/** Parse an optional expiry input: ISO string or number of days. Returns a Date or null. */
+function parseExpiry(input: unknown): Date | null {
+  if (input === undefined || input === null) return null;
+  if (typeof input === 'number' && input > 0) {
+    const d = new Date();
+    d.setDate(d.getDate() + input);
+    return d;
+  }
+  if (typeof input === 'string') {
+    const d = new Date(input);
+    if (!isNaN(d.getTime()) && d > new Date()) return d;
+  }
+  return null;
 }
 
 // ── POST /api/v1/api-keys ─────────────────────────────────────────────────────
 // Create a new API key. The full key is returned ONCE — it is never stored in
 // plaintext and cannot be retrieved again.
 
-router.post('/', async (req: Request, res: Response) => {
+router.post('/', apiKeyMutateLimit, async (req: Request, res: Response) => {
   const ownerId = requireUserId(req, res);
   if (!ownerId) return;
 
-  const { name, projectId, permissions = ['sale:write'] } = req.body;
+  const { name, projectId, permissions = ['sale:write'], expiresIn } = req.body;
 
   if (!name || typeof name !== 'string' || !name.trim()) {
     res.status(400).json({ error: '`name` is required.' });
@@ -86,6 +106,8 @@ router.post('/', async (req: Request, res: Response) => {
 
     const { key, hash, prefix } = generateApiKey();
 
+    const expiresAt = parseExpiry(expiresIn);
+
     const docData: Record<string, unknown> = {
       keyHash: hash,
       keyPrefix: prefix,
@@ -96,6 +118,7 @@ router.post('/', async (req: Request, res: Response) => {
       createdAt: FieldValue.serverTimestamp(),
       lastUsedAt: null,
       revokedAt: null,
+      expiresAt: expiresAt ? Timestamp.fromDate(expiresAt) : null,
       usageCount: 0,
     };
     if (projectId) docData.projectId = projectId.trim();
@@ -114,6 +137,7 @@ router.post('/', async (req: Request, res: Response) => {
       createdAt: new Date().toISOString(),
       lastUsedAt: null,
       revokedAt: null,
+      expiresAt: expiresAt?.toISOString() ?? null,
       _warning: 'Save this key now — it will not be shown again.',
     });
   } catch (err) {
@@ -241,7 +265,7 @@ router.delete('/:keyId', async (req: Request, res: Response) => {
 // Atomically revoke the existing key and issue a new one with the same settings.
 // The new key is returned ONCE.
 
-router.post('/:keyId/rotate', async (req: Request, res: Response) => {
+router.post('/:keyId/rotate', apiKeyMutateLimit, async (req: Request, res: Response) => {
   const ownerId = requireUserId(req, res);
   if (!ownerId) return;
 

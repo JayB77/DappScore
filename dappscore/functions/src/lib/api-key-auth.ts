@@ -69,6 +69,16 @@ export function requireApiKey(permission?: string, projectParam?: string) {
 
       const doc = snap.docs[0];
       const d = doc.data();
+
+      // Check expiry
+      if (d.expiresAt) {
+        const expiresAt: Date = d.expiresAt.toDate();
+        if (expiresAt < new Date()) {
+          res.status(403).json({ error: 'API key has expired.' });
+          return;
+        }
+      }
+
       const keyData: ApiKeyData = {
         id: doc.id,
         keyPrefix: d.keyPrefix,

@@ -15,6 +15,7 @@ interface ApiKey {
   createdAt: string | null;
   lastUsedAt: string | null;
   revokedAt: string | null;
+  expiresAt: string | null;
   usageCount: number;
 }
 
@@ -35,6 +36,7 @@ export default function ApiKeysPanel({ walletAddress }: { walletAddress: string 
   const [createName, setCreateName] = useState('');
   const [createProjectId, setCreateProjectId] = useState('');
   const [createPermissions, setCreatePermissions] = useState<string[]>(['sale:write']);
+  const [createExpiresIn, setCreateExpiresIn] = useState<number | null>(null);
   const [creating, setCreating] = useState(false);
 
   // Newly created key shown once
@@ -84,6 +86,7 @@ export default function ApiKeysPanel({ walletAddress }: { walletAddress: string 
     try {
       const body: Record<string, unknown> = { name: createName.trim(), permissions: createPermissions };
       if (createProjectId.trim()) body.projectId = createProjectId.trim();
+      if (createExpiresIn !== null) body.expiresIn = createExpiresIn;
       const res = await fetch(`${API_BASE}/v1/api-keys`, {
         method: 'POST',
         headers,
@@ -98,6 +101,7 @@ export default function ApiKeysPanel({ walletAddress }: { walletAddress: string 
       setCreateName('');
       setCreateProjectId('');
       setCreatePermissions(['sale:write']);
+      setCreateExpiresIn(null);
       await fetchKeys();
     } catch (e) {
       setError((e as Error).message);
@@ -194,7 +198,7 @@ export default function ApiKeysPanel({ walletAddress }: { walletAddress: string 
           </div>
           <div className="flex items-center gap-2 bg-gray-900 rounded-lg px-4 py-3 font-mono text-sm">
             <span className="flex-1 truncate text-green-400">
-              {showKey ? revealedKey.key : revealedKey.key.slice(0, 16) + '•'.repeat(24)}
+              {showKey ? revealedKey.key : revealedKey.key.slice(0, 20) + '•'.repeat(52)}
             </span>
             <button onClick={() => setShowKey(v => !v)} className="flex items-center gap-1.5 px-2 py-1 text-gray-400 hover:text-white text-xs shrink-0">
               {showKey ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
@@ -202,7 +206,7 @@ export default function ApiKeysPanel({ walletAddress }: { walletAddress: string 
             </button>
             <button onClick={() => copyToClipboard(revealedKey.key)} className="flex items-center gap-1.5 px-3 py-1 bg-yellow-500 text-black font-semibold rounded-lg hover:bg-yellow-400 text-xs shrink-0">
               {copiedKey ? <CheckCircle className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
-              {copiedKey ? 'Copied!' : 'Copy key'}
+              {copiedKey ? 'Copied!' : 'Copy'}
             </button>
           </div>
           <button
@@ -288,6 +292,22 @@ export default function ApiKeysPanel({ walletAddress }: { walletAddress: string 
                 className="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 text-sm font-mono focus:border-yellow-500 focus:outline-none"
               />
             </div>
+            <div>
+              <label className="block text-sm text-gray-400 mb-1">
+                Expiry <span className="text-gray-500">(optional)</span>
+              </label>
+              <select
+                value={createExpiresIn ?? ''}
+                onChange={e => setCreateExpiresIn(e.target.value ? Number(e.target.value) : null)}
+                className="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 text-sm focus:border-yellow-500 focus:outline-none"
+              >
+                <option value="">Never expires</option>
+                <option value="30">30 days</option>
+                <option value="90">90 days</option>
+                <option value="180">180 days</option>
+                <option value="365">1 year</option>
+              </select>
+            </div>
             <div className="flex gap-3">
               <button
                 onClick={handleCreate}
@@ -356,7 +376,7 @@ export default function ApiKeysPanel({ walletAddress }: { walletAddress: string 
                     <button
                       onClick={() => copyToClipboard(k.keyPrefix)}
                       className="font-mono hover:text-white flex items-center gap-1"
-                      title="Copy prefix"
+                      title="Copy"
                     >
                       {k.keyPrefix}… <Copy className="h-3 w-3 opacity-50" />
                     </button>
@@ -369,6 +389,13 @@ export default function ApiKeysPanel({ walletAddress }: { walletAddress: string 
                   </div>
                   <div className="text-xs text-gray-500 mt-1">
                     Created {formatDate(k.createdAt)} · Last used {formatDate(k.lastUsedAt)} · {k.usageCount} calls
+                    {k.expiresAt && (
+                      <span className={new Date(k.expiresAt) < new Date() ? ' · ' : ' · Expires '}>
+                        <span className={new Date(k.expiresAt) < new Date() ? 'text-red-400' : 'text-yellow-500'}>
+                          {new Date(k.expiresAt) < new Date() ? 'Expired' : formatDate(k.expiresAt)}
+                        </span>
+                      </span>
+                    )}
                   </div>
                 </div>
 
