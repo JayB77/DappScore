@@ -1,0 +1,2076 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DappScore API Documentation</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --bg:#0f1117;--bg2:#161b27;--bg3:#1e2535;--border:#2a3245;
+  --text:#e2e8f0;--text2:#94a3b8;--accent:#6366f1;--accent2:#818cf8;
+  --green:#10b981;--yellow:#f59e0b;--red:#ef4444;--orange:#f97316;
+  --blue:#3b82f6;--purple:#a855f7;
+}
+body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;display:flex;min-height:100vh;font-size:14px}
+a{color:var(--accent2);text-decoration:none}
+a:hover{text-decoration:underline}
+code{font-family:'Fira Code','Cascadia Code',monospace;font-size:13px}
+
+/* SIDEBAR */
+#sidebar{width:280px;min-width:280px;background:var(--bg2);border-right:1px solid var(--border);height:100vh;overflow-y:auto;position:sticky;top:0;padding:0 0 40px}
+#sidebar::-webkit-scrollbar{width:4px}
+#sidebar::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px}
+.sidebar-header{padding:24px 20px 16px;border-bottom:1px solid var(--border);margin-bottom:8px}
+.sidebar-header h1{font-size:18px;font-weight:700;color:var(--text)}
+.sidebar-header .version{font-size:11px;color:var(--text2);background:var(--bg3);padding:2px 8px;border-radius:10px;display:inline-block;margin-top:4px}
+.nav-section{padding:4px 0}
+.nav-section-title{padding:8px 20px 4px;font-size:11px;font-weight:600;color:var(--text2);text-transform:uppercase;letter-spacing:.08em}
+.nav-link{display:block;padding:6px 20px;color:var(--text2);font-size:13px;border-left:2px solid transparent;transition:all .15s}
+.nav-link:hover{color:var(--text);background:var(--bg3);text-decoration:none}
+.nav-link.active{color:var(--accent2);border-left-color:var(--accent);background:rgba(99,102,241,.08)}
+.nav-link .method-badge{font-size:10px;font-weight:700;padding:1px 5px;border-radius:3px;margin-right:6px;font-family:monospace}
+.badge-get{background:rgba(16,185,129,.15);color:var(--green)}
+.badge-post{background:rgba(245,158,11,.15);color:var(--yellow)}
+.badge-put{background:rgba(59,130,246,.15);color:var(--blue)}
+.badge-delete{background:rgba(239,68,68,.15);color:var(--red)}
+.badge-patch{background:rgba(168,85,247,.15);color:var(--purple)}
+
+/* MAIN */
+#main{flex:1;overflow-y:auto;padding:40px 48px;max-width:900px}
+#main::-webkit-scrollbar{width:4px}
+#main::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px}
+
+/* PAGE HEADER */
+.page-hero{margin-bottom:48px;padding-bottom:32px;border-bottom:1px solid var(--border)}
+.page-hero h1{font-size:36px;font-weight:800;margin-bottom:12px;background:linear-gradient(135deg,var(--accent2),var(--purple));-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.page-hero p{color:var(--text2);font-size:15px;line-height:1.7;max-width:620px}
+.base-url-box{display:inline-flex;align-items:center;gap:10px;background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:10px 16px;margin-top:16px;font-family:monospace;font-size:13px}
+.base-url-box .label{color:var(--text2);font-size:11px;font-weight:600;text-transform:uppercase}
+
+/* SECTIONS */
+.section{margin-bottom:56px}
+.section-title{font-size:24px;font-weight:700;margin-bottom:8px;display:flex;align-items:center;gap:10px}
+.section-title .icon{font-size:20px}
+.section-desc{color:var(--text2);line-height:1.6;margin-bottom:24px}
+hr.section-hr{border:none;border-top:1px solid var(--border);margin:48px 0}
+
+/* ENDPOINT CARDS */
+.endpoint{background:var(--bg2);border:1px solid var(--border);border-radius:10px;margin-bottom:16px;overflow:hidden}
+.endpoint-header{display:flex;align-items:center;gap:12px;padding:14px 18px;cursor:pointer;user-select:none;transition:background .15s}
+.endpoint-header:hover{background:var(--bg3)}
+.method{font-family:monospace;font-size:12px;font-weight:700;padding:3px 8px;border-radius:5px;min-width:54px;text-align:center;flex-shrink:0}
+.method-GET{background:rgba(16,185,129,.15);color:var(--green);border:1px solid rgba(16,185,129,.3)}
+.method-POST{background:rgba(245,158,11,.15);color:var(--yellow);border:1px solid rgba(245,158,11,.3)}
+.method-PUT{background:rgba(59,130,246,.15);color:var(--blue);border:1px solid rgba(59,130,246,.3)}
+.method-DELETE{background:rgba(239,68,68,.15);color:var(--red);border:1px solid rgba(239,68,68,.3)}
+.method-PATCH{background:rgba(168,85,247,.15);color:var(--purple);border:1px solid rgba(168,85,247,.3)}
+.endpoint-path{font-family:monospace;font-size:14px;font-weight:500;color:var(--text)}
+.endpoint-desc{margin-left:auto;color:var(--text2);font-size:13px}
+.endpoint-body{padding:0 18px 18px;border-top:1px solid var(--border)}
+
+/* PARAM TABLES */
+.params-section{margin-top:16px}
+.params-label{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.08em;color:var(--text2);margin-bottom:8px}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th{text-align:left;padding:8px 12px;background:var(--bg3);color:var(--text2);font-weight:600;font-size:11px;text-transform:uppercase;letter-spacing:.06em;border-bottom:1px solid var(--border)}
+td{padding:8px 12px;border-bottom:1px solid rgba(42,50,69,.5);vertical-align:top}
+tr:last-child td{border-bottom:none}
+.param-name{font-family:monospace;color:var(--accent2)}
+.param-required{color:var(--red);font-size:11px;font-weight:600}
+.param-optional{color:var(--text2);font-size:11px}
+.param-type{font-family:monospace;font-size:12px;color:var(--purple)}
+.param-desc{color:var(--text2)}
+
+/* CODE BLOCKS */
+.code-block{background:#0a0d14;border:1px solid var(--border);border-radius:8px;overflow:hidden;margin-top:12px}
+.code-header{display:flex;align-items:center;justify-content:space-between;padding:8px 14px;background:var(--bg3);border-bottom:1px solid var(--border);font-size:11px;font-weight:600;color:var(--text2);text-transform:uppercase}
+.code-body{padding:14px;overflow-x:auto;line-height:1.6}
+.code-body pre{font-family:'Fira Code','Cascadia Code',monospace;font-size:12px;color:var(--text)}
+.k{color:#f92672}.s{color:#a6e22e}.n{color:#66d9ef}.v{color:#ae81ff}.c{color:#75715e}
+
+/* AUTH CHIPS */
+.auth-chip{display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:600;padding:3px 8px;border-radius:12px;margin-left:auto;flex-shrink:0}
+.auth-none{background:rgba(148,163,184,.1);color:var(--text2)}
+.auth-user{background:rgba(99,102,241,.15);color:var(--accent2)}
+.auth-admin{background:rgba(239,68,68,.15);color:var(--red)}
+.auth-apikey{background:rgba(245,158,11,.15);color:var(--yellow)}
+.auth-claim{background:rgba(168,85,247,.15);color:var(--purple)}
+
+/* ALERTS */
+.alert{display:flex;gap:10px;padding:12px 14px;border-radius:8px;margin:12px 0;font-size:13px;line-height:1.5}
+.alert-info{background:rgba(59,130,246,.1);border:1px solid rgba(59,130,246,.2);color:#93c5fd}
+.alert-warn{background:rgba(245,158,11,.1);border:1px solid rgba(245,158,11,.2);color:#fcd34d}
+.alert-success{background:rgba(16,185,129,.1);border:1px solid rgba(16,185,129,.2);color:#6ee7b7}
+
+/* TAGS */
+.tag{display:inline-block;font-size:11px;padding:2px 8px;border-radius:4px;margin:2px;font-family:monospace}
+.tag-cached{background:rgba(16,185,129,.1);color:var(--green);border:1px solid rgba(16,185,129,.2)}
+
+/* RESPONSIVE */
+@media(max-width:768px){#sidebar{display:none}#main{padding:20px}}
+</style>
+</head>
+<body>
+<!-- SIDEBAR -->
+<nav id="sidebar">
+  <div class="sidebar-header">
+    <h1>DappScore API</h1>
+    <span class="version">v1.0</span>
+  </div>
+  <div class="nav-section">
+    <div class="nav-section-title">Overview</div>
+    <a class="nav-link" href="#intro">Introduction</a>
+    <a class="nav-link" href="#authentication">Authentication</a>
+    <a class="nav-link" href="#errors">Errors &amp; Rate Limits</a>
+    <a class="nav-link" href="#base-urls">Base URLs</a>
+  </div>
+  <div class="nav-section">
+    <div class="nav-section-title">Projects</div>
+    <a class="nav-link" href="#projects-list"><span class="method-badge badge-get">GET</span>List Projects</a>
+    <a class="nav-link" href="#projects-get"><span class="method-badge badge-get">GET</span>Get Project</a>
+    <a class="nav-link" href="#projects-trending"><span class="method-badge badge-get">GET</span>Trending</a>
+    <a class="nav-link" href="#projects-similar"><span class="method-badge badge-get">GET</span>Similar</a>
+    <a class="nav-link" href="#projects-votes"><span class="method-badge badge-get">GET</span>Votes</a>
+    <a class="nav-link" href="#projects-trust-history"><span class="method-badge badge-get">GET</span>Trust History</a>
+    <a class="nav-link" href="#projects-sale-get"><span class="method-badge badge-get">GET</span>Sale Data</a>
+    <a class="nav-link" href="#projects-sale-post"><span class="method-badge badge-post">POST</span>Set Sale Data</a>
+  </div>
+  <div class="nav-section">
+    <div class="nav-section-title">Users</div>
+    <a class="nav-link" href="#users-get"><span class="method-badge badge-get">GET</span>Get User</a>
+    <a class="nav-link" href="#users-votes"><span class="method-badge badge-get">GET</span>User Votes</a>
+    <a class="nav-link" href="#users-accuracy"><span class="method-badge badge-get">GET</span>Accuracy</a>
+    <a class="nav-link" href="#users-earnings"><span class="method-badge badge-get">GET</span>Earnings</a>
+    <a class="nav-link" href="#users-reputation"><span class="method-badge badge-get">GET</span>Reputation</a>
+    <a class="nav-link" href="#users-referrals"><span class="method-badge badge-get">GET</span>Referrals</a>
+    <a class="nav-link" href="#users-leaderboard"><span class="method-badge badge-get">GET</span>Leaderboard</a>
+  </div>
+  <div class="nav-section">
+    <div class="nav-section-title">Stats</div>
+    <a class="nav-link" href="#stats-global"><span class="method-badge badge-get">GET</span>Global Stats</a>
+    <a class="nav-link" href="#stats-daily"><span class="method-badge badge-get">GET</span>Daily Stats</a>
+    <a class="nav-link" href="#stats-token"><span class="method-badge badge-get">GET</span>Token Stats</a>
+    <a class="nav-link" href="#stats-insurance"><span class="method-badge badge-get">GET</span>Insurance Pool</a>
+    <a class="nav-link" href="#stats-predictions"><span class="method-badge badge-get">GET</span>Predictions</a>
+    <a class="nav-link" href="#stats-bounties"><span class="method-badge badge-get">GET</span>Bounties</a>
+  </div>
+  <div class="nav-section">
+    <div class="nav-section-title">Scam Detection</div>
+    <a class="nav-link" href="#scam-patterns"><span class="method-badge badge-get">GET</span>Patterns</a>
+    <a class="nav-link" href="#scam-analyze"><span class="method-badge badge-post">POST</span>Analyze Contract</a>
+    <a class="nav-link" href="#scam-tokenomics"><span class="method-badge badge-post">POST</span>Tokenomics</a>
+    <a class="nav-link" href="#scam-batch"><span class="method-badge badge-post">POST</span>Batch Analyze</a>
+    <a class="nav-link" href="#scam-report"><span class="method-badge badge-post">POST</span>Submit Report</a>
+  </div>
+  <div class="nav-section">
+    <div class="nav-section-title">Whale Tracking</div>
+    <a class="nav-link" href="#whales-list"><span class="method-badge badge-get">GET</span>Token Whales</a>
+    <a class="nav-link" href="#whales-txns"><span class="method-badge badge-get">GET</span>Transactions</a>
+    <a class="nav-link" href="#whales-analysis"><span class="method-badge badge-get">GET</span>Analysis</a>
+    <a class="nav-link" href="#whales-alerts"><span class="method-badge badge-get">GET</span>Whale Alerts</a>
+    <a class="nav-link" href="#whales-wallet"><span class="method-badge badge-get">GET</span>Wallet Info</a>
+    <a class="nav-link" href="#whales-track"><span class="method-badge badge-post">POST</span>Track Token</a>
+    <a class="nav-link" href="#whales-price"><span class="method-badge badge-post">POST</span>Update Price</a>
+    <a class="nav-link" href="#whales-label"><span class="method-badge badge-post">POST</span>Label Wallet</a>
+  </div>
+  <div class="nav-section">
+    <div class="nav-section-title">Alerts</div>
+    <a class="nav-link" href="#alerts-list"><span class="method-badge badge-get">GET</span>List Alerts</a>
+    <a class="nav-link" href="#alerts-count"><span class="method-badge badge-get">GET</span>Unread Count</a>
+    <a class="nav-link" href="#alerts-prefs-get"><span class="method-badge badge-get">GET</span>Preferences</a>
+    <a class="nav-link" href="#alerts-prefs-put"><span class="method-badge badge-put">PUT</span>Update Prefs</a>
+    <a class="nav-link" href="#alerts-read"><span class="method-badge badge-post">POST</span>Mark Read</a>
+    <a class="nav-link" href="#alerts-read-all"><span class="method-badge badge-post">POST</span>Mark All Read</a>
+    <a class="nav-link" href="#alerts-delete"><span class="method-badge badge-delete">DEL</span>Delete Alert</a>
+  </div>
+  <div class="nav-section">
+    <div class="nav-section-title">Webhooks</div>
+    <a class="nav-link" href="#webhooks-list"><span class="method-badge badge-get">GET</span>List Webhooks</a>
+    <a class="nav-link" href="#webhooks-register"><span class="method-badge badge-post">POST</span>Register</a>
+    <a class="nav-link" href="#webhooks-update"><span class="method-badge badge-put">PUT</span>Update</a>
+    <a class="nav-link" href="#webhooks-delete"><span class="method-badge badge-delete">DEL</span>Delete</a>
+    <a class="nav-link" href="#webhooks-test"><span class="method-badge badge-post">POST</span>Test</a>
+    <a class="nav-link" href="#webhooks-logs"><span class="method-badge badge-get">GET</span>Logs</a>
+    <a class="nav-link" href="#webhooks-rotate"><span class="method-badge badge-post">POST</span>Rotate Secret</a>
+  </div>
+  <div class="nav-section">
+    <div class="nav-section-title">API Keys</div>
+    <a class="nav-link" href="#apikeys-create"><span class="method-badge badge-post">POST</span>Create Key</a>
+    <a class="nav-link" href="#apikeys-list"><span class="method-badge badge-get">GET</span>List Keys</a>
+    <a class="nav-link" href="#apikeys-get"><span class="method-badge badge-get">GET</span>Get Key</a>
+    <a class="nav-link" href="#apikeys-rename"><span class="method-badge badge-patch">PATCH</span>Rename</a>
+    <a class="nav-link" href="#apikeys-revoke"><span class="method-badge badge-delete">DEL</span>Revoke</a>
+    <a class="nav-link" href="#apikeys-rotate"><span class="method-badge badge-post">POST</span>Rotate</a>
+  </div>
+  <div class="nav-section">
+    <div class="nav-section-title">Allocations</div>
+    <a class="nav-link" href="#claim">Claim Allocations</a>
+    <a class="nav-link" href="#airdrop">Airdrop Allocations</a>
+  </div>
+  <div class="nav-section">
+    <div class="nav-section-title">Admin</div>
+    <a class="nav-link" href="#admin-flags">Feature Flags</a>
+    <a class="nav-link" href="#admin-overrides">Project Overrides</a>
+    <a class="nav-link" href="#admin-reports">Scam Reports</a>
+    <a class="nav-link" href="#admin-cache">Cache Management</a>
+    <a class="nav-link" href="#admin-audit">Audit Log</a>
+    <a class="nav-link" href="#admin-health">Health Check</a>
+  </div>
+  <div class="nav-section">
+    <div class="nav-section-title">Share</div>
+    <a class="nav-link" href="#share">Share Cards</a>
+  </div>
+</nav>
+<!-- MAIN CONTENT -->
+<main id="main">
+
+<!-- HERO -->
+<div class="page-hero">
+  <h1>DappScore API</h1>
+  <p>The DappScore API provides real-time access to trust scores, scam detection, whale tracking, prediction markets, and community voting data across all supported blockchain networks.</p>
+  <div class="base-url-box">
+    <span class="label">Firebase</span>
+    <code>https://us-central1-&lt;project&gt;.cloudfunctions.net/api/v1</code>
+  </div>
+  <br>
+  <div class="base-url-box">
+    <span class="label">Express (Local)</span>
+    <code>http://localhost:3001/api</code>
+  </div>
+</div>
+
+<!-- INTRO -->
+<div class="section" id="intro">
+  <h2 class="section-title"><span class="icon">📖</span>Introduction</h2>
+  <p class="section-desc">All API responses are JSON. Successful responses follow a consistent envelope format. Paginated endpoints include a <code>pagination</code> object.</p>
+  <div class="code-block">
+    <div class="code-header">Success Response</div>
+    <div class="code-body"><pre>{
+  <span class="k">"success"</span>: <span class="v">true</span>,
+  <span class="k">"data"</span>: { <span class="c">/* response payload */</span> },
+  <span class="k">"message"</span>: <span class="s">"Optional human-readable message"</span>
+}</pre></div>
+  </div>
+  <div class="code-block">
+    <div class="code-header">Error Response</div>
+    <div class="code-body"><pre>{
+  <span class="k">"success"</span>: <span class="v">false</span>,
+  <span class="k">"error"</span>: <span class="s">"Human-readable error description"</span>,
+  <span class="k">"details"</span>: { <span class="c">/* optional extra context */</span> }
+}</pre></div>
+  </div>
+  <div class="code-block">
+    <div class="code-header">Paginated Response</div>
+    <div class="code-body"><pre>{
+  <span class="k">"data"</span>: [ <span class="c">/* array of items */</span> ],
+  <span class="k">"pagination"</span>: {
+    <span class="k">"page"</span>: <span class="v">1</span>,
+    <span class="k">"limit"</span>: <span class="v">20</span>,
+    <span class="k">"total"</span>: <span class="v">450</span>,
+    <span class="k">"pages"</span>: <span class="v">23</span>
+  }
+}</pre></div>
+  </div>
+</div>
+
+<hr class="section-hr">
+
+<!-- AUTHENTICATION -->
+<div class="section" id="authentication">
+  <h2 class="section-title"><span class="icon">🔐</span>Authentication</h2>
+  <p class="section-desc">Different endpoint groups use different authentication methods. Public endpoints require no auth. All others use one of the schemes below.</p>
+
+  <table style="margin-bottom:20px">
+    <thead><tr><th>Method</th><th>Header</th><th>Used For</th></tr></thead>
+    <tbody>
+      <tr><td><span class="auth-chip auth-none">None</span></td><td>—</td><td>Projects, Users, Stats, Scam patterns (read-only public data)</td></tr>
+      <tr><td><span class="auth-chip auth-user">User ID</span></td><td><code>x-user-id: &lt;wallet-address&gt;</code></td><td>Alerts, Webhooks, API Keys (user-scoped actions)</td></tr>
+      <tr><td><span class="auth-chip auth-apikey">API Key</span></td><td><code>Authorization: Bearer sk_live_...</code></td><td>Sale data writes and scoped programmatic access</td></tr>
+      <tr><td><span class="auth-chip auth-admin">Admin Key</span></td><td><code>Authorization: Bearer &lt;ADMIN_API_KEY&gt;</code></td><td>Feature flags, overrides, cache, reports, audit</td></tr>
+      <tr><td><span class="auth-chip auth-claim">Claim/Airdrop</span></td><td><code>Authorization: Bearer &lt;CLAIM_ADMIN_KEY&gt;</code></td><td>Claim &amp; Airdrop allocation management</td></tr>
+    </tbody>
+  </table>
+
+  <div class="alert alert-warn">⚠️ API keys are only shown once at creation. Store them securely — they cannot be retrieved again. Use <code>/api-keys/:id/rotate</code> to issue a new key if lost.</div>
+</div>
+
+<hr class="section-hr">
+
+<!-- ERRORS -->
+<div class="section" id="errors">
+  <h2 class="section-title"><span class="icon">⚡</span>Errors &amp; Rate Limits</h2>
+  <table style="margin-bottom:20px">
+    <thead><tr><th>HTTP Status</th><th>Meaning</th></tr></thead>
+    <tbody>
+      <tr><td><code>200</code></td><td>Success</td></tr>
+      <tr><td><code>400</code></td><td>Bad Request — missing or invalid parameters</td></tr>
+      <tr><td><code>401</code></td><td>Unauthorized — missing or invalid auth header</td></tr>
+      <tr><td><code>403</code></td><td>Forbidden — insufficient permissions</td></tr>
+      <tr><td><code>404</code></td><td>Not Found — resource does not exist</td></tr>
+      <tr><td><code>429</code></td><td>Rate Limited — slow down requests</td></tr>
+      <tr><td><code>500</code></td><td>Internal Server Error</td></tr>
+    </tbody>
+  </table>
+  <div class="alert alert-info">ℹ️ The Firebase Functions backend caches many read endpoints. Cache TTLs are noted per endpoint with a <span class="tag tag-cached">cached Xs</span> badge.</div>
+</div>
+
+<hr class="section-hr">
+
+<!-- BASE URLS -->
+<div class="section" id="base-urls">
+  <h2 class="section-title"><span class="icon">🌐</span>Base URLs</h2>
+  <table>
+    <thead><tr><th>Environment</th><th>Base URL</th><th>Notes</th></tr></thead>
+    <tbody>
+      <tr><td>Firebase (Production)</td><td><code>https://us-central1-&lt;project&gt;.cloudfunctions.net/api/v1</code></td><td>Deployed Cloud Function, min 1 instance, 256MB, 60s timeout</td></tr>
+      <tr><td>Express (Local Dev)</td><td><code>http://localhost:3001/api</code></td><td>Direct Express server, no <code>/v1</code> prefix</td></tr>
+    </tbody>
+  </table>
+  <div class="alert alert-info">ℹ️ All endpoint paths below use <code>/api/v1/...</code> (Firebase). For local Express dev, strip <code>/v1</code> — e.g. <code>/api/v1/projects</code> → <code>/api/projects</code>.</div>
+</div>
+
+<hr class="section-hr">
+<!-- PROJECTS -->
+<div class="section" id="projects">
+  <h2 class="section-title"><span class="icon">🏗️</span>Projects</h2>
+  <p class="section-desc">Read-only endpoints for browsing, searching, and retrieving DApp/project data including trust scores, votes, and trust history.</p>
+
+  <!-- List Projects -->
+  <div class="endpoint" id="projects-list">
+    <div class="endpoint-header">
+      <span class="method method-GET">GET</span>
+      <span class="endpoint-path">/api/v1/projects</span>
+      <span class="tag tag-cached">cached 30s</span>
+      <span class="auth-chip auth-none">No Auth</span>
+    </div>
+    <div class="endpoint-body">
+      <p style="color:var(--text2);margin-top:12px">Search and filter the full project index. Supports full-text search, category/chain filtering, trust level filtering, and sorting.</p>
+      <div class="params-section">
+        <div class="params-label">Query Parameters</div>
+        <table>
+          <thead><tr><th>Param</th><th>Type</th><th>Default</th><th>Description</th></tr></thead>
+          <tbody>
+            <tr><td><span class="param-name">query</span></td><td><span class="param-type">string</span></td><td>—</td><td class="param-desc">Full-text search across project name, description, address</td></tr>
+            <tr><td><span class="param-name">category</span></td><td><span class="param-type">string</span></td><td>—</td><td class="param-desc">Filter by category (e.g. <code>defi</code>, <code>nft</code>, <code>gaming</code>)</td></tr>
+            <tr><td><span class="param-name">chain</span></td><td><span class="param-type">string</span></td><td>—</td><td class="param-desc">Filter by chain (e.g. <code>ethereum</code>, <code>polygon</code>, <code>solana</code>)</td></tr>
+            <tr><td><span class="param-name">trustLevel</span></td><td><span class="param-type">0–5</span></td><td>—</td><td class="param-desc">Filter by minimum trust level (0 = unrated, 5 = highest trust)</td></tr>
+            <tr><td><span class="param-name">status</span></td><td><span class="param-type">string</span></td><td>—</td><td class="param-desc">Filter by project status</td></tr>
+            <tr><td><span class="param-name">sortBy</span></td><td><span class="param-type">string</span></td><td>—</td><td class="param-desc"><code>trustScore</code> | <code>votes</code> | <code>newest</code> | <code>endingSoon</code></td></tr>
+            <tr><td><span class="param-name">page</span></td><td><span class="param-type">integer</span></td><td>1</td><td class="param-desc">Page number</td></tr>
+            <tr><td><span class="param-name">limit</span></td><td><span class="param-type">integer</span></td><td>20</td><td class="param-desc">Results per page (1–100)</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="code-block">
+        <div class="code-header">Example Request</div>
+        <div class="code-body"><pre>GET /api/v1/projects?query=uniswap&chain=ethereum&sortBy=trustScore&limit=10</pre></div>
+      </div>
+      <div class="code-block">
+        <div class="code-header">Example Response</div>
+        <div class="code-body"><pre>{
+  <span class="k">"data"</span>: [
+    {
+      <span class="k">"id"</span>: <span class="s">"0xabc...123"</span>,
+      <span class="k">"name"</span>: <span class="s">"Uniswap V3"</span>,
+      <span class="k">"chain"</span>: <span class="s">"ethereum"</span>,
+      <span class="k">"category"</span>: <span class="s">"defi"</span>,
+      <span class="k">"trustScore"</span>: <span class="v">94</span>,
+      <span class="k">"trustLevel"</span>: <span class="v">5</span>,
+      <span class="k">"votes"</span>: <span class="v">12480</span>,
+      <span class="k">"status"</span>: <span class="s">"active"</span>
+    }
+  ],
+  <span class="k">"pagination"</span>: { <span class="k">"page"</span>: <span class="v">1</span>, <span class="k">"limit"</span>: <span class="v">10</span>, <span class="k">"total"</span>: <span class="v">842</span>, <span class="k">"pages"</span>: <span class="v">85</span> }
+}</pre></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Get Project -->
+  <div class="endpoint" id="projects-get">
+    <div class="endpoint-header">
+      <span class="method method-GET">GET</span>
+      <span class="endpoint-path">/api/v1/projects/:id</span>
+      <span class="tag tag-cached">cached 60s</span>
+      <span class="auth-chip auth-none">No Auth</span>
+    </div>
+    <div class="endpoint-body">
+      <p style="color:var(--text2);margin-top:12px">Fetch full detail for a single project by contract address or project ID.</p>
+      <div class="params-section">
+        <div class="params-label">Path Parameters</div>
+        <table>
+          <thead><tr><th>Param</th><th>Type</th><th>Description</th></tr></thead>
+          <tbody><tr><td><span class="param-name">id</span></td><td><span class="param-type">string</span></td><td class="param-desc">Contract address or project ID</td></tr></tbody>
+        </table>
+      </div>
+      <div class="code-block">
+        <div class="code-header">Example Response</div>
+        <div class="code-body"><pre>{
+  <span class="k">"data"</span>: {
+    <span class="k">"id"</span>: <span class="s">"0xabc...123"</span>,
+    <span class="k">"name"</span>: <span class="s">"Uniswap V3"</span>,
+    <span class="k">"description"</span>: <span class="s">"Decentralized exchange protocol"</span>,
+    <span class="k">"chain"</span>: <span class="s">"ethereum"</span>,
+    <span class="k">"category"</span>: <span class="s">"defi"</span>,
+    <span class="k">"contractAddress"</span>: <span class="s">"0xabc...123"</span>,
+    <span class="k">"trustScore"</span>: <span class="v">94</span>,
+    <span class="k">"trustLevel"</span>: <span class="v">5</span>,
+    <span class="k">"votes"</span>: <span class="v">12480</span>,
+    <span class="k">"positiveVotes"</span>: <span class="v">11800</span>,
+    <span class="k">"negativeVotes"</span>: <span class="v">680</span>,
+    <span class="k">"verified"</span>: <span class="v">true</span>,
+    <span class="k">"scamFlag"</span>: <span class="v">false</span>,
+    <span class="k">"website"</span>: <span class="s">"https://uniswap.org"</span>,
+    <span class="k">"twitter"</span>: <span class="s">"@Uniswap"</span>,
+    <span class="k">"createdAt"</span>: <span class="s">"2024-01-15T10:30:00Z"</span>
+  }
+}</pre></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Trending -->
+  <div class="endpoint" id="projects-trending">
+    <div class="endpoint-header">
+      <span class="method method-GET">GET</span>
+      <span class="endpoint-path">/api/v1/projects/trending</span>
+      <span class="tag tag-cached">cached 60s</span>
+      <span class="auth-chip auth-none">No Auth</span>
+    </div>
+    <div class="endpoint-body">
+      <p style="color:var(--text2);margin-top:12px">Returns projects with the highest vote velocity in the given timeframe.</p>
+      <div class="params-section">
+        <div class="params-label">Query Parameters</div>
+        <table>
+          <thead><tr><th>Param</th><th>Type</th><th>Default</th><th>Description</th></tr></thead>
+          <tbody>
+            <tr><td><span class="param-name">timeframe</span></td><td><span class="param-type">string</span></td><td>24h</td><td class="param-desc"><code>24h</code> or <code>7d</code></td></tr>
+            <tr><td><span class="param-name">limit</span></td><td><span class="param-type">integer</span></td><td>10</td><td class="param-desc">Max results (up to 50)</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- Similar -->
+  <div class="endpoint" id="projects-similar">
+    <div class="endpoint-header">
+      <span class="method method-GET">GET</span>
+      <span class="endpoint-path">/api/v1/projects/similar/:address</span>
+      <span class="tag tag-cached">cached 300s</span>
+      <span class="auth-chip auth-none">No Auth</span>
+    </div>
+    <div class="endpoint-body">
+      <p style="color:var(--text2);margin-top:12px">Returns projects similar to the given contract address based on category, chain, and trust profile.</p>
+      <div class="params-section">
+        <div class="params-label">Path Parameters</div>
+        <table>
+          <thead><tr><th>Param</th><th>Type</th><th>Description</th></tr></thead>
+          <tbody><tr><td><span class="param-name">address</span></td><td><span class="param-type">string</span></td><td class="param-desc">EVM contract address</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- Project Votes -->
+  <div class="endpoint" id="projects-votes">
+    <div class="endpoint-header">
+      <span class="method method-GET">GET</span>
+      <span class="endpoint-path">/api/v1/projects/:id/votes</span>
+      <span class="auth-chip auth-none">No Auth</span>
+    </div>
+    <div class="endpoint-body">
+      <p style="color:var(--text2);margin-top:12px">Paginated list of all votes cast for this project.</p>
+      <div class="params-section">
+        <div class="params-label">Query Parameters</div>
+        <table>
+          <thead><tr><th>Param</th><th>Type</th><th>Default</th><th>Description</th></tr></thead>
+          <tbody>
+            <tr><td><span class="param-name">page</span></td><td><span class="param-type">integer</span></td><td>1</td><td class="param-desc">Page number</td></tr>
+            <tr><td><span class="param-name">limit</span></td><td><span class="param-type">integer</span></td><td>50</td><td class="param-desc">Results per page</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- Trust History -->
+  <div class="endpoint" id="projects-trust-history">
+    <div class="endpoint-header">
+      <span class="method method-GET">GET</span>
+      <span class="endpoint-path">/api/v1/projects/:id/trust-history</span>
+      <span class="tag tag-cached">cached 120s</span>
+      <span class="auth-chip auth-none">No Auth</span>
+    </div>
+    <div class="endpoint-body">
+      <p style="color:var(--text2);margin-top:12px">Returns the full chronological history of trust level changes for a project. Useful for charting trust progression over time.</p>
+      <div class="code-block">
+        <div class="code-header">Example Response</div>
+        <div class="code-body"><pre>{
+  <span class="k">"data"</span>: [
+    {
+      <span class="k">"timestamp"</span>: <span class="s">"2024-03-01T00:00:00Z"</span>,
+      <span class="k">"trustLevel"</span>: <span class="v">3</span>,
+      <span class="k">"trustScore"</span>: <span class="v">61</span>,
+      <span class="k">"reason"</span>: <span class="s">"Community vote threshold reached"</span>
+    }
+  ]
+}</pre></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Sale Data GET -->
+  <div class="endpoint" id="projects-sale-get">
+    <div class="endpoint-header">
+      <span class="method method-GET">GET</span>
+      <span class="endpoint-path">/api/v1/projects/:id/sale</span>
+      <span class="tag tag-cached">cached 60s</span>
+      <span class="auth-chip auth-none">No Auth</span>
+    </div>
+    <div class="endpoint-body">
+      <p style="color:var(--text2);margin-top:12px">Returns current token sale/IDO data for a project if it exists.</p>
+      <div class="code-block">
+        <div class="code-header">Example Response</div>
+        <div class="code-body"><pre>{
+  <span class="k">"raised"</span>: <span class="v">450000</span>,
+  <span class="k">"goal"</span>: <span class="v">1000000</span>,
+  <span class="k">"currency"</span>: <span class="s">"USDC"</span>,
+  <span class="k">"tokenPrice"</span>: <span class="v">0.05</span>,
+  <span class="k">"startDate"</span>: <span class="v">1711929600</span>,
+  <span class="k">"endDate"</span>: <span class="v">1714521600</span>,
+  <span class="k">"minContribution"</span>: <span class="v">100</span>,
+  <span class="k">"maxContribution"</span>: <span class="v">5000</span>,
+  <span class="k">"saleContract"</span>: <span class="s">"0xdef...456"</span>,
+  <span class="k">"network"</span>: <span class="s">"ethereum"</span>,
+  <span class="k">"updatedAt"</span>: <span class="v">1710237600</span>
+}</pre></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Sale Data POST -->
+  <div class="endpoint" id="projects-sale-post">
+    <div class="endpoint-header">
+      <span class="method method-POST">POST</span>
+      <span class="endpoint-path">/api/v1/projects/:id/sale</span>
+      <span class="auth-chip auth-apikey">API Key (sale:write)</span>
+    </div>
+    <div class="endpoint-body">
+      <p style="color:var(--text2);margin-top:12px">Create or update token sale data for a project. Requires an API key with <code>sale:write</code> permission scoped to this project.</p>
+      <div class="params-section">
+        <div class="params-label">Request Body (JSON)</div>
+        <table>
+          <thead><tr><th>Field</th><th>Type</th><th>Required</th><th>Description</th></tr></thead>
+          <tbody>
+            <tr><td><span class="param-name">raised</span></td><td><span class="param-type">number</span></td><td><span class="param-required">required</span></td><td class="param-desc">Amount raised so far in <code>currency</code> units</td></tr>
+            <tr><td><span class="param-name">goal</span></td><td><span class="param-type">number</span></td><td><span class="param-required">required</span></td><td class="param-desc">Fundraising goal in <code>currency</code> units</td></tr>
+            <tr><td><span class="param-name">currency</span></td><td><span class="param-type">string</span></td><td><span class="param-required">required</span></td><td class="param-desc">Currency symbol (e.g. <code>USDC</code>, <code>ETH</code>)</td></tr>
+            <tr><td><span class="param-name">tokenPrice</span></td><td><span class="param-type">number</span></td><td><span class="param-required">required</span></td><td class="param-desc">Token price in <code>currency</code> units</td></tr>
+            <tr><td><span class="param-name">startDate</span></td><td><span class="param-type">integer</span></td><td><span class="param-required">required</span></td><td class="param-desc">Sale start as a Unix timestamp (seconds)</td></tr>
+            <tr><td><span class="param-name">endDate</span></td><td><span class="param-type">integer</span></td><td><span class="param-required">required</span></td><td class="param-desc">Sale end as a Unix timestamp (seconds) — must be after <code>startDate</code></td></tr>
+            <tr><td><span class="param-name">minContribution</span></td><td><span class="param-type">number</span></td><td><span class="param-optional">optional</span></td><td class="param-desc">Minimum contribution amount</td></tr>
+            <tr><td><span class="param-name">maxContribution</span></td><td><span class="param-type">number</span></td><td><span class="param-optional">optional</span></td><td class="param-desc">Maximum contribution amount</td></tr>
+            <tr><td><span class="param-name">saleContract</span></td><td><span class="param-type">string</span></td><td><span class="param-optional">optional</span></td><td class="param-desc">Sale contract address</td></tr>
+            <tr><td><span class="param-name">network</span></td><td><span class="param-type">string</span></td><td><span class="param-optional">optional</span></td><td class="param-desc">Blockchain network (default: mainnet)</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="code-block">
+        <div class="code-header">Example Request</div>
+        <div class="code-body"><pre>POST /api/v1/projects/0xabc...123/sale
+Authorization: Bearer sk_live_...
+
+{
+  <span class="k">"raised"</span>: <span class="v">250000</span>,
+  <span class="k">"goal"</span>: <span class="v">1000000</span>,
+  <span class="k">"currency"</span>: <span class="s">"USDC"</span>,
+  <span class="k">"tokenPrice"</span>: <span class="v">0.05</span>,
+  <span class="k">"startDate"</span>: <span class="v">1711929600</span>,
+  <span class="k">"endDate"</span>: <span class="v">1714521600</span>
+}</pre></div>
+      </div>
+      <div class="code-block">
+        <div class="code-header">Example Response</div>
+        <div class="code-body"><pre>{
+  <span class="k">"ok"</span>: <span class="v">true</span>,
+  <span class="k">"data"</span>: {
+    <span class="k">"raised"</span>: <span class="v">250000</span>,
+    <span class="k">"goal"</span>: <span class="v">1000000</span>,
+    <span class="k">"currency"</span>: <span class="s">"USDC"</span>,
+    <span class="k">"tokenPrice"</span>: <span class="v">0.05</span>,
+    <span class="k">"startDate"</span>: <span class="v">1711929600</span>,
+    <span class="k">"endDate"</span>: <span class="v">1714521600</span>,
+    <span class="k">"updatedAt"</span>: <span class="v">1710237600</span>
+  }
+}</pre></div>
+      </div>
+      <div class="alert alert-info" style="margin-top:12px">ℹ️ <code>updatedAt</code> is set automatically to the current Unix timestamp on every write. <code>currency</code> is normalised to uppercase (e.g. <code>"usdc"</code> → <code>"USDC"</code>). The endpoint is idempotent — calling POST again overwrites the existing sale document.</div>
+    </div>
+  </div>
+</div>
+
+<hr class="section-hr">
+<!-- USERS -->
+<div class="section" id="users">
+  <h2 class="section-title"><span class="icon">👤</span>Users</h2>
+  <p class="section-desc">User profile, voting history, earnings, reputation, referrals, and leaderboards. All addresses are EVM-compatible (checksummed hex).</p>
+
+  <div class="endpoint" id="users-get">
+    <div class="endpoint-header">
+      <span class="method method-GET">GET</span>
+      <span class="endpoint-path">/api/v1/users/:address</span>
+      <span class="tag tag-cached">cached 30s</span>
+      <span class="auth-chip auth-none">No Auth</span>
+    </div>
+    <div class="endpoint-body">
+      <p style="color:var(--text2);margin-top:12px">Returns the full public profile for a wallet address.</p>
+      <div class="code-block">
+        <div class="code-header">Example Response</div>
+        <div class="code-body"><pre>{
+  <span class="k">"data"</span>: {
+    <span class="k">"address"</span>: <span class="s">"0xUser...abc"</span>,
+    <span class="k">"reputation"</span>: <span class="v">2840</span>,
+    <span class="k">"reputationLevel"</span>: <span class="s">"Gold"</span>,
+    <span class="k">"totalVotes"</span>: <span class="v">312</span>,
+    <span class="k">"accuracyRate"</span>: <span class="v">0.847</span>,
+    <span class="k">"totalEarnings"</span>: <span class="s">"1420.50"</span>,
+    <span class="k">"joinedAt"</span>: <span class="s">"2023-08-10T14:22:00Z"</span>
+  }
+}</pre></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="endpoint" id="users-votes">
+    <div class="endpoint-header">
+      <span class="method method-GET">GET</span>
+      <span class="endpoint-path">/api/v1/users/:address/votes</span>
+      <span class="auth-chip auth-none">No Auth</span>
+    </div>
+    <div class="endpoint-body">
+      <p style="color:var(--text2);margin-top:12px">Paginated list of all votes cast by this user.</p>
+      <div class="params-section">
+        <div class="params-label">Query Parameters</div>
+        <table>
+          <thead><tr><th>Param</th><th>Type</th><th>Default</th><th>Description</th></tr></thead>
+          <tbody>
+            <tr><td><span class="param-name">page</span></td><td><span class="param-type">integer</span></td><td>1</td><td>Page number</td></tr>
+            <tr><td><span class="param-name">limit</span></td><td><span class="param-type">integer</span></td><td>50</td><td>Results per page</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <div class="endpoint" id="users-accuracy">
+    <div class="endpoint-header">
+      <span class="method method-GET">GET</span>
+      <span class="endpoint-path">/api/v1/users/:address/accuracy</span>
+      <span class="tag tag-cached">cached 60s</span>
+      <span class="auth-chip auth-none">No Auth</span>
+    </div>
+    <div class="endpoint-body">
+      <p style="color:var(--text2);margin-top:12px">Returns detailed voting accuracy statistics — how often the user's votes aligned with the final trust outcome.</p>
+      <div class="code-block">
+        <div class="code-header">Example Response</div>
+        <div class="code-body"><pre>{
+  <span class="k">"data"</span>: {
+    <span class="k">"address"</span>: <span class="s">"0xUser...abc"</span>,
+    <span class="k">"totalVotes"</span>: <span class="v">312</span>,
+    <span class="k">"correctVotes"</span>: <span class="v">264</span>,
+    <span class="k">"accuracyRate"</span>: <span class="v">0.847</span>,
+    <span class="k">"scamsCaught"</span>: <span class="v">18</span>,
+    <span class="k">"falsePositives"</span>: <span class="v">4</span>
+  }
+}</pre></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="endpoint" id="users-earnings">
+    <div class="endpoint-header">
+      <span class="method method-GET">GET</span>
+      <span class="endpoint-path">/api/v1/users/:address/earnings</span>
+      <span class="tag tag-cached">cached 60s</span>
+      <span class="auth-chip auth-none">No Auth</span>
+    </div>
+    <div class="endpoint-body">
+      <p style="color:var(--text2);margin-top:12px">Returns the full earnings history for this user including $SCORE rewards, insurance payouts, and referral bonuses.</p>
+    </div>
+  </div>
+
+  <div class="endpoint" id="users-reputation">
+    <div class="endpoint-header">
+      <span class="method method-GET">GET</span>
+      <span class="endpoint-path">/api/v1/users/:address/reputation</span>
+      <span class="tag tag-cached">cached 60s</span>
+      <span class="auth-chip auth-none">No Auth</span>
+    </div>
+    <div class="endpoint-body">
+      <p style="color:var(--text2);margin-top:12px">Returns a breakdown of the user's reputation score including earned from votes, bonuses, penalties, and current tier.</p>
+    </div>
+  </div>
+
+  <div class="endpoint" id="users-referrals">
+    <div class="endpoint-header">
+      <span class="method method-GET">GET</span>
+      <span class="endpoint-path">/api/v1/users/:address/referrals</span>
+      <span class="tag tag-cached">cached 120s</span>
+      <span class="auth-chip auth-none">No Auth</span>
+    </div>
+    <div class="endpoint-body">
+      <p style="color:var(--text2);margin-top:12px">Returns the user's affiliate referral stats — number of referrals, total bonus earnings, and referred user list.</p>
+    </div>
+  </div>
+
+  <div class="endpoint" id="users-leaderboard">
+    <div class="endpoint-header">
+      <span class="method method-GET">GET</span>
+      <span class="endpoint-path">/api/v1/users/leaderboard/:type</span>
+      <span class="tag tag-cached">cached 120s</span>
+      <span class="auth-chip auth-none">No Auth</span>
+    </div>
+    <div class="endpoint-body">
+      <p style="color:var(--text2);margin-top:12px">Returns the top users ranked by the given metric.</p>
+      <div class="params-section">
+        <div class="params-label">Path Parameters</div>
+        <table>
+          <thead><tr><th>Param</th><th>Values</th><th>Description</th></tr></thead>
+          <tbody>
+            <tr><td><span class="param-name">type</span></td><td><code>reputation</code> | <code>scamHunters</code> | <code>accuracy</code> | <code>earnings</code></td><td class="param-desc">Leaderboard category</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="params-section">
+        <div class="params-label">Query Parameters</div>
+        <table>
+          <thead><tr><th>Param</th><th>Type</th><th>Default</th><th>Description</th></tr></thead>
+          <tbody>
+            <tr><td><span class="param-name">limit</span></td><td><span class="param-type">integer</span></td><td>100</td><td class="param-desc">Max results (up to 200)</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<hr class="section-hr">
+<!-- STATS -->
+<div class="section" id="stats">
+  <h2 class="section-title"><span class="icon">📊</span>Stats</h2>
+  <p class="section-desc">Platform-wide aggregated statistics for the dashboard, charts, and token metrics. All stats endpoints are public and cached.</p>
+
+  <div class="endpoint" id="stats-global">
+    <div class="endpoint-header">
+      <span class="method method-GET">GET</span>
+      <span class="endpoint-path">/api/v1/stats/global</span>
+      <span class="tag tag-cached">cached 60s</span>
+      <span class="auth-chip auth-none">No Auth</span>
+    </div>
+    <div class="endpoint-body">
+      <p style="color:var(--text2);margin-top:12px">Returns overall platform statistics: total projects, votes, users, and scam reports.</p>
+      <div class="code-block">
+        <div class="code-header">Example Response</div>
+        <div class="code-body"><pre>{
+  <span class="k">"data"</span>: {
+    <span class="k">"totalProjects"</span>: <span class="v">8420</span>,
+    <span class="k">"totalVotes"</span>: <span class="v">2140000</span>,
+    <span class="k">"totalUsers"</span>: <span class="v">94200</span>,
+    <span class="k">"scamsDetected"</span>: <span class="v">1240</span>,
+    <span class="k">"totalInsurancePaid"</span>: <span class="s">"842000.00"</span>,
+    <span class="k">"activeProjects"</span>: <span class="v">6100</span>
+  }
+}</pre></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="endpoint" id="stats-daily">
+    <div class="endpoint-header">
+      <span class="method method-GET">GET</span>
+      <span class="endpoint-path">/api/v1/stats/daily</span>
+      <span class="tag tag-cached">cached 300s</span>
+      <span class="auth-chip auth-none">No Auth</span>
+    </div>
+    <div class="endpoint-body">
+      <p style="color:var(--text2);margin-top:12px">Returns day-by-day activity data suitable for time-series charts.</p>
+      <div class="params-section">
+        <div class="params-label">Query Parameters</div>
+        <table>
+          <thead><tr><th>Param</th><th>Type</th><th>Default</th><th>Description</th></tr></thead>
+          <tbody>
+            <tr><td><span class="param-name">days</span></td><td><span class="param-type">integer</span></td><td>30</td><td class="param-desc">Number of days of history (max 365)</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <div class="endpoint" id="stats-token">
+    <div class="endpoint-header">
+      <span class="method method-GET">GET</span>
+      <span class="endpoint-path">/api/v1/stats/token</span>
+      <span class="tag tag-cached">cached 120s</span>
+      <span class="auth-chip auth-none">No Auth</span>
+    </div>
+    <div class="endpoint-body">
+      <p style="color:var(--text2);margin-top:12px">Returns $SCORE token metrics including price, market cap, circulating supply, staking stats, and 24h change.</p>
+    </div>
+  </div>
+
+  <div class="endpoint" id="stats-insurance">
+    <div class="endpoint-header">
+      <span class="method method-GET">GET</span>
+      <span class="endpoint-path">/api/v1/stats/insurance</span>
+      <span class="tag tag-cached">cached 120s</span>
+      <span class="auth-chip auth-none">No Auth</span>
+    </div>
+    <div class="endpoint-body">
+      <p style="color:var(--text2);margin-top:12px">Returns current insurance pool balance, total claims paid, pending claims, and coverage statistics.</p>
+    </div>
+  </div>
+
+  <div class="endpoint" id="stats-predictions">
+    <div class="endpoint-header">
+      <span class="method method-GET">GET</span>
+      <span class="endpoint-path">/api/v1/stats/predictions</span>
+      <span class="tag tag-cached">cached 120s</span>
+      <span class="auth-chip auth-none">No Auth</span>
+    </div>
+    <div class="endpoint-body">
+      <p style="color:var(--text2);margin-top:12px">Returns prediction market stats: total markets, volume, open positions, and resolution accuracy.</p>
+    </div>
+  </div>
+
+  <div class="endpoint" id="stats-bounties">
+    <div class="endpoint-header">
+      <span class="method method-GET">GET</span>
+      <span class="endpoint-path">/api/v1/stats/bounties</span>
+      <span class="tag tag-cached">cached 120s</span>
+      <span class="auth-chip auth-none">No Auth</span>
+    </div>
+    <div class="endpoint-body">
+      <p style="color:var(--text2);margin-top:12px">Returns bounty program stats: open bounties, total rewards paid, and top earners.</p>
+    </div>
+  </div>
+</div>
+
+<hr class="section-hr">
+
+<!-- SCAM DETECTION -->
+<div class="section" id="scam">
+  <h2 class="section-title"><span class="icon">🔍</span>Scam Detection</h2>
+  <p class="section-desc">Automated on-chain contract analysis for rug-pull patterns, honeypot detection, malicious tokenomics, and suspicious ownership structures. Supports EVM, Solana, and Starknet.</p>
+
+  <div class="alert alert-warn">⚠️ Analysis results are probabilistic. Always combine automated analysis with community signals before making financial decisions.</div>
+
+  <div class="endpoint" id="scam-patterns">
+    <div class="endpoint-header">
+      <span class="method method-GET">GET</span>
+      <span class="endpoint-path">/api/v1/scam/patterns</span>
+      <span class="tag tag-cached">cached 3600s</span>
+      <span class="auth-chip auth-none">No Auth</span>
+    </div>
+    <div class="endpoint-body">
+      <p style="color:var(--text2);margin-top:12px">Returns the full catalogue of known scam patterns used by the analysis engine. Useful for building UI explanations.</p>
+      <div class="code-block">
+        <div class="code-header">Example Response</div>
+        <div class="code-body"><pre>{
+  <span class="k">"data"</span>: {
+    <span class="k">"patterns"</span>: [
+      {
+        <span class="k">"id"</span>: <span class="s">"HONEYPOT_TRANSFER_RESTRICTION"</span>,
+        <span class="k">"name"</span>: <span class="s">"Honeypot — Transfer Restriction"</span>,
+        <span class="k">"severity"</span>: <span class="s">"critical"</span>,
+        <span class="k">"description"</span>: <span class="s">"Contract prevents token sells via blacklist or transfer block"</span>
+      },
+      {
+        <span class="k">"id"</span>: <span class="s">"OWNERSHIP_NOT_RENOUNCED"</span>,
+        <span class="k">"name"</span>: <span class="s">"Ownership Not Renounced"</span>,
+        <span class="k">"severity"</span>: <span class="s">"medium"</span>,
+        <span class="k">"description"</span>: <span class="s">"Owner retains admin powers (mint, pause, blacklist)"</span>
+      }
+    ]
+  }
+}</pre></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="endpoint" id="scam-analyze">
+    <div class="endpoint-header">
+      <span class="method method-POST">POST</span>
+      <span class="endpoint-path">/api/v1/scam/analyze</span>
+      <span class="auth-chip auth-none">No Auth</span>
+    </div>
+    <div class="endpoint-body">
+      <p style="color:var(--text2);margin-top:12px">Performs a full risk analysis on a contract address. Returns a numeric risk score, categorical risk level, and list of triggered pattern flags.</p>
+      <div class="params-section">
+        <div class="params-label">Request Body (JSON)</div>
+        <table>
+          <thead><tr><th>Field</th><th>Type</th><th>Required</th><th>Description</th></tr></thead>
+          <tbody>
+            <tr><td><span class="param-name">contractAddress</span></td><td><span class="param-type">string</span></td><td><span class="param-required">required</span></td><td>Contract or token address to analyze</td></tr>
+            <tr><td><span class="param-name">network</span></td><td><span class="param-type">string</span></td><td><span class="param-optional">optional</span></td><td><code>mainnet</code> | <code>solana</code> | <code>starknet</code> | <code>polygon</code> | <code>arbitrum</code> | <code>optimism</code> | <code>base</code> (default: <code>mainnet</code>)</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="code-block">
+        <div class="code-header">Example Response</div>
+        <div class="code-body"><pre>{
+  <span class="k">"success"</span>: <span class="v">true</span>,
+  <span class="k">"data"</span>: {
+    <span class="k">"address"</span>: <span class="s">"0xabc...123"</span>,
+    <span class="k">"network"</span>: <span class="s">"mainnet"</span>,
+    <span class="k">"riskScore"</span>: <span class="v">78</span>,
+    <span class="k">"riskLevel"</span>: <span class="s">"high"</span>,
+    <span class="k">"flags"</span>: [
+      {
+        <span class="k">"id"</span>: <span class="s">"HIGH_TAX"</span>,
+        <span class="k">"name"</span>: <span class="s">"Excessive Tax"</span>,
+        <span class="k">"severity"</span>: <span class="s">"high"</span>,
+        <span class="k">"description"</span>: <span class="s">"Buy/sell tax exceeds 15%"</span>
+      }
+    ],
+    <span class="k">"analyzedAt"</span>: <span class="s">"2024-03-12T10:15:00Z"</span>
+  }
+}</pre></div>
+      </div>
+      <p style="color:var(--text2);margin-top:12px;font-size:12px"><strong style="color:var(--text)">Risk Levels:</strong> <code>low</code> (0–25) · <code>medium</code> (26–50) · <code>high</code> (51–75) · <code>critical</code> (76–100) · <code>unknown</code></p>
+    </div>
+  </div>
+
+  <div class="endpoint" id="scam-tokenomics">
+    <div class="endpoint-header">
+      <span class="method method-POST">POST</span>
+      <span class="endpoint-path">/api/v1/scam/tokenomics</span>
+      <span class="auth-chip auth-none">No Auth</span>
+    </div>
+    <div class="endpoint-body">
+      <p style="color:var(--text2);margin-top:12px">Deep-dives into token holder distribution to identify whale concentration, team wallet sizes, and exchange ratios.</p>
+      <div class="params-section">
+        <div class="params-label">Request Body (JSON)</div>
+        <table>
+          <thead><tr><th>Field</th><th>Type</th><th>Required</th><th>Description</th></tr></thead>
+          <tbody>
+            <tr><td><span class="param-name">tokenAddress</span></td><td><span class="param-type">string</span></td><td><span class="param-required">required</span></td><td>Token contract address</td></tr>
+            <tr><td><span class="param-name">network</span></td><td><span class="param-type">string</span></td><td><span class="param-optional">optional</span></td><td><code>mainnet</code> | <code>solana</code> (default: <code>mainnet</code>)</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <div class="endpoint" id="scam-batch">
+    <div class="endpoint-header">
+      <span class="method method-POST">POST</span>
+      <span class="endpoint-path">/api/v1/scam/batch</span>
+      <span class="auth-chip auth-none">No Auth</span>
+    </div>
+    <div class="endpoint-body">
+      <p style="color:var(--text2);margin-top:12px">Analyze up to 10 contracts in a single request.</p>
+      <div class="params-section">
+        <div class="params-label">Request Body (JSON)</div>
+        <table>
+          <thead><tr><th>Field</th><th>Type</th><th>Required</th><th>Description</th></tr></thead>
+          <tbody>
+            <tr><td><span class="param-name">addresses</span></td><td><span class="param-type">string[]</span></td><td><span class="param-required">required</span></td><td>Array of contract addresses (max 10)</td></tr>
+            <tr><td><span class="param-name">network</span></td><td><span class="param-type">string</span></td><td><span class="param-optional">optional</span></td><td>Network for all addresses (default: <code>mainnet</code>)</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="code-block">
+        <div class="code-header">Example Response</div>
+        <div class="code-body"><pre>{
+  <span class="k">"success"</span>: <span class="v">true</span>,
+  <span class="k">"data"</span>: {
+    <span class="k">"analyzed"</span>: <span class="v">3</span>,
+    <span class="k">"results"</span>: {
+      <span class="k">"0xabc...1"</span>: { <span class="k">"riskScore"</span>: <span class="v">12</span>, <span class="k">"riskLevel"</span>: <span class="s">"low"</span>, <span class="k">"flags"</span>: [] },
+      <span class="k">"0xabc...2"</span>: { <span class="k">"riskScore"</span>: <span class="v">91</span>, <span class="k">"riskLevel"</span>: <span class="s">"critical"</span>, <span class="k">"flags"</span>: [<span class="c">/* ... */</span>] },
+      <span class="k">"0xabc...3"</span>: { <span class="k">"riskScore"</span>: <span class="v">44</span>, <span class="k">"riskLevel"</span>: <span class="s">"medium"</span>, <span class="k">"flags"</span>: [<span class="c">/* ... */</span>] }
+    }
+  }
+}</pre></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="endpoint" id="scam-report">
+    <div class="endpoint-header">
+      <span class="method method-POST">POST</span>
+      <span class="endpoint-path">/api/v1/scam/report</span>
+      <span class="auth-chip auth-none">No Auth</span>
+    </div>
+    <div class="endpoint-body">
+      <p style="color:var(--text2);margin-top:12px">Submit a community scam report for a contract. Reports are reviewed by the admin team and can trigger trust level changes.</p>
+      <div class="params-section">
+        <div class="params-label">Request Body (JSON)</div>
+        <table>
+          <thead><tr><th>Field</th><th>Type</th><th>Required</th><th>Description</th></tr></thead>
+          <tbody>
+            <tr><td><span class="param-name">contractAddress</span></td><td><span class="param-type">string</span></td><td><span class="param-required">required</span></td><td>Address to report</td></tr>
+            <tr><td><span class="param-name">reason</span></td><td><span class="param-type">string</span></td><td><span class="param-required">required</span></td><td>Description of the scam (10–2000 characters)</td></tr>
+            <tr><td><span class="param-name">network</span></td><td><span class="param-type">string</span></td><td><span class="param-optional">optional</span></td><td>Chain the contract is on</td></tr>
+            <tr><td><span class="param-name">projectId</span></td><td><span class="param-type">string</span></td><td><span class="param-optional">optional</span></td><td>Associated project ID if known</td></tr>
+            <tr><td><span class="param-name">evidence</span></td><td><span class="param-type">string[]</span></td><td><span class="param-optional">optional</span></td><td>URLs to supporting evidence (max 10)</td></tr>
+            <tr><td><span class="param-name">reporter</span></td><td><span class="param-type">string</span></td><td><span class="param-optional">optional</span></td><td>Reporter wallet address</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<hr class="section-hr">
+<!-- WHALE TRACKING -->
+<div class="section" id="whales">
+  <h2 class="section-title"><span class="icon">🐋</span>Whale Tracking</h2>
+  <p class="section-desc">Monitor large token holders, track significant on-chain transfers, and receive alerts when whales move funds. Powered by Moralis and Alchemy.</p>
+
+  <div class="endpoint" id="whales-list">
+    <div class="endpoint-header">
+      <span class="method method-GET">GET</span>
+      <span class="endpoint-path">/api/v1/whales/:tokenAddress</span>
+      <span class="tag tag-cached">cached 120s</span>
+      <span class="auth-chip auth-none">No Auth</span>
+    </div>
+    <div class="endpoint-body">
+      <p style="color:var(--text2);margin-top:12px">Returns the top token holders (whales) for a given token.</p>
+      <div class="params-section">
+        <div class="params-label">Query Parameters</div>
+        <table>
+          <thead><tr><th>Param</th><th>Type</th><th>Default</th><th>Description</th></tr></thead>
+          <tbody>
+            <tr><td><span class="param-name">network</span></td><td><span class="param-type">string</span></td><td>mainnet</td><td>Blockchain network</td></tr>
+            <tr><td><span class="param-name">limit</span></td><td><span class="param-type">integer</span></td><td>20</td><td>Number of whales to return (max 100)</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="code-block">
+        <div class="code-header">Example Response</div>
+        <div class="code-body"><pre>{
+  <span class="k">"success"</span>: <span class="v">true</span>,
+  <span class="k">"data"</span>: {
+    <span class="k">"tokenAddress"</span>: <span class="s">"0xabc...123"</span>,
+    <span class="k">"network"</span>: <span class="s">"mainnet"</span>,
+    <span class="k">"whaleCount"</span>: <span class="v">20</span>,
+    <span class="k">"whales"</span>: [
+      {
+        <span class="k">"address"</span>: <span class="s">"0xWhale...1"</span>,
+        <span class="k">"balance"</span>: <span class="s">"4200000"</span>,
+        <span class="k">"percentage"</span>: <span class="v">4.2</span>,
+        <span class="k">"label"</span>: <span class="s">"Binance Hot Wallet"</span>,
+        <span class="k">"type"</span>: <span class="s">"exchange"</span>
+      }
+    ]
+  }
+}</pre></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="endpoint" id="whales-txns">
+    <div class="endpoint-header">
+      <span class="method method-GET">GET</span>
+      <span class="endpoint-path">/api/v1/whales/:tokenAddress/transactions</span>
+      <span class="tag tag-cached">cached 60s</span>
+      <span class="auth-chip auth-none">No Auth</span>
+    </div>
+    <div class="endpoint-body">
+      <p style="color:var(--text2);margin-top:12px">Returns recent large transfers for a token within the given time window.</p>
+      <div class="params-section">
+        <div class="params-label">Query Parameters</div>
+        <table>
+          <thead><tr><th>Param</th><th>Type</th><th>Default</th><th>Description</th></tr></thead>
+          <tbody>
+            <tr><td><span class="param-name">network</span></td><td><span class="param-type">string</span></td><td>mainnet</td><td>Blockchain network</td></tr>
+            <tr><td><span class="param-name">hours</span></td><td><span class="param-type">integer</span></td><td>24</td><td>Lookback window in hours (max 168 = 7 days)</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <div class="endpoint" id="whales-analysis">
+    <div class="endpoint-header">
+      <span class="method method-GET">GET</span>
+      <span class="endpoint-path">/api/v1/whales/:tokenAddress/analysis</span>
+      <span class="tag tag-cached">cached 3600s</span>
+      <span class="auth-chip auth-none">No Auth</span>
+    </div>
+    <div class="endpoint-body">
+      <p style="color:var(--text2);margin-top:12px">Returns aggregated whale activity analysis including buy/sell pressure, net flow, and trend classification.</p>
+      <div class="code-block">
+        <div class="code-header">Example Response</div>
+        <div class="code-body"><pre>{
+  <span class="k">"data"</span>: {
+    <span class="k">"tokenAddress"</span>: <span class="s">"0xabc...123"</span>,
+    <span class="k">"network"</span>: <span class="s">"mainnet"</span>,
+    <span class="k">"last24h"</span>: {
+      <span class="k">"buyVolume"</span>: <span class="s">"1200000"</span>,
+      <span class="k">"sellVolume"</span>: <span class="s">"800000"</span>,
+      <span class="k">"netFlow"</span>: <span class="s">"400000"</span>,
+      <span class="k">"transactions"</span>: <span class="v">42</span>
+    },
+    <span class="k">"trend"</span>: <span class="s">"accumulating"</span>,
+    <span class="k">"analyzedAt"</span>: <span class="s">"2024-03-12T10:00:00Z"</span>
+  }
+}</pre></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="endpoint" id="whales-alerts">
+    <div class="endpoint-header">
+      <span class="method method-GET">GET</span>
+      <span class="endpoint-path">/api/v1/whales/:tokenAddress/alerts</span>
+      <span class="auth-chip auth-none">No Auth</span>
+    </div>
+    <div class="endpoint-body">
+      <p style="color:var(--text2);margin-top:12px">Returns large transfer events above a USD threshold for a given token.</p>
+      <div class="params-section">
+        <div class="params-label">Query Parameters</div>
+        <table>
+          <thead><tr><th>Param</th><th>Type</th><th>Default</th><th>Description</th></tr></thead>
+          <tbody>
+            <tr><td><span class="param-name">network</span></td><td><span class="param-type">string</span></td><td>mainnet</td><td>Blockchain network</td></tr>
+            <tr><td><span class="param-name">threshold</span></td><td><span class="param-type">number</span></td><td>100000</td><td>Minimum USD value to include (default $100k)</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <div class="endpoint" id="whales-wallet">
+    <div class="endpoint-header">
+      <span class="method method-GET">GET</span>
+      <span class="endpoint-path">/api/v1/whales/wallet/:address</span>
+      <span class="tag tag-cached">cached 60s</span>
+      <span class="auth-chip auth-none">No Auth</span>
+    </div>
+    <div class="endpoint-body">
+      <p style="color:var(--text2);margin-top:12px">Returns wallet info, ETH balance, and any human-readable label assigned to the address (exchange, team, fund, etc).</p>
+    </div>
+  </div>
+
+  <div class="endpoint" id="whales-track">
+    <div class="endpoint-header">
+      <span class="method method-POST">POST</span>
+      <span class="endpoint-path">/api/v1/whales/track</span>
+      <span class="auth-chip auth-none">No Auth</span>
+    </div>
+    <div class="endpoint-body">
+      <p style="color:var(--text2);margin-top:12px">Add a token to the whale tracking list so that whale transfers trigger platform alerts.</p>
+      <div class="params-section">
+        <div class="params-label">Request Body (JSON)</div>
+        <table>
+          <thead><tr><th>Field</th><th>Type</th><th>Required</th><th>Description</th></tr></thead>
+          <tbody>
+            <tr><td><span class="param-name">tokenAddress</span></td><td><span class="param-type">string</span></td><td><span class="param-required">required</span></td><td>Token contract address</td></tr>
+            <tr><td><span class="param-name">symbol</span></td><td><span class="param-type">string</span></td><td><span class="param-required">required</span></td><td>Token symbol (e.g. <code>SCORE</code>)</td></tr>
+            <tr><td><span class="param-name">priceUsd</span></td><td><span class="param-type">number</span></td><td><span class="param-optional">optional</span></td><td>Current token price in USD</td></tr>
+            <tr><td><span class="param-name">network</span></td><td><span class="param-type">string</span></td><td><span class="param-optional">optional</span></td><td>Blockchain network (default: <code>mainnet</code>)</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <div class="endpoint" id="whales-price">
+    <div class="endpoint-header">
+      <span class="method method-POST">POST</span>
+      <span class="endpoint-path">/api/v1/whales/price</span>
+      <span class="auth-chip auth-none">No Auth</span>
+    </div>
+    <div class="endpoint-body">
+      <p style="color:var(--text2);margin-top:12px">Update the USD price for a tracked token to keep USD-threshold alerts accurate.</p>
+      <div class="params-section">
+        <div class="params-label">Request Body (JSON)</div>
+        <table>
+          <thead><tr><th>Field</th><th>Type</th><th>Required</th><th>Description</th></tr></thead>
+          <tbody>
+            <tr><td><span class="param-name">tokenAddress</span></td><td><span class="param-type">string</span></td><td><span class="param-required">required</span></td><td>Token contract address</td></tr>
+            <tr><td><span class="param-name">priceUsd</span></td><td><span class="param-type">number</span></td><td><span class="param-required">required</span></td><td>Current price in USD</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <div class="endpoint" id="whales-label">
+    <div class="endpoint-header">
+      <span class="method method-POST">POST</span>
+      <span class="endpoint-path">/api/v1/whales/wallet/label</span>
+      <span class="auth-chip auth-none">No Auth</span>
+    </div>
+    <div class="endpoint-body">
+      <p style="color:var(--text2);margin-top:12px">Assign a human-readable label to a wallet address for display purposes in whale lists.</p>
+      <div class="params-section">
+        <div class="params-label">Request Body (JSON)</div>
+        <table>
+          <thead><tr><th>Field</th><th>Type</th><th>Required</th><th>Description</th></tr></thead>
+          <tbody>
+            <tr><td><span class="param-name">address</span></td><td><span class="param-type">string</span></td><td><span class="param-required">required</span></td><td>Wallet address</td></tr>
+            <tr><td><span class="param-name">label</span></td><td><span class="param-type">string</span></td><td><span class="param-required">required</span></td><td>Human-readable label (e.g. <code>Binance Hot Wallet</code>)</td></tr>
+            <tr><td><span class="param-name">type</span></td><td><span class="param-type">string</span></td><td><span class="param-optional">optional</span></td><td><code>whale</code> | <code>exchange</code> | <code>team</code> | <code>fund</code> | <code>bot</code> | <code>other</code></td></tr>
+            <tr><td><span class="param-name">notes</span></td><td><span class="param-type">string</span></td><td><span class="param-optional">optional</span></td><td>Additional notes</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<hr class="section-hr">
+<!-- ALERTS -->
+<div class="section" id="alerts">
+  <h2 class="section-title"><span class="icon">🔔</span>Alerts</h2>
+  <p class="section-desc">User-scoped notification management. Alerts are generated automatically by platform events (trust changes, scam flags, whale activity). All endpoints require the <code>x-user-id</code> header.</p>
+
+  <div class="endpoint" id="alerts-list">
+    <div class="endpoint-header">
+      <span class="method method-GET">GET</span>
+      <span class="endpoint-path">/api/v1/alerts</span>
+      <span class="auth-chip auth-user">x-user-id</span>
+    </div>
+    <div class="endpoint-body">
+      <p style="color:var(--text2);margin-top:12px">Returns the authenticated user's alert feed, optionally filtered by type or read status.</p>
+      <div class="params-section">
+        <div class="params-label">Query Parameters</div>
+        <table>
+          <thead><tr><th>Param</th><th>Type</th><th>Default</th><th>Description</th></tr></thead>
+          <tbody>
+            <tr><td><span class="param-name">unreadOnly</span></td><td><span class="param-type">boolean</span></td><td>false</td><td>If <code>true</code>, only return unread alerts</td></tr>
+            <tr><td><span class="param-name">type</span></td><td><span class="param-type">string</span></td><td>—</td><td>Filter by alert type</td></tr>
+            <tr><td><span class="param-name">limit</span></td><td><span class="param-type">integer</span></td><td>20</td><td>Max results (up to 100)</td></tr>
+            <tr><td><span class="param-name">offset</span></td><td><span class="param-type">integer</span></td><td>0</td><td>Pagination offset</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="code-block">
+        <div class="code-header">Example Response</div>
+        <div class="code-body"><pre>{
+  <span class="k">"success"</span>: <span class="v">true</span>,
+  <span class="k">"data"</span>: {
+    <span class="k">"alerts"</span>: [
+      {
+        <span class="k">"id"</span>: <span class="s">"alert_abc123"</span>,
+        <span class="k">"type"</span>: <span class="s">"scam_flagged"</span>,
+        <span class="k">"title"</span>: <span class="s">"Project flagged as scam"</span>,
+        <span class="k">"body"</span>: <span class="s">"ProjectX has been flagged by the community"</span>,
+        <span class="k">"severity"</span>: <span class="s">"high"</span>,
+        <span class="k">"read"</span>: <span class="v">false</span>,
+        <span class="k">"createdAt"</span>: <span class="s">"2024-03-12T09:00:00Z"</span>
+      }
+    ],
+    <span class="k">"total"</span>: <span class="v">12</span>,
+    <span class="k">"hasMore"</span>: <span class="v">false</span>
+  }
+}</pre></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="endpoint" id="alerts-count">
+    <div class="endpoint-header">
+      <span class="method method-GET">GET</span>
+      <span class="endpoint-path">/api/v1/alerts/unread-count</span>
+      <span class="auth-chip auth-user">x-user-id</span>
+    </div>
+    <div class="endpoint-body">
+      <p style="color:var(--text2);margin-top:12px">Returns the number of unread alerts. Lightweight endpoint for badge indicators.</p>
+      <div class="code-block">
+        <div class="code-header">Example Response</div>
+        <div class="code-body"><pre>{ <span class="k">"success"</span>: <span class="v">true</span>, <span class="k">"data"</span>: { <span class="k">"count"</span>: <span class="v">5</span> } }</pre></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="endpoint" id="alerts-prefs-get">
+    <div class="endpoint-header">
+      <span class="method method-GET">GET</span>
+      <span class="endpoint-path">/api/v1/alerts/preferences</span>
+      <span class="auth-chip auth-user">x-user-id</span>
+    </div>
+    <div class="endpoint-body">
+      <p style="color:var(--text2);margin-top:12px">Returns the user's current alert delivery preferences. Defaults are applied if not previously set.</p>
+    </div>
+  </div>
+
+  <div class="endpoint" id="alerts-prefs-put">
+    <div class="endpoint-header">
+      <span class="method method-PUT">PUT</span>
+      <span class="endpoint-path">/api/v1/alerts/preferences</span>
+      <span class="auth-chip auth-user">x-user-id</span>
+    </div>
+    <div class="endpoint-body">
+      <p style="color:var(--text2);margin-top:12px">Update which alert types and delivery channels the user subscribes to.</p>
+      <div class="params-section">
+        <div class="params-label">Request Body (JSON) — all fields optional</div>
+        <table>
+          <thead><tr><th>Field</th><th>Type</th><th>Description</th></tr></thead>
+          <tbody>
+            <tr><td><span class="param-name">enableEmail</span></td><td><span class="param-type">boolean</span></td><td>Receive email notifications</td></tr>
+            <tr><td><span class="param-name">enableTelegram</span></td><td><span class="param-type">boolean</span></td><td>Receive Telegram notifications</td></tr>
+            <tr><td><span class="param-name">enableWebhook</span></td><td><span class="param-type">boolean</span></td><td>Deliver to registered webhook</td></tr>
+            <tr><td><span class="param-name">enablePush</span></td><td><span class="param-type">boolean</span></td><td>Browser push notifications</td></tr>
+            <tr><td><span class="param-name">trustChangeAlerts</span></td><td><span class="param-type">boolean</span></td><td>Alert on trust level changes</td></tr>
+            <tr><td><span class="param-name">scamFlagAlerts</span></td><td><span class="param-type">boolean</span></td><td>Alert when project is flagged as scam</td></tr>
+            <tr><td><span class="param-name">whaleActivityAlerts</span></td><td><span class="param-type">boolean</span></td><td>Alert on large whale movements</td></tr>
+            <tr><td><span class="param-name">voteThresholdAlerts</span></td><td><span class="param-type">boolean</span></td><td>Alert when vote thresholds are crossed</td></tr>
+            <tr><td><span class="param-name">marketAlerts</span></td><td><span class="param-type">boolean</span></td><td>Alert on prediction market events</td></tr>
+            <tr><td><span class="param-name">minSeverity</span></td><td><span class="param-type">string</span></td><td>Minimum severity: <code>low</code> | <code>medium</code> | <code>high</code> | <code>critical</code></td></tr>
+            <tr><td><span class="param-name">telegramChatId</span></td><td><span class="param-type">string</span></td><td>Telegram chat ID for delivery</td></tr>
+            <tr><td><span class="param-name">webhookUrl</span></td><td><span class="param-type">string</span></td><td>Webhook URL override</td></tr>
+            <tr><td><span class="param-name">emailAddress</span></td><td><span class="param-type">string</span></td><td>Email address for notifications</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <div class="endpoint" id="alerts-read">
+    <div class="endpoint-header">
+      <span class="method method-POST">POST</span>
+      <span class="endpoint-path">/api/v1/alerts/:alertId/read</span>
+      <span class="auth-chip auth-user">x-user-id</span>
+    </div>
+    <div class="endpoint-body">
+      <p style="color:var(--text2);margin-top:12px">Mark a specific alert as read.</p>
+    </div>
+  </div>
+
+  <div class="endpoint" id="alerts-read-all">
+    <div class="endpoint-header">
+      <span class="method method-POST">POST</span>
+      <span class="endpoint-path">/api/v1/alerts/read-all</span>
+      <span class="auth-chip auth-user">x-user-id</span>
+    </div>
+    <div class="endpoint-body">
+      <p style="color:var(--text2);margin-top:12px">Mark all of the user's alerts as read in one call.</p>
+      <div class="code-block">
+        <div class="code-header">Example Response</div>
+        <div class="code-body"><pre>{ <span class="k">"success"</span>: <span class="v">true</span>, <span class="k">"data"</span>: { <span class="k">"count"</span>: <span class="v">12</span> }, <span class="k">"message"</span>: <span class="s">"12 alerts marked as read"</span> }</pre></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="endpoint" id="alerts-delete">
+    <div class="endpoint-header">
+      <span class="method method-DELETE">DELETE</span>
+      <span class="endpoint-path">/api/v1/alerts/:alertId</span>
+      <span class="auth-chip auth-user">x-user-id</span>
+    </div>
+    <div class="endpoint-body">
+      <p style="color:var(--text2);margin-top:12px">Permanently delete a single alert from the user's feed.</p>
+    </div>
+  </div>
+</div>
+
+<hr class="section-hr">
+<!-- WEBHOOKS -->
+<div class="section" id="webhooks">
+  <h2 class="section-title"><span class="icon">🔗</span>Webhooks</h2>
+  <p class="section-desc">Register external HTTPS endpoints to receive real-time event payloads. Each webhook is secured with an HMAC-SHA256 signature in the <code>X-DappScore-Signature</code> header.</p>
+
+  <div class="alert alert-info">ℹ️ Webhook secrets are only returned once at registration or rotation. Verify payloads by computing <code>HMAC-SHA256(secret, rawBody)</code> and comparing with the header value.</div>
+
+  <div style="margin:16px 0">
+    <div class="params-label" style="margin-bottom:8px">Supported Event Types</div>
+    <div>
+      <span class="tag tag-cached">project.trust_changed</span>
+      <span class="tag tag-cached">project.scam_flagged</span>
+      <span class="tag tag-cached">project.created</span>
+      <span class="tag tag-cached">vote.cast</span>
+      <span class="tag tag-cached">whale.activity</span>
+      <span class="tag tag-cached">alert.triggered</span>
+      <span class="tag tag-cached">market.resolved</span>
+      <span class="tag tag-cached">bounty.completed</span>
+      <span class="tag tag-cached">all</span>
+    </div>
+  </div>
+
+  <div class="endpoint" id="webhooks-list">
+    <div class="endpoint-header">
+      <span class="method method-GET">GET</span>
+      <span class="endpoint-path">/api/v1/webhooks</span>
+      <span class="auth-chip auth-user">x-user-id</span>
+    </div>
+    <div class="endpoint-body">
+      <p style="color:var(--text2);margin-top:12px">Returns all registered webhooks for the authenticated user.</p>
+    </div>
+  </div>
+
+  <div class="endpoint" id="webhooks-register">
+    <div class="endpoint-header">
+      <span class="method method-POST">POST</span>
+      <span class="endpoint-path">/api/v1/webhooks/register</span>
+      <span class="auth-chip auth-user">x-user-id</span>
+    </div>
+    <div class="endpoint-body">
+      <p style="color:var(--text2);margin-top:12px">Register a new webhook URL. The <code>secret</code> in the response is shown only once.</p>
+      <div class="params-section">
+        <div class="params-label">Request Body (JSON)</div>
+        <table>
+          <thead><tr><th>Field</th><th>Type</th><th>Required</th><th>Description</th></tr></thead>
+          <tbody>
+            <tr><td><span class="param-name">url</span></td><td><span class="param-type">string</span></td><td><span class="param-required">required</span></td><td>HTTPS endpoint URL to deliver events to</td></tr>
+            <tr><td><span class="param-name">events</span></td><td><span class="param-type">string[]</span></td><td><span class="param-optional">optional</span></td><td>Event types to subscribe to (default: <code>["all"]</code>)</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="code-block">
+        <div class="code-header">Example Response</div>
+        <div class="code-body"><pre>{
+  <span class="k">"success"</span>: <span class="v">true</span>,
+  <span class="k">"data"</span>: {
+    <span class="k">"id"</span>: <span class="s">"wh_abc123"</span>,
+    <span class="k">"url"</span>: <span class="s">"https://yourapp.com/hooks/dappscore"</span>,
+    <span class="k">"secret"</span>: <span class="s">"whsec_xxxxxxxxxxxx"</span>,
+    <span class="k">"events"</span>: [<span class="s">"project.trust_changed"</span>, <span class="s">"project.scam_flagged"</span>],
+    <span class="k">"message"</span>: <span class="s">"Webhook registered. Save the secret — it will not be shown again."</span>
+  }
+}</pre></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="endpoint" id="webhooks-update">
+    <div class="endpoint-header">
+      <span class="method method-PUT">PUT</span>
+      <span class="endpoint-path">/api/v1/webhooks/:id</span>
+      <span class="auth-chip auth-user">x-user-id</span>
+    </div>
+    <div class="endpoint-body">
+      <p style="color:var(--text2);margin-top:12px">Update a webhook's URL, subscribed events, or active status.</p>
+      <div class="params-section">
+        <div class="params-label">Request Body (JSON) — all optional</div>
+        <table>
+          <thead><tr><th>Field</th><th>Type</th><th>Description</th></tr></thead>
+          <tbody>
+            <tr><td><span class="param-name">url</span></td><td><span class="param-type">string</span></td><td>New endpoint URL</td></tr>
+            <tr><td><span class="param-name">events</span></td><td><span class="param-type">string[]</span></td><td>New event subscription list</td></tr>
+            <tr><td><span class="param-name">active</span></td><td><span class="param-type">boolean</span></td><td>Enable or disable the webhook</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <div class="endpoint" id="webhooks-delete">
+    <div class="endpoint-header">
+      <span class="method method-DELETE">DELETE</span>
+      <span class="endpoint-path">/api/v1/webhooks/:id</span>
+      <span class="auth-chip auth-user">x-user-id</span>
+    </div>
+    <div class="endpoint-body">
+      <p style="color:var(--text2);margin-top:12px">Permanently delete a webhook and stop all future event deliveries.</p>
+    </div>
+  </div>
+
+  <div class="endpoint" id="webhooks-test">
+    <div class="endpoint-header">
+      <span class="method method-POST">POST</span>
+      <span class="endpoint-path">/api/v1/webhooks/:id/test</span>
+      <span class="auth-chip auth-user">x-user-id</span>
+    </div>
+    <div class="endpoint-body">
+      <p style="color:var(--text2);margin-top:12px">Sends a test payload to the webhook URL and reports the HTTP status received.</p>
+      <div class="code-block">
+        <div class="code-header">Example Response</div>
+        <div class="code-body"><pre>{ <span class="k">"success"</span>: <span class="v">true</span>, <span class="k">"data"</span>: { <span class="k">"statusCode"</span>: <span class="v">200</span> }, <span class="k">"message"</span>: <span class="s">"Test delivery successful"</span> }</pre></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="endpoint" id="webhooks-logs">
+    <div class="endpoint-header">
+      <span class="method method-GET">GET</span>
+      <span class="endpoint-path">/api/v1/webhooks/:id/logs</span>
+      <span class="auth-chip auth-user">x-user-id</span>
+    </div>
+    <div class="endpoint-body">
+      <p style="color:var(--text2);margin-top:12px">Returns the last 50 delivery attempt logs for the webhook, including status codes, timestamps, and failure reasons.</p>
+    </div>
+  </div>
+
+  <div class="endpoint" id="webhooks-rotate">
+    <div class="endpoint-header">
+      <span class="method method-POST">POST</span>
+      <span class="endpoint-path">/api/v1/webhooks/:id/rotate-secret</span>
+      <span class="auth-chip auth-user">x-user-id</span>
+    </div>
+    <div class="endpoint-body">
+      <p style="color:var(--text2);margin-top:12px">Generates a new signing secret for the webhook. The old secret is immediately invalidated.</p>
+      <div class="alert alert-warn">⚠️ Update your signature verification logic with the new secret before rotating, or incoming webhook events will fail signature checks.</div>
+    </div>
+  </div>
+</div>
+
+<hr class="section-hr">
+<!-- API KEYS -->
+<div class="section" id="apikeys">
+  <h2 class="section-title"><span class="icon">🗝️</span>API Keys</h2>
+  <p class="section-desc">Manage programmatic API keys for machine-to-machine access. Keys carry scoped permissions and are associated with a user wallet. Maximum 10 keys per user.</p>
+
+  <div class="alert alert-warn">⚠️ The raw API key (<code>sk_live_...</code>) is only shown once — at creation or rotation. It is stored hashed and cannot be retrieved. Treat it like a password.</div>
+
+  <div style="margin:16px 0">
+    <div class="params-label" style="margin-bottom:8px">Available Permissions</div>
+    <table>
+      <thead><tr><th>Permission</th><th>Description</th></tr></thead>
+      <tbody>
+        <tr><td><code>sale:write</code></td><td>Create and update token sale data for scoped projects</td></tr>
+        <tr><td><code>webhooks:manage</code></td><td>Register, update, and delete webhooks programmatically</td></tr>
+        <tr><td><code>data:read</code></td><td>Read access to project and analytics data</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="endpoint" id="apikeys-create">
+    <div class="endpoint-header">
+      <span class="method method-POST">POST</span>
+      <span class="endpoint-path">/api/v1/api-keys</span>
+      <span class="auth-chip auth-user">x-user-id</span>
+    </div>
+    <div class="endpoint-body">
+      <p style="color:var(--text2);margin-top:12px">Create a new API key. The full key value is returned only in this response.</p>
+      <div class="params-section">
+        <div class="params-label">Request Body (JSON)</div>
+        <table>
+          <thead><tr><th>Field</th><th>Type</th><th>Required</th><th>Description</th></tr></thead>
+          <tbody>
+            <tr><td><span class="param-name">name</span></td><td><span class="param-type">string</span></td><td><span class="param-required">required</span></td><td>Human-readable label (1–100 chars)</td></tr>
+            <tr><td><span class="param-name">projectId</span></td><td><span class="param-type">string</span></td><td><span class="param-optional">optional</span></td><td>Scope key to a specific project ID</td></tr>
+            <tr><td><span class="param-name">permissions</span></td><td><span class="param-type">string[]</span></td><td><span class="param-optional">optional</span></td><td>Permission grants (default: <code>["data:read"]</code>)</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="code-block">
+        <div class="code-header">Example Response</div>
+        <div class="code-body"><pre>{
+  <span class="k">"id"</span>: <span class="s">"key_abc123"</span>,
+  <span class="k">"key"</span>: <span class="s">"sk_live_xxxxxxxxxxxxxxxxxxxx"</span>,
+  <span class="k">"keyPrefix"</span>: <span class="s">"sk_live_xxxx"</span>,
+  <span class="k">"name"</span>: <span class="s">"My Sale Integration"</span>,
+  <span class="k">"projectId"</span>: <span class="s">"0xabc...123"</span>,
+  <span class="k">"permissions"</span>: [<span class="s">"sale:write"</span>],
+  <span class="k">"active"</span>: <span class="v">true</span>,
+  <span class="k">"usageCount"</span>: <span class="v">0</span>,
+  <span class="k">"createdAt"</span>: <span class="s">"2024-03-12T10:00:00Z"</span>,
+  <span class="k">"_warning"</span>: <span class="s">"Store this key securely — it will not be shown again"</span>
+}</pre></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="endpoint" id="apikeys-list">
+    <div class="endpoint-header">
+      <span class="method method-GET">GET</span>
+      <span class="endpoint-path">/api/v1/api-keys</span>
+      <span class="auth-chip auth-user">x-user-id</span>
+    </div>
+    <div class="endpoint-body">
+      <p style="color:var(--text2);margin-top:12px">Lists all API keys for the user. Raw key values are never returned — only prefixes.</p>
+    </div>
+  </div>
+
+  <div class="endpoint" id="apikeys-get">
+    <div class="endpoint-header">
+      <span class="method method-GET">GET</span>
+      <span class="endpoint-path">/api/v1/api-keys/:keyId</span>
+      <span class="auth-chip auth-user">x-user-id</span>
+    </div>
+    <div class="endpoint-body">
+      <p style="color:var(--text2);margin-top:12px">Returns metadata for a specific API key including usage count and last used timestamp.</p>
+    </div>
+  </div>
+
+  <div class="endpoint" id="apikeys-rename">
+    <div class="endpoint-header">
+      <span class="method method-PATCH">PATCH</span>
+      <span class="endpoint-path">/api/v1/api-keys/:keyId</span>
+      <span class="auth-chip auth-user">x-user-id</span>
+    </div>
+    <div class="endpoint-body">
+      <p style="color:var(--text2);margin-top:12px">Rename an API key. Only the label can be changed — permissions and project scoping are immutable.</p>
+      <div class="params-section">
+        <div class="params-label">Request Body (JSON)</div>
+        <table>
+          <thead><tr><th>Field</th><th>Type</th><th>Required</th><th>Description</th></tr></thead>
+          <tbody>
+            <tr><td><span class="param-name">name</span></td><td><span class="param-type">string</span></td><td><span class="param-required">required</span></td><td>New label for the key</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <div class="endpoint" id="apikeys-revoke">
+    <div class="endpoint-header">
+      <span class="method method-DELETE">DELETE</span>
+      <span class="endpoint-path">/api/v1/api-keys/:keyId</span>
+      <span class="auth-chip auth-user">x-user-id</span>
+    </div>
+    <div class="endpoint-body">
+      <p style="color:var(--text2);margin-top:12px">Immediately and permanently revoke an API key. Any requests made with this key will return 401 after revocation.</p>
+    </div>
+  </div>
+
+  <div class="endpoint" id="apikeys-rotate">
+    <div class="endpoint-header">
+      <span class="method method-POST">POST</span>
+      <span class="endpoint-path">/api/v1/api-keys/:keyId/rotate</span>
+      <span class="auth-chip auth-user">x-user-id</span>
+    </div>
+    <div class="endpoint-body">
+      <p style="color:var(--text2);margin-top:12px">Issues a new key value and immediately revokes the old one. The new raw key is returned only in this response.</p>
+    </div>
+  </div>
+</div>
+
+<hr class="section-hr">
+
+<!-- CLAIM ALLOCATIONS -->
+<div class="section" id="claim">
+  <h2 class="section-title"><span class="icon">🎁</span>Claim Allocations</h2>
+  <p class="section-desc">Manage $SCORE token claim allocations per wallet address. Requires the <code>CLAIM_ADMIN_KEY</code> bearer token.</p>
+
+  <div class="endpoint">
+    <div class="endpoint-header">
+      <span class="method method-GET">GET</span>
+      <span class="endpoint-path">/api/v1/claim</span>
+      <span class="auth-chip auth-claim">CLAIM_ADMIN_KEY</span>
+    </div>
+    <div class="endpoint-body">
+      <p style="color:var(--text2);margin-top:12px">Returns all claim allocations with a summary of total $SCORE and total votes allocated.</p>
+    </div>
+  </div>
+
+  <div class="endpoint">
+    <div class="endpoint-header">
+      <span class="method method-GET">GET</span>
+      <span class="endpoint-path">/api/v1/claim/:address</span>
+      <span class="auth-chip auth-claim">CLAIM_ADMIN_KEY</span>
+    </div>
+    <div class="endpoint-body">
+      <p style="color:var(--text2);margin-top:12px">Returns the claim allocation for a specific wallet address.</p>
+    </div>
+  </div>
+
+  <div class="endpoint">
+    <div class="endpoint-header">
+      <span class="method method-PUT">PUT</span>
+      <span class="endpoint-path">/api/v1/claim/:address</span>
+      <span class="auth-chip auth-claim">CLAIM_ADMIN_KEY</span>
+    </div>
+    <div class="endpoint-body">
+      <p style="color:var(--text2);margin-top:12px">Create or update the claim allocation for a wallet. Idempotent — calling multiple times with the same data is safe.</p>
+      <div class="params-section">
+        <div class="params-label">Request Body (JSON)</div>
+        <table>
+          <thead><tr><th>Field</th><th>Type</th><th>Required</th><th>Description</th></tr></thead>
+          <tbody>
+            <tr><td><span class="param-name">votes</span></td><td><span class="param-type">number</span></td><td><span class="param-required">required</span></td><td>Number of votes attributed</td></tr>
+            <tr><td><span class="param-name">score</span></td><td><span class="param-type">number</span></td><td><span class="param-required">required</span></td><td>$SCORE tokens to allocate</td></tr>
+            <tr><td><span class="param-name">note</span></td><td><span class="param-type">string</span></td><td><span class="param-optional">optional</span></td><td>Admin note for audit trail</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <div class="endpoint">
+    <div class="endpoint-header">
+      <span class="method method-DELETE">DELETE</span>
+      <span class="endpoint-path">/api/v1/claim/:address</span>
+      <span class="auth-chip auth-claim">CLAIM_ADMIN_KEY</span>
+    </div>
+    <div class="endpoint-body">
+      <p style="color:var(--text2);margin-top:12px">Remove a claim allocation for a wallet address.</p>
+    </div>
+  </div>
+</div>
+
+<hr class="section-hr">
+
+<!-- AIRDROP ALLOCATIONS -->
+<div class="section" id="airdrop">
+  <h2 class="section-title"><span class="icon">🪂</span>Airdrop Allocations</h2>
+  <p class="section-desc">Same structure as Claim Allocations but for the airdrop campaign. Requires the <code>AIRDROP_ADMIN_KEY</code> bearer token. Endpoints mirror <code>/api/v1/claim/*</code> at <code>/api/v1/airdrop/*</code>.</p>
+
+  <div class="endpoint">
+    <div class="endpoint-header">
+      <span class="method method-GET">GET</span>
+      <span class="endpoint-path">/api/v1/airdrop</span>
+      <span class="auth-chip auth-claim">AIRDROP_ADMIN_KEY</span>
+    </div>
+    <div class="endpoint-body"><p style="color:var(--text2);margin-top:12px">List all airdrop allocations with summary totals.</p></div>
+  </div>
+  <div class="endpoint">
+    <div class="endpoint-header">
+      <span class="method method-GET">GET</span>
+      <span class="endpoint-path">/api/v1/airdrop/:address</span>
+      <span class="auth-chip auth-claim">AIRDROP_ADMIN_KEY</span>
+    </div>
+    <div class="endpoint-body"><p style="color:var(--text2);margin-top:12px">Get airdrop allocation for a specific address.</p></div>
+  </div>
+  <div class="endpoint">
+    <div class="endpoint-header">
+      <span class="method method-PUT">PUT</span>
+      <span class="endpoint-path">/api/v1/airdrop/:address</span>
+      <span class="auth-chip auth-claim">AIRDROP_ADMIN_KEY</span>
+    </div>
+    <div class="endpoint-body"><p style="color:var(--text2);margin-top:12px">Create or update an airdrop allocation. Body: <code>{ votes, score, note? }</code></p></div>
+  </div>
+  <div class="endpoint">
+    <div class="endpoint-header">
+      <span class="method method-DELETE">DELETE</span>
+      <span class="endpoint-path">/api/v1/airdrop/:address</span>
+      <span class="auth-chip auth-claim">AIRDROP_ADMIN_KEY</span>
+    </div>
+    <div class="endpoint-body"><p style="color:var(--text2);margin-top:12px">Remove an airdrop allocation.</p></div>
+  </div>
+</div>
+
+<hr class="section-hr">
+<!-- ADMIN -->
+<div class="section" id="admin">
+  <h2 class="section-title"><span class="icon">⚙️</span>Admin</h2>
+  <p class="section-desc">Internal administration endpoints. Requires the <code>ADMIN_API_KEY</code> bearer token. All write actions are recorded in the audit log.</p>
+
+  <div class="alert alert-warn">⚠️ These endpoints are for platform operators only. Misuse can permanently affect project trust levels and user data.</div>
+
+  <!-- Feature Flags -->
+  <h3 id="admin-flags" style="margin:24px 0 12px;font-size:16px;color:var(--text2)">Feature Flags</h3>
+
+  <div class="endpoint">
+    <div class="endpoint-header">
+      <span class="method method-GET">GET</span>
+      <span class="endpoint-path">/api/v1/admin/flags</span>
+      <span class="auth-chip auth-admin">Admin Key</span>
+    </div>
+    <div class="endpoint-body"><p style="color:var(--text2);margin-top:12px">List all feature flags and their current state.</p></div>
+  </div>
+
+  <div class="endpoint">
+    <div class="endpoint-header">
+      <span class="method method-PUT">PUT</span>
+      <span class="endpoint-path">/api/v1/admin/flags/:id</span>
+      <span class="auth-chip auth-admin">Admin Key</span>
+    </div>
+    <div class="endpoint-body">
+      <p style="color:var(--text2);margin-top:12px">Enable, disable, or configure a feature flag.</p>
+      <div class="params-section">
+        <div class="params-label">Request Body (JSON)</div>
+        <table>
+          <thead><tr><th>Field</th><th>Type</th><th>Required</th><th>Description</th></tr></thead>
+          <tbody>
+            <tr><td><span class="param-name">enabled</span></td><td><span class="param-type">boolean</span></td><td><span class="param-required">required</span></td><td>Enable or disable the flag</td></tr>
+            <tr><td><span class="param-name">description</span></td><td><span class="param-type">string</span></td><td><span class="param-optional">optional</span></td><td>Human-readable description</td></tr>
+            <tr><td><span class="param-name">rollout</span></td><td><span class="param-type">0–100</span></td><td><span class="param-optional">optional</span></td><td>Percentage rollout (0 = off, 100 = all users)</td></tr>
+            <tr><td><span class="param-name">allowlist</span></td><td><span class="param-type">string[]</span></td><td><span class="param-optional">optional</span></td><td>Specific addresses always included</td></tr>
+            <tr><td><span class="param-name">metadata</span></td><td><span class="param-type">object</span></td><td><span class="param-optional">optional</span></td><td>Arbitrary key/value metadata</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <div class="endpoint">
+    <div class="endpoint-header">
+      <span class="method method-DELETE">DELETE</span>
+      <span class="endpoint-path">/api/v1/admin/flags/:id</span>
+      <span class="auth-chip auth-admin">Admin Key</span>
+    </div>
+    <div class="endpoint-body"><p style="color:var(--text2);margin-top:12px">Permanently delete a feature flag.</p></div>
+  </div>
+
+  <!-- Project Overrides -->
+  <h3 id="admin-overrides" style="margin:24px 0 12px;font-size:16px;color:var(--text2)">Project Overrides</h3>
+
+  <div class="endpoint">
+    <div class="endpoint-header">
+      <span class="method method-GET">GET</span>
+      <span class="endpoint-path">/api/v1/admin/overrides</span>
+      <span class="auth-chip auth-admin">Admin Key</span>
+    </div>
+    <div class="endpoint-body"><p style="color:var(--text2);margin-top:12px">List all active project overrides (admin-forced trust levels, scam flags, featured status, etc).</p></div>
+  </div>
+
+  <div class="endpoint">
+    <div class="endpoint-header">
+      <span class="method method-PUT">PUT</span>
+      <span class="endpoint-path">/api/v1/admin/overrides/:projectId</span>
+      <span class="auth-chip auth-admin">Admin Key</span>
+    </div>
+    <div class="endpoint-body">
+      <p style="color:var(--text2);margin-top:12px">Set an admin override for a project. Overrides take precedence over community voting.</p>
+      <div class="params-section">
+        <div class="params-label">Request Body (JSON) — all optional</div>
+        <table>
+          <thead><tr><th>Field</th><th>Type</th><th>Description</th></tr></thead>
+          <tbody>
+            <tr><td><span class="param-name">trustLevel</span></td><td><span class="param-type">0–5</span></td><td>Force a specific trust level</td></tr>
+            <tr><td><span class="param-name">verified</span></td><td><span class="param-type">boolean</span></td><td>Set verified badge</td></tr>
+            <tr><td><span class="param-name">scamFlag</span></td><td><span class="param-type">boolean</span></td><td>Mark project as confirmed scam</td></tr>
+            <tr><td><span class="param-name">scamReason</span></td><td><span class="param-type">string</span></td><td>Reason for scam flag</td></tr>
+            <tr><td><span class="param-name">featured</span></td><td><span class="param-type">boolean</span></td><td>Feature on homepage</td></tr>
+            <tr><td><span class="param-name">bannerMessage</span></td><td><span class="param-type">string</span></td><td>Warning banner text shown to users</td></tr>
+            <tr><td><span class="param-name">riskFlags</span></td><td><span class="param-type">string[]</span></td><td>Manual risk flag IDs to apply</td></tr>
+            <tr><td><span class="param-name">notes</span></td><td><span class="param-type">string</span></td><td>Internal admin notes</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <div class="endpoint">
+    <div class="endpoint-header">
+      <span class="method method-DELETE">DELETE</span>
+      <span class="endpoint-path">/api/v1/admin/overrides/:projectId</span>
+      <span class="auth-chip auth-admin">Admin Key</span>
+    </div>
+    <div class="endpoint-body"><p style="color:var(--text2);margin-top:12px">Remove all overrides for a project, returning it to community-driven trust scoring.</p></div>
+  </div>
+
+  <!-- Scam Reports -->
+  <h3 id="admin-reports" style="margin:24px 0 12px;font-size:16px;color:var(--text2)">Scam Report Review</h3>
+
+  <div class="endpoint">
+    <div class="endpoint-header">
+      <span class="method method-GET">GET</span>
+      <span class="endpoint-path">/api/v1/admin/reports</span>
+      <span class="auth-chip auth-admin">Admin Key</span>
+    </div>
+    <div class="endpoint-body">
+      <p style="color:var(--text2);margin-top:12px">List community scam reports, filtered by status.</p>
+      <div class="params-section">
+        <div class="params-label">Query Parameters</div>
+        <table>
+          <thead><tr><th>Param</th><th>Type</th><th>Description</th></tr></thead>
+          <tbody>
+            <tr><td><span class="param-name">status</span></td><td><span class="param-type">string</span></td><td><code>pending</code> | <code>investigating</code> | <code>confirmed</code> | <code>dismissed</code></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <div class="endpoint">
+    <div class="endpoint-header">
+      <span class="method method-PUT">PUT</span>
+      <span class="endpoint-path">/api/v1/admin/reports/:id</span>
+      <span class="auth-chip auth-admin">Admin Key</span>
+    </div>
+    <div class="endpoint-body">
+      <p style="color:var(--text2);margin-top:12px">Update the status of a scam report after review.</p>
+      <div class="params-section">
+        <div class="params-label">Request Body (JSON)</div>
+        <table>
+          <thead><tr><th>Field</th><th>Type</th><th>Required</th><th>Description</th></tr></thead>
+          <tbody>
+            <tr><td><span class="param-name">status</span></td><td><span class="param-type">string</span></td><td><span class="param-required">required</span></td><td><code>investigating</code> | <code>confirmed</code> | <code>dismissed</code></td></tr>
+            <tr><td><span class="param-name">resolution</span></td><td><span class="param-type">string</span></td><td><span class="param-optional">optional</span></td><td>Notes on resolution outcome</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- Cache -->
+  <h3 id="admin-cache" style="margin:24px 0 12px;font-size:16px;color:var(--text2)">Cache Management</h3>
+
+  <div class="endpoint">
+    <div class="endpoint-header">
+      <span class="method method-DELETE">DELETE</span>
+      <span class="endpoint-path">/api/v1/admin/cache/:key</span>
+      <span class="auth-chip auth-admin">Admin Key</span>
+    </div>
+    <div class="endpoint-body"><p style="color:var(--text2);margin-top:12px">Invalidate a specific Firestore stats cache entry by key.</p></div>
+  </div>
+
+  <div class="endpoint">
+    <div class="endpoint-header">
+      <span class="method method-DELETE">DELETE</span>
+      <span class="endpoint-path">/api/v1/admin/cache</span>
+      <span class="auth-chip auth-admin">Admin Key</span>
+    </div>
+    <div class="endpoint-body"><p style="color:var(--text2);margin-top:12px">Purge the entire stats cache. Forces fresh data on the next request.</p></div>
+  </div>
+
+  <!-- Audit -->
+  <h3 id="admin-audit" style="margin:24px 0 12px;font-size:16px;color:var(--text2)">Audit Log</h3>
+
+  <div class="endpoint">
+    <div class="endpoint-header">
+      <span class="method method-GET">GET</span>
+      <span class="endpoint-path">/api/v1/admin/audit</span>
+      <span class="auth-chip auth-admin">Admin Key</span>
+    </div>
+    <div class="endpoint-body">
+      <p style="color:var(--text2);margin-top:12px">Returns an immutable log of all admin actions taken via these endpoints.</p>
+      <div class="params-section">
+        <div class="params-label">Query Parameters</div>
+        <table>
+          <thead><tr><th>Param</th><th>Type</th><th>Default</th><th>Description</th></tr></thead>
+          <tbody>
+            <tr><td><span class="param-name">limit</span></td><td><span class="param-type">integer</span></td><td>50</td><td>Number of entries to return (max 500)</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- Health -->
+  <h3 id="admin-health" style="margin:24px 0 12px;font-size:16px;color:var(--text2)">System Health</h3>
+
+  <div class="endpoint">
+    <div class="endpoint-header">
+      <span class="method method-GET">GET</span>
+      <span class="endpoint-path">/api/v1/admin/health</span>
+      <span class="auth-chip auth-admin">Admin Key</span>
+    </div>
+    <div class="endpoint-body">
+      <p style="color:var(--text2);margin-top:12px">Returns detailed system health including Firestore connectivity, subgraph status, and environment variable presence checks.</p>
+      <div class="code-block">
+        <div class="code-header">Example Response</div>
+        <div class="code-body"><pre>{
+  <span class="k">"success"</span>: <span class="v">true</span>,
+  <span class="k">"data"</span>: {
+    <span class="k">"status"</span>: <span class="s">"healthy"</span>,
+    <span class="k">"firestore"</span>: { <span class="k">"connected"</span>: <span class="v">true</span>, <span class="k">"latencyMs"</span>: <span class="v">24</span> },
+    <span class="k">"subgraph"</span>: { <span class="k">"reachable"</span>: <span class="v">true</span>, <span class="k">"latestBlock"</span>: <span class="v">19400000</span> },
+    <span class="k">"env"</span>: {
+      <span class="k">"ADMIN_API_KEY"</span>: <span class="v">true</span>,
+      <span class="k">"ALCHEMY_API_KEY"</span>: <span class="v">true</span>,
+      <span class="k">"SUBGRAPH_URL"</span>: <span class="v">true</span>
+    },
+    <span class="k">"timestamp"</span>: <span class="s">"2024-03-12T10:30:00Z"</span>
+  }
+}</pre></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<hr class="section-hr">
+<!-- SHARE -->
+<div class="section" id="share">
+  <h2 class="section-title"><span class="icon">🖼️</span>Share Cards</h2>
+  <p class="section-desc">Generate dynamic PNG images for sharing project trust cards, user stat cards, and leaderboards on social media. All endpoints return a <code>image/png</code> binary stream.</p>
+
+  <div class="endpoint">
+    <div class="endpoint-header">
+      <span class="method method-GET">GET</span>
+      <span class="endpoint-path">/api/share/project/:id</span>
+      <span class="auth-chip auth-none">No Auth</span>
+    </div>
+    <div class="endpoint-body">
+      <p style="color:var(--text2);margin-top:12px">Generates a shareable PNG card for a project showing its trust score, vote count, and category.</p>
+      <div class="alert alert-info">ℹ️ Share endpoints are on the Express backend only (<code>/api/share/*</code> — no <code>/v1</code>). Content-Type: <code>image/png</code>.</div>
+    </div>
+  </div>
+
+  <div class="endpoint">
+    <div class="endpoint-header">
+      <span class="method method-GET">GET</span>
+      <span class="endpoint-path">/api/share/user/:address</span>
+      <span class="auth-chip auth-none">No Auth</span>
+    </div>
+    <div class="endpoint-body">
+      <p style="color:var(--text2);margin-top:12px">Generates a PNG stat card for a user showing reputation, accuracy rate, and total earnings.</p>
+    </div>
+  </div>
+
+  <div class="endpoint">
+    <div class="endpoint-header">
+      <span class="method method-GET">GET</span>
+      <span class="endpoint-path">/api/share/leaderboard</span>
+      <span class="auth-chip auth-none">No Auth</span>
+    </div>
+    <div class="endpoint-body">
+      <p style="color:var(--text2);margin-top:12px">Generates a PNG leaderboard snapshot card.</p>
+      <div class="params-section">
+        <div class="params-label">Query Parameters</div>
+        <table>
+          <thead><tr><th>Param</th><th>Type</th><th>Default</th><th>Description</th></tr></thead>
+          <tbody>
+            <tr><td><span class="param-name">type</span></td><td><span class="param-type">string</span></td><td>reputation</td><td>Leaderboard type: <code>reputation</code> | <code>scamHunters</code> | <code>accuracy</code> | <code>earnings</code></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <div class="endpoint">
+    <div class="endpoint-header">
+      <span class="method method-GET">GET</span>
+      <span class="endpoint-path">/api/share/prediction/:marketId</span>
+      <span class="auth-chip auth-none">No Auth</span>
+    </div>
+    <div class="endpoint-body">
+      <p style="color:var(--text2);margin-top:12px">Generates a PNG card for a prediction market showing current odds, volume, and resolution status.</p>
+    </div>
+  </div>
+</div>
+
+<hr class="section-hr">
+
+<!-- INCOMING WEBHOOKS -->
+<div class="section" id="incoming-webhooks">
+  <h2 class="section-title"><span class="icon">📥</span>Incoming Webhooks</h2>
+  <p class="section-desc">Endpoints for receiving events from third-party indexing services. These are called by Alchemy and The Graph/Notifi — not by end users.</p>
+
+  <div class="endpoint">
+    <div class="endpoint-header">
+      <span class="method method-POST">POST</span>
+      <span class="endpoint-path">/api/v1/webhooks/incoming/alchemy</span>
+      <span class="auth-chip auth-none">Alchemy Signing Key</span>
+    </div>
+    <div class="endpoint-body">
+      <p style="color:var(--text2);margin-top:12px">Receives Alchemy Activity webhook events for whale transaction detection. The payload signature is verified using the <code>ALCHEMY_SIGNING_KEY</code> environment variable.</p>
+    </div>
+  </div>
+
+  <div class="endpoint">
+    <div class="endpoint-header">
+      <span class="method method-POST">POST</span>
+      <span class="endpoint-path">/api/v1/webhooks/incoming/graph</span>
+      <span class="auth-chip auth-none">Subgraph Secret</span>
+    </div>
+    <div class="endpoint-body">
+      <p style="color:var(--text2);margin-top:12px">Receives subgraph / Notifi webhook events (e.g. new votes, trust threshold crossings). Requests must include a valid <code>SUBGRAPH_WEBHOOK_SECRET</code> header.</p>
+    </div>
+  </div>
+</div>
+
+<!-- FOOTER -->
+<div style="margin-top:64px;padding-top:32px;border-top:1px solid var(--border);color:var(--text2);font-size:12px;line-height:2">
+  <strong style="color:var(--text)">DappScore API Documentation</strong><br>
+  Last updated: March 2026 &nbsp;·&nbsp; Firebase Functions v1 &nbsp;·&nbsp; Express Backend v1<br>
+  For support, contact the DappScore team or open an issue in the platform repository.
+</div>
+
+</main>
+
+<script>
+// Highlight active nav link on scroll
+const links = document.querySelectorAll('.nav-link[href^="#"]');
+const observer = new IntersectionObserver(entries => {
+  entries.forEach(e => {
+    if (e.isIntersecting) {
+      links.forEach(l => l.classList.remove('active'));
+      const id = e.target.id;
+      const active = document.querySelector(`.nav-link[href="#${id}"]`);
+      if (active) active.classList.add('active');
+    }
+  });
+}, { rootMargin: '-20% 0px -70% 0px' });
+document.querySelectorAll('[id]').forEach(el => observer.observe(el));
+</script>
+</body>
+</html>
