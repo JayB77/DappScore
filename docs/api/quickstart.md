@@ -1,8 +1,8 @@
-# ⚡ Quick Start
+# Quick Start
 
 Get live DappScore data into your app in under 5 minutes. No API key required for read-only data.
 
----
+***
 
 ## 1. Fetch a Trust Score (No Auth)
 
@@ -29,7 +29,7 @@ curl https://us-central1-<project>.cloudfunctions.net/api/v1/projects/0xYourCont
 }
 ```
 
----
+***
 
 ## 2. Scan a Contract for Risks (No Auth)
 
@@ -53,14 +53,14 @@ curl -X POST https://us-central1-<project>.cloudfunctions.net/api/v1/scam/analyz
 }
 ```
 
-| Risk Level | Score Range | Meaning |
-|---|---|---|
-| `low` | 0–25 | No significant concerns |
-| `medium` | 26–50 | Some caution advised |
-| `high` | 51–75 | Multiple risk factors present |
-| `critical` | 76–100 | Serious red flags — avoid |
+| Risk Level | Score Range | Meaning                       |
+| ---------- | ----------- | ----------------------------- |
+| `low`      | 0–25        | No significant concerns       |
+| `medium`   | 26–50       | Some caution advised          |
+| `high`     | 51–75       | Multiple risk factors present |
+| `critical` | 76–100      | Serious red flags — avoid     |
 
----
+***
 
 ## 3. Get Trending Projects (No Auth)
 
@@ -68,7 +68,7 @@ curl -X POST https://us-central1-<project>.cloudfunctions.net/api/v1/scam/analyz
 curl "https://us-central1-<project>.cloudfunctions.net/api/v1/projects/trending?timeframe=24h&limit=5"
 ```
 
----
+***
 
 ## 4. Track Whale Activity (No Auth)
 
@@ -76,7 +76,7 @@ curl "https://us-central1-<project>.cloudfunctions.net/api/v1/projects/trending?
 curl "https://us-central1-<project>.cloudfunctions.net/api/v1/whales/0xTokenAddress/analysis"
 ```
 
----
+***
 
 ## 5. Publish Sale Progress (API Key Required)
 
@@ -106,7 +106,7 @@ The live progress will immediately appear on your project's listing page. Call t
 Need a key? See [Authentication](authentication.md) to create one with `sale:write` permission.
 {% endhint %}
 
----
+***
 
 ## 6. Receive Real-Time Alerts via Webhook
 
@@ -124,17 +124,17 @@ curl -X POST https://us-central1-<project>.cloudfunctions.net/api/v1/webhooks/re
 
 DappScore will `POST` a signed JSON payload to your URL whenever one of those events fires. Verify the signature using the `X-DappScore-Signature` header (HMAC-SHA256 of the raw body with your webhook secret).
 
-| Event | When it fires |
-|---|---|
-| `project.trust_changed` | A project's trust level goes up or down |
-| `project.scam_flagged` | Community or automated scam flag is raised |
-| `project.created` | A new project is listed |
-| `vote.cast` | A vote is submitted on any project |
-| `whale.activity` | A large token transfer is detected |
-| `market.resolved` | A prediction market closes |
-| `bounty.completed` | A bounty is awarded |
+| Event                   | When it fires                              |
+| ----------------------- | ------------------------------------------ |
+| `project.trust_changed` | A project's trust level goes up or down    |
+| `project.scam_flagged`  | Community or automated scam flag is raised |
+| `project.created`       | A new project is listed                    |
+| `vote.cast`             | A vote is submitted on any project         |
+| `whale.activity`        | A large token transfer is detected         |
+| `market.resolved`       | A prediction market closes                 |
+| `bounty.completed`      | A bounty is awarded                        |
 
----
+***
 
 ## JavaScript SDK Snippet
 
@@ -159,13 +159,13 @@ async function scanContract(contractAddress, network = 'mainnet') {
 }
 ```
 
----
+***
 
 ## Next Steps
 
-| | |
-|---|---|
+|                                                        |                                               |
+| ------------------------------------------------------ | --------------------------------------------- |
 | 📖 [Full API Reference](https://dappscore.io/api-docs) | Every endpoint, parameter, and response shape |
-| 🔑 [Authentication](authentication.md) | Create and manage API keys |
-| ❓ [FAQ](../faq.md) | Common questions |
-| 💬 [Contact](../support/contact.md) | Get help |
+| 🔑 [Authentication](authentication.md)                 | Create and manage API keys                    |
+| ❓ [FAQ](../faq.md)                                     | Common questions                              |
+| 💬 [Contact](../support/contact.md)                    | Get help                                      |
