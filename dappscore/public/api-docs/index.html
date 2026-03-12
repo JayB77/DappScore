@@ -534,17 +534,17 @@ tr:last-child td{border-bottom:none}
       <div class="code-block">
         <div class="code-header">Example Response</div>
         <div class="code-body"><pre>{
-  <span class="k">"projectId"</span>: <span class="s">"0xabc...123"</span>,
   <span class="k">"raised"</span>: <span class="v">450000</span>,
   <span class="k">"goal"</span>: <span class="v">1000000</span>,
   <span class="k">"currency"</span>: <span class="s">"USDC"</span>,
   <span class="k">"tokenPrice"</span>: <span class="v">0.05</span>,
-  <span class="k">"startDate"</span>: <span class="s">"2024-04-01T00:00:00Z"</span>,
-  <span class="k">"endDate"</span>: <span class="s">"2024-04-30T00:00:00Z"</span>,
+  <span class="k">"startDate"</span>: <span class="v">1711929600</span>,
+  <span class="k">"endDate"</span>: <span class="v">1714521600</span>,
   <span class="k">"minContribution"</span>: <span class="v">100</span>,
   <span class="k">"maxContribution"</span>: <span class="v">5000</span>,
   <span class="k">"saleContract"</span>: <span class="s">"0xdef...456"</span>,
-  <span class="k">"network"</span>: <span class="s">"ethereum"</span>
+  <span class="k">"network"</span>: <span class="s">"ethereum"</span>,
+  <span class="k">"updatedAt"</span>: <span class="v">1710237600</span>
 }</pre></div>
       </div>
     </div>
@@ -568,8 +568,8 @@ tr:last-child td{border-bottom:none}
             <tr><td><span class="param-name">goal</span></td><td><span class="param-type">number</span></td><td><span class="param-required">required</span></td><td class="param-desc">Fundraising goal in <code>currency</code> units</td></tr>
             <tr><td><span class="param-name">currency</span></td><td><span class="param-type">string</span></td><td><span class="param-required">required</span></td><td class="param-desc">Currency symbol (e.g. <code>USDC</code>, <code>ETH</code>)</td></tr>
             <tr><td><span class="param-name">tokenPrice</span></td><td><span class="param-type">number</span></td><td><span class="param-required">required</span></td><td class="param-desc">Token price in <code>currency</code> units</td></tr>
-            <tr><td><span class="param-name">startDate</span></td><td><span class="param-type">ISO-8601</span></td><td><span class="param-required">required</span></td><td class="param-desc">Sale start datetime</td></tr>
-            <tr><td><span class="param-name">endDate</span></td><td><span class="param-type">ISO-8601</span></td><td><span class="param-required">required</span></td><td class="param-desc">Sale end datetime</td></tr>
+            <tr><td><span class="param-name">startDate</span></td><td><span class="param-type">integer</span></td><td><span class="param-required">required</span></td><td class="param-desc">Sale start as a Unix timestamp (seconds)</td></tr>
+            <tr><td><span class="param-name">endDate</span></td><td><span class="param-type">integer</span></td><td><span class="param-required">required</span></td><td class="param-desc">Sale end as a Unix timestamp (seconds) — must be after <code>startDate</code></td></tr>
             <tr><td><span class="param-name">minContribution</span></td><td><span class="param-type">number</span></td><td><span class="param-optional">optional</span></td><td class="param-desc">Minimum contribution amount</td></tr>
             <tr><td><span class="param-name">maxContribution</span></td><td><span class="param-type">number</span></td><td><span class="param-optional">optional</span></td><td class="param-desc">Maximum contribution amount</td></tr>
             <tr><td><span class="param-name">saleContract</span></td><td><span class="param-type">string</span></td><td><span class="param-optional">optional</span></td><td class="param-desc">Sale contract address</td></tr>
@@ -587,10 +587,26 @@ Authorization: Bearer sk_live_...
   <span class="k">"goal"</span>: <span class="v">1000000</span>,
   <span class="k">"currency"</span>: <span class="s">"USDC"</span>,
   <span class="k">"tokenPrice"</span>: <span class="v">0.05</span>,
-  <span class="k">"startDate"</span>: <span class="s">"2024-04-01T00:00:00Z"</span>,
-  <span class="k">"endDate"</span>: <span class="s">"2024-04-30T00:00:00Z"</span>
+  <span class="k">"startDate"</span>: <span class="v">1711929600</span>,
+  <span class="k">"endDate"</span>: <span class="v">1714521600</span>
 }</pre></div>
       </div>
+      <div class="code-block">
+        <div class="code-header">Example Response</div>
+        <div class="code-body"><pre>{
+  <span class="k">"ok"</span>: <span class="v">true</span>,
+  <span class="k">"data"</span>: {
+    <span class="k">"raised"</span>: <span class="v">250000</span>,
+    <span class="k">"goal"</span>: <span class="v">1000000</span>,
+    <span class="k">"currency"</span>: <span class="s">"USDC"</span>,
+    <span class="k">"tokenPrice"</span>: <span class="v">0.05</span>,
+    <span class="k">"startDate"</span>: <span class="v">1711929600</span>,
+    <span class="k">"endDate"</span>: <span class="v">1714521600</span>,
+    <span class="k">"updatedAt"</span>: <span class="v">1710237600</span>
+  }
+}</pre></div>
+      </div>
+      <div class="alert alert-info" style="margin-top:12px">ℹ️ <code>updatedAt</code> is set automatically to the current Unix timestamp on every write. <code>currency</code> is normalised to uppercase (e.g. <code>"usdc"</code> → <code>"USDC"</code>). The endpoint is idempotent — calling POST again overwrites the existing sale document.</div>
     </div>
   </div>
 </div>
