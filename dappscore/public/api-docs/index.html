@@ -272,7 +272,7 @@ tr:last-child td{border-bottom:none}
     <tbody>
       <tr><td><span class="auth-chip auth-none">None</span></td><td>—</td><td>Projects, Users, Stats, Scam patterns (read-only public data)</td></tr>
       <tr><td><span class="auth-chip auth-user">User ID</span></td><td><code>x-user-id: &lt;wallet-address&gt;</code></td><td>Alerts, Webhooks, API Keys (user-scoped actions)</td></tr>
-      <tr><td><span class="auth-chip auth-apikey">API Key</span></td><td><code>Authorization: Bearer sk_live_...</code></td><td>Sale data writes and scoped programmatic access</td></tr>
+      <tr><td><span class="auth-chip auth-apikey">API Key</span></td><td><code>Authorization: Bearer sk_test_...</code></td><td>Sale data writes and scoped programmatic access</td></tr>
     </tbody>
   </table>
 
@@ -1500,7 +1500,9 @@ Authorization: Bearer sk_live_...
   <h2 class="section-title"><span class="icon">🗝️</span>API Keys</h2>
   <p class="section-desc">Manage programmatic API keys for machine-to-machine access. Keys carry scoped permissions and are associated with a user wallet. Maximum 10 keys per user.</p>
 
-  <div class="alert alert-warn">⚠️ The raw API key (<code>sk_live_...</code>) is only shown once — at creation or rotation. It is stored hashed and cannot be retrieved. Treat it like a password.</div>
+  <div class="alert alert-info">ℹ️ You can create and manage API keys from the <strong>Dashboard → API Keys</strong> tab without writing any code. Use the API endpoints below for scripting or CI/CD pipelines.</div>
+
+  <div class="alert alert-warn">⚠️ The raw API key (<code>sk_test_...</code>) is only shown once — at creation or rotation. It is stored hashed and cannot be retrieved. Treat it like a password.</div>
 
   <div style="margin:16px 0">
     <div class="params-label" style="margin-bottom:8px">Available Permissions</div>
@@ -1529,7 +1531,7 @@ Authorization: Bearer sk_live_...
           <tbody>
             <tr><td><span class="param-name">name</span></td><td><span class="param-type">string</span></td><td><span class="param-required">required</span></td><td>Human-readable label (1–100 chars)</td></tr>
             <tr><td><span class="param-name">projectId</span></td><td><span class="param-type">string</span></td><td><span class="param-optional">optional</span></td><td>Scope key to a specific project ID</td></tr>
-            <tr><td><span class="param-name">permissions</span></td><td><span class="param-type">string[]</span></td><td><span class="param-optional">optional</span></td><td>Permission grants (default: <code>["data:read"]</code>)</td></tr>
+            <tr><td><span class="param-name">permissions</span></td><td><span class="param-type">string[]</span></td><td><span class="param-required">required</span></td><td>Non-empty array of permission grants (e.g. <code>["sale:write"]</code>)</td></tr>
           </tbody>
         </table>
       </div>
@@ -1537,15 +1539,15 @@ Authorization: Bearer sk_live_...
         <div class="code-header">Example Response</div>
         <div class="code-body"><pre>{
   <span class="k">"id"</span>: <span class="s">"key_abc123"</span>,
-  <span class="k">"key"</span>: <span class="s">"sk_live_xxxxxxxxxxxxxxxxxxxx"</span>,
-  <span class="k">"keyPrefix"</span>: <span class="s">"sk_live_xxxx"</span>,
+  <span class="k">"key"</span>: <span class="s">"sk_test_a1b2c3d4e5f6g7h8i9j0..."</span>,
+  <span class="k">"keyPrefix"</span>: <span class="s">"sk_test_a1b2c3"</span>,
   <span class="k">"name"</span>: <span class="s">"My Sale Integration"</span>,
   <span class="k">"projectId"</span>: <span class="s">"0xabc...123"</span>,
   <span class="k">"permissions"</span>: [<span class="s">"sale:write"</span>],
   <span class="k">"active"</span>: <span class="v">true</span>,
   <span class="k">"usageCount"</span>: <span class="v">0</span>,
   <span class="k">"createdAt"</span>: <span class="s">"2024-03-12T10:00:00Z"</span>,
-  <span class="k">"_warning"</span>: <span class="s">"Store this key securely — it will not be shown again"</span>
+  <span class="k">"_warning"</span>: <span class="s">"Save this key now — it will not be shown again."</span>
 }</pre></div>
       </div>
     </div>
