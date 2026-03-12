@@ -64,7 +64,7 @@ export default function ApiKeysPanel({ walletAddress }: { walletAddress: string 
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch(`${API_BASE}/api/v1/api-keys`, { headers });
+      const res = await fetch(`${API_BASE}/v1/api-keys`, { headers });
       if (!res.ok) throw new Error(`Failed to load keys (${res.status})`);
       const data = await res.json();
       setKeys(data.keys ?? []);
@@ -85,7 +85,7 @@ export default function ApiKeysPanel({ walletAddress }: { walletAddress: string 
     try {
       const body: Record<string, unknown> = { name: createName.trim(), permissions: createPermissions };
       if (createProjectId.trim()) body.projectId = createProjectId.trim();
-      const res = await fetch(`${API_BASE}/api/v1/api-keys`, {
+      const res = await fetch(`${API_BASE}/v1/api-keys`, {
         method: 'POST',
         headers,
         body: JSON.stringify(body),
@@ -111,7 +111,7 @@ export default function ApiKeysPanel({ walletAddress }: { walletAddress: string 
     setRevoking(true);
     setError(null);
     try {
-      const res = await fetch(`${API_BASE}/api/v1/api-keys/${keyId}`, { method: 'DELETE', headers });
+      const res = await fetch(`${API_BASE}/v1/api-keys/${keyId}`, { method: 'DELETE', headers });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? `Error ${res.status}`);
       setConfirmRevokeId(null);
@@ -127,7 +127,7 @@ export default function ApiKeysPanel({ walletAddress }: { walletAddress: string 
     setRotating(true);
     setError(null);
     try {
-      const res = await fetch(`${API_BASE}/api/v1/api-keys/${keyId}/rotate`, { method: 'POST', headers });
+      const res = await fetch(`${API_BASE}/v1/api-keys/${keyId}/rotate`, { method: 'POST', headers });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? `Error ${res.status}`);
       setRevealedKey(data as NewKeyResult);
@@ -146,7 +146,7 @@ export default function ApiKeysPanel({ walletAddress }: { walletAddress: string 
     if (!renameValue.trim()) return;
     setError(null);
     try {
-      const res = await fetch(`${API_BASE}/api/v1/api-keys/${keyId}`, {
+      const res = await fetch(`${API_BASE}/v1/api-keys/${keyId}`, {
         method: 'PATCH',
         headers,
         body: JSON.stringify({ name: renameValue.trim() }),
