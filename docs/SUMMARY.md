@@ -46,6 +46,12 @@
 * [Contract Addresses](contracts/addresses.md)
 * [Official Wallets](contracts/wallets.md)
 
+## API
+
+* [Overview](api/overview.md)
+* [Authentication & API Keys](api/authentication.md)
+* [Quick Start](api/quickstart.md)
+
 ## Roadmap
 
 * [Development Phases](roadmap.md)
