@@ -16,6 +16,8 @@ import adminRoutes    from './routes/admin';
 import airdropRoutes  from './routes/airdrop';
 import claimRoutes    from './routes/claim';
 import apiKeyRoutes   from './routes/api-keys';
+import statusRoutes   from './routes/status';
+import { globalLimit } from './lib/rate-limit';
 
 initializeApp();
 
@@ -24,11 +26,16 @@ const app = express();
 app.use(helmet({ contentSecurityPolicy: false }));
 app.use(cors({ origin: true }));
 app.use(express.json({ limit: '256kb' }));
+app.set('trust proxy', 1); // Required for express-rate-limit behind Cloud Run
+app.use(globalLimit);
 
 // ── Health (unauthenticated, used by Firebase Hosting health checks) ──────────
 app.get('/api/health', (_req, res) => {
   res.json({ status: 'ok', ts: new Date().toISOString() });
 });
+
+// ── Public status ─────────────────────────────────────────────────────────────
+app.use('/api/v1/status', statusRoutes);
 
 // ── Public / user-authenticated routes ───────────────────────────────────────
 app.use('/api/v1/projects',      projectRoutes);   // GET search/detail/votes/trust-history/similar/trending
