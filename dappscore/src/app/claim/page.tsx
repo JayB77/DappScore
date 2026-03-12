@@ -29,7 +29,7 @@ interface Allocation {
 // ── API helpers ───────────────────────────────────────────────────────────────
 
 async function apiFetch(path: string, options?: RequestInit) {
-  const res = await fetch(`${API_BASE}/api/v1/claim${path}`, {
+  const res = await fetch(`${API_BASE}/v1/claim${path}`, {
     ...options,
     headers: {
       'Content-Type': 'application/json',

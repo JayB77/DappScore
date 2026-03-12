@@ -96,8 +96,8 @@ async function fetchWhaleData(
   const apiBase = process.env.NEXT_PUBLIC_API_URL ?? '';
 
   const [analysisRes, txRes] = await Promise.all([
-    fetch(`${apiBase}/api/v1/whales/${contractAddress}/analysis?network=${network}`),
-    fetch(`${apiBase}/api/v1/whales/${contractAddress}/transactions?network=${network}&hours=24`),
+    fetch(`${apiBase}/v1/whales/${contractAddress}/analysis?network=${network}`),
+    fetch(`${apiBase}/v1/whales/${contractAddress}/transactions?network=${network}&hours=24`),
   ]);
 
   const [analysisJson, txJson] = await Promise.all([
