@@ -30,13 +30,15 @@ import {
   BarChart3,
   Zap,
   Lock,
-  Gift
+  Gift,
+  Key
 } from 'lucide-react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useFeatureFlag } from '@/lib/featureFlags';
+import ApiKeysPanel from '@/components/ApiKeysPanel';
 
-type TabType = 'overview' | 'votes' | 'nfts' | 'projects' | 'settings';
+type TabType = 'overview' | 'votes' | 'nfts' | 'projects' | 'settings' | 'apikeys';
 
 export default function DashboardPage() {
   const { isConnected, address } = useAccount();
@@ -229,6 +231,7 @@ export default function DashboardPage() {
             { id: 'nfts', label: 'NFT Collection', icon: Award },
             { id: 'projects', label: 'My Projects', icon: Flame },
             { id: 'settings', label: 'Settings', icon: Settings },
+            { id: 'apikeys', label: 'API Keys', icon: Key },
           ].map((tab) => (
             <button
               key={tab.id}
@@ -724,6 +727,10 @@ export default function DashboardPage() {
               </div>
             </div>
           </div>
+        )}
+
+        {activeTab === 'apikeys' && (
+          <ApiKeysPanel walletAddress={address!} />
         )}
 
         {/* Quick Actions Footer */}
