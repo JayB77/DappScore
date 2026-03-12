@@ -70,6 +70,11 @@ export function Footer() {
                 </a>
               </li>
               <li>
+                <a href="https://docs.dappscore.io/api" target="_blank" rel="noopener noreferrer" className="text-gray-400 hover:text-yellow-500 transition-colors">
+                  API Reference
+                </a>
+              </li>
+              <li>
                 <a href="https://docs.dappscore.io/token/tokenomics" target="_blank" rel="noopener noreferrer" className="text-gray-400 hover:text-yellow-500 transition-colors">
                   Tokenomics
                 </a>
@@ -84,13 +89,18 @@ export function Footer() {
                   FAQ
                 </a>
               </li>
+              <li>
+                <Link href="/status" className="text-gray-400 hover:text-yellow-500 transition-colors">
+                  System Status
+                </Link>
+              </li>
             </ul>
           </div>
         </div>
 
         <div className="border-t border-gray-800 mt-8 pt-8 flex flex-col md:flex-row justify-between items-center">
           <p className="text-gray-500 text-sm">
-            © 2024 DappScore. Built on Base.
+            © 2026 DappScore. Built on Base.
           </p>
           <p className="text-gray-500 text-sm mt-2 md:mt-0">
             Powered by community trust.
