@@ -193,7 +193,7 @@ export default function ApiKeysPanel({ walletAddress }: { walletAddress: string 
             </div>
           </div>
           <div className="flex items-center gap-2 bg-gray-900 rounded-lg px-4 py-3 font-mono text-sm">
-            <span className="flex-1 truncate text-green-400">
+            <span className="flex-1 break-all text-green-400">
               {showKey ? revealedKey.key : revealedKey.key.slice(0, 16) + '•'.repeat(24)}
             </span>
             <button onClick={() => setShowKey(v => !v)} className="text-gray-400 hover:text-white">
