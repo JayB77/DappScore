@@ -20,6 +20,7 @@ interface ApiKey {
 
 interface NewKeyResult extends ApiKey {
   key: string;
+  rotatedFrom?: string;
 }
 
 const VALID_PERMISSIONS = ['sale:write', 'webhooks:manage', 'data:read'] as const;
