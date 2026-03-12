@@ -196,11 +196,13 @@ export default function ApiKeysPanel({ walletAddress }: { walletAddress: string 
             <span className="flex-1 truncate text-green-400">
               {showKey ? revealedKey.key : revealedKey.key.slice(0, 16) + '•'.repeat(24)}
             </span>
-            <button onClick={() => setShowKey(v => !v)} className="text-gray-400 hover:text-white">
+            <button onClick={() => setShowKey(v => !v)} className="flex items-center gap-1.5 px-2 py-1 text-gray-400 hover:text-white text-xs shrink-0">
               {showKey ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+              {showKey ? 'Hide' : 'Show'}
             </button>
-            <button onClick={() => copyToClipboard(revealedKey.key)} className="text-gray-400 hover:text-white">
-              {copiedKey ? <CheckCircle className="h-4 w-4 text-green-500" /> : <Copy className="h-4 w-4" />}
+            <button onClick={() => copyToClipboard(revealedKey.key)} className="flex items-center gap-1.5 px-3 py-1 bg-yellow-500 text-black font-semibold rounded-lg hover:bg-yellow-400 text-xs shrink-0">
+              {copiedKey ? <CheckCircle className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+              {copiedKey ? 'Copied!' : 'Copy key'}
             </button>
           </div>
           <button
@@ -351,7 +353,13 @@ export default function ApiKeysPanel({ walletAddress }: { walletAddress: string 
                     </div>
                   )}
                   <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-1 text-sm text-gray-400">
-                    <span className="font-mono">{k.keyPrefix}…</span>
+                    <button
+                      onClick={() => copyToClipboard(k.keyPrefix)}
+                      className="font-mono hover:text-white flex items-center gap-1"
+                      title="Copy prefix"
+                    >
+                      {k.keyPrefix}… <Copy className="h-3 w-3 opacity-50" />
+                    </button>
                     {k.permissions.map(p => (
                       <span key={p} className="bg-gray-700 text-gray-300 text-xs px-1.5 py-0.5 rounded">{p}</span>
                     ))}
