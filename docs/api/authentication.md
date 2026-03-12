@@ -4,6 +4,20 @@ Most DappScore API endpoints are public and require no credentials. You only nee
 
 ---
 
+## Managing Keys via the Dashboard
+
+The easiest way to create and manage API keys is through the web app — no code required:
+
+1. Connect your wallet at [dappscore.io/dashboard](https://dappscore.io/dashboard)
+2. Click the **API Keys** tab
+3. Hit **New Key**, choose a name and permissions, and optionally scope it to a project
+
+The full key is displayed once after creation (with a copy button). After that, only the prefix is shown. Use **Rotate** to replace a lost key or **Revoke** to permanently disable one.
+
+For scripting, CI/CD pipelines, or bulk operations, use the API endpoints below.
+
+---
+
 ## How Authentication Works
 
 All API key endpoints require your wallet address in the `x-user-id` header. This is how the API identifies you as the owner of the keys you're managing.
