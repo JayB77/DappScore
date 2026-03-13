@@ -206,4 +206,55 @@ router.get('/similar/:address', async (req, res) => {
   }
 });
 
+/**
+ * POST /api/v1/projects/by-addresses
+ * Body: { addresses: string[] }   (max 50)
+ * Returns a map of lowercased address → { id, name, trustLevel, status }
+ * for any addresses that match a known project's contractAddress.
+ * Used by DeployerHistoryPanel to enrich "other contracts" with DappScore data.
+ */
+router.post('/by-addresses', async (req, res) => {
+  try {
+    const raw: unknown = req.body?.addresses;
+    if (!Array.isArray(raw) || raw.length === 0) {
+      return res.status(400).json({ error: 'addresses must be a non-empty array.' });
+    }
+    const addresses: string[] = raw
+      .filter((a): a is string => typeof a === 'string' && /^0x[0-9a-fA-F]{40}$/.test(a))
+      .slice(0, 50)
+      .map(a => a.toLowerCase());
+
+    if (addresses.length === 0) {
+      return res.json({ data: {} });
+    }
+
+    const data = await gql<{
+      projects: Array<{ id: string; name: string; trustLevel: number; status: number; contractAddress: string }>;
+    }>(
+      `query ProjectsByAddresses($addrs: [String!]!) {
+        projects(first: 50, where: { contractAddress_in: $addrs }) {
+          id name trustLevel status contractAddress
+        }
+      }`,
+      { addrs: addresses },
+    );
+
+    const result: Record<string, { id: string; name: string; trustLevel: number; status: number }> = {};
+    for (const p of data.projects ?? []) {
+      result[p.contractAddress.toLowerCase()] = {
+        id: p.id,
+        name: p.name,
+        trustLevel: p.trustLevel,
+        status: p.status,
+      };
+    }
+
+    res.set('Cache-Control', 'public, s-maxage=120, stale-while-revalidate=300');
+    res.json({ data: result });
+  } catch (err) {
+    console.error('[projects] POST /by-addresses', err);
+    res.status(500).json({ error: 'Failed to look up projects.' });
+  }
+});
+
 export default router;

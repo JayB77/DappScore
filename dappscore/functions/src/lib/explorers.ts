@@ -364,3 +364,13 @@ export function explorerConfigured(network: string): boolean {
 export const EXPLORER_NETWORKS = Object.entries(EXPLORERS)
   .filter(([, c]) => c.format !== 'none')
   .map(([k]) => k);
+
+/**
+ * Returns the Etherscan-compatible API base URL for a chain, if available.
+ * Only Etherscan-format explorers support the `txlist` / `getcontractcreation`
+ * API modules needed for wallet scanning.
+ */
+export function getEtherscanApiBase(chain: string): string | undefined {
+  const cfg = EXPLORERS[chain.toLowerCase()];
+  return cfg?.format === 'etherscan' ? cfg.baseUrl : undefined;
+}

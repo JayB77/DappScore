@@ -17,6 +17,7 @@ import airdropRoutes  from './routes/airdrop';
 import claimRoutes    from './routes/claim';
 import apiKeyRoutes   from './routes/api-keys';
 import statusRoutes   from './routes/status';
+import walletRoutes   from './routes/wallet';
 import { globalLimit } from './lib/rate-limit';
 
 initializeApp();
@@ -46,6 +47,7 @@ app.use('/api/v1/alerts',        alertRoutes);      // GET/POST/DELETE alerts + 
 app.use('/api/v1/webhooks',      webhookRoutes);    // GET/POST/PUT/DELETE webhooks + incoming (x-user-id)
 app.use('/api/v1/scam',          scamRoutes);       // POST analyze/tokenomics/batch/report  GET patterns
 app.use('/api/v1/whales',        whaleRoutes);      // GET whale data + wallet labels
+app.use('/api/v1/wallet',        walletRoutes);     // GET /:chain/:address wallet scan
 
 // ── API key management (x-user-id required) ──────────────────────────────────
 app.use('/api/v1/api-keys',      apiKeyRoutes);     // POST/GET/PATCH/DELETE + rotate
