@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { ThumbsUp, ThumbsDown, Clock, Shield, AlertTriangle, Zap, Rocket, FlaskConical, Globe, XCircle } from 'lucide-react';
+import { ThumbsUp, ThumbsDown, Clock, Shield, AlertTriangle, Zap, Rocket, FlaskConical, Globe, XCircle, Crown } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { CHAIN_BY_NAME } from '@/config/chains';
 
@@ -127,7 +127,13 @@ export function ProjectCard({ project }: { project: Project }) {
 
   return (
     <Link href={`/projects/${project.id}`}>
-      <div className="bg-gray-800 rounded-lg overflow-hidden hover:bg-gray-750 transition-all cursor-pointer border-2 border-transparent hover:border-yellow-500/50">
+      <div className={`bg-gray-800 rounded-lg overflow-hidden hover:bg-gray-750 transition-all cursor-pointer border-2 ${project.isPremium ? 'border-yellow-500' : 'border-transparent hover:border-yellow-500/50'}`}>
+        {project.isPremium && (
+          <div className="bg-yellow-500 text-black text-center text-xs font-bold py-1 flex items-center justify-center space-x-1">
+            <Crown className="h-3 w-3" />
+            <span>FEATURED</span>
+          </div>
+        )}
         <div className="p-4">
           {/* Header */}
           <div className="flex items-start justify-between mb-3">
@@ -144,6 +150,7 @@ export function ProjectCard({ project }: { project: Project }) {
               <div>
                 <div className="flex items-center space-x-2">
                   <h3 className="text-white font-semibold">{project.name}</h3>
+                  {project.isPremium && <Crown className="h-4 w-4 text-yellow-400" title="Featured" />}
                   {project.verified && (
                     <span title="Verified"><Shield className="h-4 w-4 text-green-500" /></span>
                   )}

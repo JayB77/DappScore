@@ -6,15 +6,18 @@ import { ConnectButton } from '@rainbow-me/rainbowkit';
 import {
   Check, ChevronLeft, ChevronRight, Wallet, Upload, AlertCircle,
   Plus, Trash2, AlertTriangle, Shield, Loader2,
-  SkipForward
+  SkipForward, Crown, Zap
 } from 'lucide-react';
 import { CHAIN_NAMES } from '@/config/chains';
+
+const PREMIUM_DAILY_RATE_USD = 100;
 
 const steps = [
   { id: 1, name: 'General', description: 'Basic project info' },
   { id: 2, name: 'Details', description: 'Project details' },
   { id: 3, name: 'Links', description: 'Social & resources' },
   { id: 4, name: 'Team', description: 'Team information' },
+  { id: 5, name: 'Visibility', description: 'Listing options' },
 ];
 
 const categories = [
@@ -74,6 +77,8 @@ export default function SubmitProjectPage() {
   const [duplicateWarning, setDuplicateWarning] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
+  const [isPremium, setIsPremium] = useState(false);
+  const [premiumDays, setPremiumDays] = useState(7);
 
   const [formData, setFormData] = useState({
     // General (only name, symbol, category, description are required)
@@ -202,7 +207,7 @@ export default function SubmitProjectPage() {
     setVerifying(false);
   };
 
-  const nextStep = () => setCurrentStep((prev) => Math.min(prev + 1, 4));
+  const nextStep = () => setCurrentStep((prev) => Math.min(prev + 1, 5));
   const prevStep = () => setCurrentStep((prev) => Math.max(prev - 1, 1));
 
   const isStepValid = () => {
@@ -912,6 +917,107 @@ export default function SubmitProjectPage() {
             </div>
           )}
 
+          {/* Step 5: Visibility */}
+          {currentStep === 5 && (
+            <div className="space-y-6">
+              <div>
+                <h2 className="text-xl font-bold mb-1">Listing Visibility</h2>
+                <p className="text-gray-400 text-sm">Choose how your project appears in the directory.</p>
+              </div>
+
+              <div className="grid md:grid-cols-2 gap-4">
+                {/* Standard option */}
+                <button
+                  type="button"
+                  onClick={() => setIsPremium(false)}
+                  className={`p-5 rounded-xl border-2 text-left transition-all ${
+                    !isPremium
+                      ? 'border-yellow-500 bg-yellow-500/10'
+                      : 'border-gray-600 bg-gray-700/50 hover:border-gray-500'
+                  }`}
+                >
+                  <div className="flex items-center space-x-3 mb-3">
+                    <div className={`p-2 rounded-lg ${!isPremium ? 'bg-yellow-500/20' : 'bg-gray-600'}`}>
+                      <Zap className={`h-5 w-5 ${!isPremium ? 'text-yellow-400' : 'text-gray-400'}`} />
+                    </div>
+                    <div>
+                      <h3 className="font-semibold text-white">Standard Listing</h3>
+                    </div>
+                    {!isPremium && <Check className="h-5 w-5 text-yellow-400 ml-auto" />}
+                  </div>
+                  <ul className="space-y-1 text-sm text-gray-400">
+                    <li>Listed in the directory</li>
+                    <li>Community voting enabled</li>
+                    <li>Position based on trust score</li>
+                  </ul>
+                </button>
+
+                {/* Featured option */}
+                <button
+                  type="button"
+                  onClick={() => setIsPremium(true)}
+                  className={`p-5 rounded-xl border-2 text-left transition-all ${
+                    isPremium
+                      ? 'border-yellow-500 bg-yellow-500/10'
+                      : 'border-gray-600 bg-gray-700/50 hover:border-gray-500'
+                  }`}
+                >
+                  <div className="flex items-center space-x-3 mb-3">
+                    <div className={`p-2 rounded-lg ${isPremium ? 'bg-yellow-500/20' : 'bg-gray-600'}`}>
+                      <Crown className={`h-5 w-5 ${isPremium ? 'text-yellow-400' : 'text-gray-400'}`} />
+                    </div>
+                    <div>
+                      <h3 className="font-semibold text-white">Featured Listing</h3>
+                    </div>
+                    {isPremium && <Check className="h-5 w-5 text-yellow-400 ml-auto" />}
+                  </div>
+                  <ul className="space-y-1 text-sm text-gray-400">
+                    <li>Pinned to the top of the directory</li>
+                    <li>Crown badge next to your project name</li>
+                    <li>Highlighted card — maximum visibility</li>
+                  </ul>
+                </button>
+              </div>
+
+              {/* Cost details — only shown when Featured is selected */}
+              {isPremium && (
+                <div className="bg-gray-700/60 border border-yellow-500/30 rounded-xl p-5 space-y-4">
+                  <h4 className="font-semibold text-white">Featured Duration</h4>
+
+                  <div className="flex flex-wrap gap-2">
+                    {[1, 3, 7, 14, 30].map((d) => (
+                      <button
+                        key={d}
+                        type="button"
+                        onClick={() => setPremiumDays(d)}
+                        className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+                          premiumDays === d
+                            ? 'bg-yellow-500 text-black'
+                            : 'bg-gray-600 text-gray-300 hover:bg-gray-500'
+                        }`}
+                      >
+                        {d} day{d > 1 ? 's' : ''}
+                      </button>
+                    ))}
+                  </div>
+
+                  <div className="flex items-center justify-between pt-2 border-t border-gray-600">
+                    <span className="text-gray-400 text-sm">
+                      ${PREMIUM_DAILY_RATE_USD}/day × {premiumDays} day{premiumDays > 1 ? 's' : ''}
+                    </span>
+                    <span className="text-xl font-bold text-yellow-400">
+                      ${(PREMIUM_DAILY_RATE_USD * premiumDays).toLocaleString()} USDC
+                    </span>
+                  </div>
+
+                  <p className="text-xs text-gray-500">
+                    Payment is made in USDC on Base. Your project moves to the top immediately after the transaction confirms.
+                  </p>
+                </div>
+              )}
+            </div>
+          )}
+
           {/* Navigation */}
           <div className="flex justify-between mt-8 pt-6 border-t border-gray-700">
             <button
@@ -923,7 +1029,7 @@ export default function SubmitProjectPage() {
               <span>Back</span>
             </button>
 
-            {currentStep < 4 ? (
+            {currentStep < 5 ? (
               <div className="flex items-center space-x-3">
                 {/* Skip button for optional steps (2, 4) — step 3 requires a social link */}
                 {(currentStep === 2 || currentStep === 4) && (
@@ -953,34 +1059,30 @@ export default function SubmitProjectPage() {
                 <ChevronRight className="h-5 w-5" />
               </a>
             ) : (
-              <div className="flex items-center space-x-3">
-                <button
-                  onClick={nextStep}
-                  className="flex items-center space-x-2 px-6 py-3 border border-gray-600 text-gray-400 rounded-lg hover:border-gray-500 hover:text-gray-300 transition-colors"
-                >
-                  <SkipForward className="h-4 w-4" />
-                  <span>Skip</span>
-                </button>
-                <button
-                  onClick={async () => {
-                    setSubmitting(true);
-                    await new Promise(resolve => setTimeout(resolve, 1000));
-                    setSubmitted(true);
-                    setSubmitting(false);
-                  }}
-                  disabled={submitting}
-                  className="flex items-center space-x-2 px-6 py-3 bg-yellow-500 text-black font-semibold rounded-lg hover:bg-yellow-400 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                >
-                  {submitting ? (
-                    <>
-                      <Loader2 className="h-5 w-5 animate-spin" />
-                      <span>Submitting...</span>
-                    </>
-                  ) : (
-                    <span>Submit Project</span>
-                  )}
-                </button>
-              </div>
+              <button
+                onClick={async () => {
+                  setSubmitting(true);
+                  await new Promise(resolve => setTimeout(resolve, 1000));
+                  setSubmitted(true);
+                  setSubmitting(false);
+                }}
+                disabled={submitting}
+                className="flex items-center space-x-2 px-6 py-3 bg-yellow-500 text-black font-semibold rounded-lg hover:bg-yellow-400 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              >
+                {submitting ? (
+                  <>
+                    <Loader2 className="h-5 w-5 animate-spin" />
+                    <span>Submitting...</span>
+                  </>
+                ) : isPremium ? (
+                  <>
+                    <Crown className="h-5 w-5" />
+                    <span>Pay & Submit — ${(PREMIUM_DAILY_RATE_USD * premiumDays).toLocaleString()} USDC</span>
+                  </>
+                ) : (
+                  <span>Submit Project</span>
+                )}
+              </button>
             )}
           </div>
 

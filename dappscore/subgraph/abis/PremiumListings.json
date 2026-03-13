@@ -1,0 +1,7 @@
+[
+  {"type":"event","name":"PremiumPurchased","inputs":[{"name":"projectId","type":"uint256","indexed":true},{"name":"buyer","type":"address","indexed":true},{"name":"numDays","type":"uint256","indexed":false},{"name":"expiresAt","type":"uint256","indexed":false}],"anonymous":false},
+  {"type":"event","name":"DailyRateUpdated","inputs":[{"name":"newRate","type":"uint256","indexed":false}],"anonymous":false},
+  {"type":"function","name":"isPremiumActive","stateMutability":"view","inputs":[{"name":"_projectId","type":"uint256"}],"outputs":[{"name":"","type":"bool"}]},
+  {"type":"function","name":"premiumExpiry","stateMutability":"view","inputs":[{"name":"","type":"uint256"}],"outputs":[{"name":"","type":"uint256"}]},
+  {"type":"function","name":"dailyRate","stateMutability":"view","inputs":[],"outputs":[{"name":"","type":"uint256"}]}
+]

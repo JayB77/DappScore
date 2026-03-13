@@ -17,6 +17,7 @@ const allProjects: Project[] = [
     projectStage: 'mainnet',
     contractAddresses: [{ chain: 'Base', address: '0x1234567890abcdef1234567890abcdef12345678' }],
     trustLevel: 'Trusted',
+    isPremium: true,
     upvotes: 412,
     downvotes: 18,
     verified: true,
@@ -287,6 +288,10 @@ export default function ProjectsPage() {
       return matchesSearch && matchesCategory && matchesChain && matchesStage && matchesTrust;
     })
     .sort((a, b) => {
+      // Premium projects always float to the top regardless of sort order
+      if (a.isPremium && !b.isPremium) return -1;
+      if (!a.isPremium && b.isPremium) return 1;
+
       switch (sortBy) {
         case 'Most Trusted':
           return b.upvotes / (b.upvotes + b.downvotes) - a.upvotes / (a.upvotes + a.downvotes);
