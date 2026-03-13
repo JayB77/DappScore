@@ -8,14 +8,24 @@ import {
 import { useFeatureFlag } from '@/lib/featureFlags';
 import { getChainConfig, getExplorerUrl } from '@/lib/chainAdapters';
 
+const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? '/api';
+
 // ── Types ─────────────────────────────────────────────────────────────────────
 
 interface ContractAddress { chain: string; address: string }
+
+interface DappScoreMatch {
+  id: string;
+  name: string;
+  trustLevel: number;
+  status: number;
+}
 
 interface DeployedContract {
   address: string;
   txHash: string;
   timestamp: number;   // unix seconds
+  dappScore?: DappScoreMatch;
 }
 
 interface DeployerInfo {
@@ -52,6 +62,19 @@ function walletAgeLabel(firstTxTs: number | null): { label: string; days: number
 function deploymentCountRisk(n: number): 'ok' | 'warn' {
   // 1–4 other contracts = worth noting; 5+ = pattern deployer
   return n >= 5 ? 'warn' : 'ok';
+}
+
+function TrustBadge({ match }: { match: DappScoreMatch }) {
+  const isBad = match.trustLevel >= 3 || match.status >= 2;
+  if (!isBad) return null;
+  const labels: Record<number, string> = { 3: 'Suspicious', 4: 'Suspected Scam', 5: 'Probable Scam' };
+  const statusLabels: Record<number, string> = { 2: 'Flagged', 3: 'Suspended', 4: 'Blacklisted' };
+  const label = match.status >= 2 ? statusLabels[match.status] : labels[match.trustLevel];
+  return (
+    <span className="text-xs px-1.5 py-0.5 bg-red-500/20 text-red-400 rounded font-semibold shrink-0">
+      {label ?? 'Flagged'}
+    </span>
+  );
 }
 
 // ── Fetcher ───────────────────────────────────────────────────────────────────
@@ -101,6 +124,26 @@ async function fetchDeployerInfo(
       txHash: tx.hash,
       timestamp: parseInt(tx.timeStamp, 10),
     }));
+
+  // Enrich with DappScore data for deployed contracts
+  if (deployedContracts.length > 0) {
+    try {
+      const res = await fetch(`${API_BASE}/v1/projects/by-addresses`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ addresses: deployedContracts.map(c => c.address) }),
+      });
+      if (res.ok) {
+        const json = (await res.json()) as { data: Record<string, DappScoreMatch> };
+        for (const c of deployedContracts) {
+          const match = json.data[c.address.toLowerCase()];
+          if (match) c.dappScore = match;
+        }
+      }
+    } catch {
+      // non-critical — badges just won't show
+    }
+  }
 
   return { deployer, firstTxTimestamp, deployedContracts };
 }
@@ -206,17 +249,20 @@ function ContractRow({ chain, address }: ContractAddress) {
                   const daysAgo = Math.floor((Date.now() / 1000 - c.timestamp) / 86_400);
                   const url = `${explorerBase}/address/${c.address}`;
                   return (
-                    <div key={c.address} className="flex items-center justify-between">
-                      <a
-                        href={url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="flex items-center space-x-1 text-xs text-blue-400 hover:text-blue-300 font-mono transition-colors"
-                      >
-                        {truncate(c.address)}
-                        <ExternalLink className="h-2.5 w-2.5 ml-0.5" />
-                      </a>
-                      <span className="text-xs text-gray-600">
+                    <div key={c.address} className="flex items-center justify-between gap-2">
+                      <div className="flex items-center gap-1.5 min-w-0">
+                        <a
+                          href={url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="flex items-center space-x-1 text-xs text-blue-400 hover:text-blue-300 font-mono transition-colors"
+                        >
+                          {truncate(c.address)}
+                          <ExternalLink className="h-2.5 w-2.5 ml-0.5" />
+                        </a>
+                        {c.dappScore && <TrustBadge match={c.dappScore} />}
+                      </div>
+                      <span className="text-xs text-gray-600 shrink-0">
                         {daysAgo === 0 ? 'today' : `${daysAgo}d ago`}
                       </span>
                     </div>
