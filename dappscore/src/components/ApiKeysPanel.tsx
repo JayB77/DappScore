@@ -373,13 +373,7 @@ export default function ApiKeysPanel({ walletAddress }: { walletAddress: string 
                     </div>
                   )}
                   <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-1 text-sm text-gray-400">
-                    <button
-                      onClick={() => copyToClipboard(k.keyPrefix)}
-                      className="font-mono hover:text-white flex items-center gap-1"
-                      title="Copy"
-                    >
-                      {k.keyPrefix}… <Copy className="h-3 w-3 opacity-50" />
-                    </button>
+                    <span className="font-mono">{k.keyPrefix}…</span>
                     {k.permissions.map(p => (
                       <span key={p} className="bg-gray-700 text-gray-300 text-xs px-1.5 py-0.5 rounded">{p}</span>
                     ))}
