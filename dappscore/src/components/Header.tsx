@@ -5,14 +5,16 @@ import { ConnectButton } from '@rainbow-me/rainbowkit';
 import { useAccount } from 'wagmi';
 import { Shield, Menu, X } from 'lucide-react';
 import { useState } from 'react';
+import { AlertsBell } from './AlertsBell';
 
 export function Header() {
-  const { isConnected } = useAccount();
+  const { isConnected, address } = useAccount();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const navLinks = [
     { href: '/', label: 'Home' },
     { href: '/projects', label: 'Projects' },
+    { href: '/wallet', label: 'Wallet Scanner' },
     { href: '/token-sale', label: 'Token Sale' },
     { href: '/submit', label: 'Submit Project' },
   ];
@@ -52,6 +54,7 @@ export function Header() {
 
           {/* Connect Button */}
           <div className="flex items-center space-x-4">
+            {isConnected && address && <AlertsBell walletAddress={address} />}
             <ConnectButton
               chainStatus="icon"
               showBalance={false}

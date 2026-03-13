@@ -11,6 +11,7 @@ import { getFirestore, FieldValue, Timestamp } from 'firebase-admin/firestore';
 import { z } from 'zod';
 import crypto from 'crypto';
 import { requireUserId } from '../lib/auth';
+import { notifyUsersForEvent } from '../lib/notify';
 
 const router = Router();
 
@@ -298,6 +299,7 @@ router.post('/incoming/graph', async (req, res) => {
 
     if (dispatchEvent && data) {
       await dispatchGlobalWebhook(dispatchEvent, data);
+      await notifyUsersForEvent(dispatchEvent, data as Record<string, unknown>);
     }
 
     res.json({ success: true });
@@ -361,6 +363,7 @@ router.post('/incoming/alchemy', async (req, res) => {
 
       console.info('[webhooks] whale activity detected', whaleData);
       await dispatchGlobalWebhook('whale.activity', whaleData);
+      await notifyUsersForEvent('whale.activity', whaleData);
     }
 
     res.json({ success: true });
