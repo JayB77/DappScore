@@ -1,79 +1,37 @@
 # Premium Listings
 
-Premium listings give your project maximum visibility on DappScore.
+Premium listings give your project maximum visibility on DappScore by placing it at the top of the project directory for as long as your premium period is active.
 
-## Benefits
+## What It Is
 
-| Feature | Free | Premium |
-|---------|------|---------|
-| Listed in directory | ✓ | ✓ |
-| Community voting | ✓ | ✓ |
-| Comments enabled | ✓ | ✓ |
-| Featured placement | ✗ | ✓ (7 days) |
-| Premium badge | ✗ | ✓ |
-| Priority review | ✗ | ✓ |
-| Position after featuring | Trust score | Trust score |
+A premium listing is a **visibility boost** — nothing more, nothing less. It does not affect your trust score, community votes, or how your project is reviewed. The community still evaluates your project independently.
 
-## Pricing
+## What You Get
 
-| Duration | Price |
-|----------|-------|
-| 7 days featured | 100 USDC |
+When your project is premium, it appears:
 
-## Payment
+- **Pinned to the top** of the project directory above all standard listings
+- With a **crown badge** next to your project name
+- In a **highlighted card** that stands out from the rest
 
-### Accepted Methods
-- USDC on Base
+As soon as your premium period ends, your project returns to its normal position in the rankings (determined by trust score and votes).
 
-### Payment Flow
+## Why It Matters
 
-1. Complete submission form (Steps 1-4)
-2. Select "Premium Listing" on Step 5
-3. Confirm your USDC balance is sufficient
-4. Click "Pay & Submit"
-5. Approve transaction in your wallet
-6. Wait for confirmation
-7. Your listing is now featured!
+The DappScore directory is the first thing people see when they visit the platform. Projects at the top get reviewed, voted on, and trusted faster. Premium placement means your project gets seen by the community immediately rather than sitting lower in the list.
 
-### Payment Receiver
+## How to Get Listed as Premium
 
-All payments go to the official DappScore treasury:
-- **Address**: `0x3b4368820c0A03ebd2B5C688b3CBC0A3B31C41B7`
-- **Network**: Base / Base Sepolia
+1. Submit your project (or visit an existing project you own)
+2. On the final step of the submission form, select **"Featured Listing"**
+3. Choose the number of days you want to be featured
+4. Complete the USDC payment on Base
+5. Your project moves to the top immediately after the transaction confirms
 
-## Featured Placement
+## Important Notes
 
-Premium projects appear:
-- At the top of the project listing page
-- With a yellow "FEATURED" badge
-- With a crown icon next to their name
-- Above all non-premium projects
-
-After 7 days:
-- Featured placement ends
-- Premium badge remains
-- Position determined by trust score (like free listings)
-
-## Renewal
-
-To extend featured placement:
-- Visit your project page
-- Click "Renew Premium" (coming soon)
-- Pay for additional 7-day periods
-
-## Refund Policy
-
-- Payments are non-refundable once confirmed
-- If your project is removed for Terms violation, no refund
-- Technical issues preventing listing will be reviewed case-by-case
-
-## FAQ
-
-**Q: Does premium affect my trust score?**
-A: No. Premium only affects visibility, not community voting.
-
-**Q: Can I go premium after a free listing?**
-A: Yes! Visit your project and click "Upgrade to Premium" (coming soon).
-
-**Q: What happens if I don't have enough USDC?**
-A: Transaction will fail. Ensure sufficient balance + gas before submitting.
+- Premium status is **on-chain** — it's trustless and automatically expires
+- Premium periods can be **stacked**: purchasing again extends your current expiry
+- Premium only affects **position in the directory** — it has zero effect on trust score or community signals
+- Payments are **non-refundable** once confirmed on-chain
+- If your project is removed for a Terms of Service violation, no refund is issued

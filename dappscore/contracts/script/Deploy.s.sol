@@ -114,10 +114,8 @@ contract Deploy is Script {
         console.log("5. Deploying PremiumListings...");
         premiumListings = new PremiumListings(
             deployer,
-            address(scoreToken),
-            address(projectRegistry),
-            treasury,
-            address(votingEngine)
+            usdc,
+            treasury
         );
         console.log("   PremiumListings:", address(premiumListings));
 
@@ -146,7 +144,7 @@ contract Deploy is Script {
 
         // 9. Deploy BountySystem
         console.log("9. Deploying BountySystem...");
-        bountySystem = new BountySystem(deployer, address(scoreToken));
+        bountySystem = new BountySystem(deployer, address(scoreToken), treasury);
         console.log("   BountySystem:", address(bountySystem));
 
         // 10. Deploy InsurancePool

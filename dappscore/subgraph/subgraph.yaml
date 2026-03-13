@@ -247,3 +247,25 @@ dataSources:
         - event: LevelUpgraded(indexed address,uint8)
           handler: handleLevelUpgraded
       file: ./src/affiliate-program.ts
+
+  # PremiumListings
+  - kind: ethereum
+    name: PremiumListings
+    network: base-sepolia
+    source:
+      address: "0x0000000000000000000000000000000000000000" # Update after deployment
+      abi: PremiumListings
+      startBlock: 0
+    mapping:
+      kind: ethereum/events
+      apiVersion: 0.0.7
+      language: wasm/assemblyscript
+      entities:
+        - Project
+      abis:
+        - name: PremiumListings
+          file: ./abis/PremiumListings.json
+      eventHandlers:
+        - event: PremiumPurchased(indexed uint256,indexed address,uint256,uint256)
+          handler: handlePremiumPurchased
+      file: ./src/premium-listings.ts

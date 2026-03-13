@@ -56,6 +56,7 @@ contract BountySystem is Ownable, ReentrancyGuard {
 
     // Contracts
     ScoreToken public scoreToken;
+    address public treasury;
 
     // State
     mapping(uint256 => Bounty) public bounties;
@@ -70,7 +71,7 @@ contract BountySystem is Ownable, ReentrancyGuard {
 
     // Configuration
     uint256 public minBountyAmount = 100 * 10**18;      // 100 SCORE minimum
-    uint256 public platformFeeBps = 250;                 // 2.5% platform fee
+    uint256 public platformFeeBps = 500;                 // 5% platform fee
     uint256 public minDeadline = 3 days;
     uint256 public maxDeadline = 90 days;
 
@@ -85,8 +86,9 @@ contract BountySystem is Ownable, ReentrancyGuard {
     event BountyExpired(uint256 indexed bountyId);
     event RefundClaimed(uint256 indexed bountyId, address contributor, uint256 amount);
 
-    constructor(address _initialOwner, address _scoreToken) Ownable(_initialOwner) {
+    constructor(address _initialOwner, address _scoreToken, address _treasury) Ownable(_initialOwner) {
         scoreToken = ScoreToken(_scoreToken);
+        treasury = _treasury;
     }
 
     // ============ Bounty Creation ============
@@ -228,9 +230,9 @@ contract BountySystem is Ownable, ReentrancyGuard {
         uint256 fee = (_payAmount * platformFeeBps) / 10000;
         uint256 payout = _payAmount - fee;
 
-        // Burn fee
+        // Send fee to treasury
         if (fee > 0) {
-            scoreToken.burn(fee);
+            require(scoreToken.transfer(treasury, fee), "Fee transfer failed");
         }
 
         // Pay investigator
@@ -388,5 +390,10 @@ contract BountySystem is Ownable, ReentrancyGuard {
         platformFeeBps = _feeBps;
         minDeadline = _minDeadline;
         maxDeadline = _maxDeadline;
+    }
+
+    function setTreasury(address _treasury) external onlyOwner {
+        require(_treasury != address(0), "Invalid treasury");
+        treasury = _treasury;
     }
 }
