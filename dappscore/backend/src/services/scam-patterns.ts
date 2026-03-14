@@ -236,14 +236,19 @@ export class ScamPatternService {
           riskScore += 30;
         }
 
-        // Check for proxy pattern without clear upgrade mechanism
-        if (this.isSuspiciousProxy(bytecode)) {
+        // Detect proxy / upgradeability patterns — INFO only, not a risk hit.
+        // Proxies are legitimate architectural choices; users should simply be
+        // aware the implementation can change.
+        const proxy = this.detectProxyPattern(bytecode);
+        if (proxy.type !== 'none') {
           flags.push({
-            type: 'SUSPICIOUS_PROXY',
-            severity: 'warning',
-            description: 'Contract uses proxy pattern - implementation could change',
+            type: `PROXY_${proxy.type.toUpperCase().replace(/-/g, '_')}`,
+            severity: 'info',
+            description: proxy.description,
           });
-          riskScore += 10;
+          // UUPS / Transparent proxies carry some risk because they can be
+          // upgraded to malicious logic — add a small bump but not critical.
+          if (proxy.type === 'uups' || proxy.type === 'transparent') riskScore += 5;
         }
       }
 
@@ -415,10 +420,84 @@ export class ScamPatternService {
     return hasMintKeyword && !hasMintSelector;
   }
 
-  private isSuspiciousProxy(bytecode: string): boolean {
-    // Check for delegatecall without proper upgrade guards
-    const delegatecall = 'f4';
-    return bytecode.toLowerCase().includes(delegatecall) && bytecode.length < 1000;
+  // ── Proxy pattern detection ───────────────────────────────────────────────
+
+  /**
+   * Identify the proxy/upgradeability pattern used by a contract.
+   * Returns INFO-level data only — proxies are NOT inherently malicious.
+   *
+   * Detection hierarchy (checked in order):
+   *   1. EIP-1167 minimal clone  — fixed delegation, no upgrades possible
+   *   2. UUPS (ERC-1822)        — upgradeTo + proxiableUUID selectors
+   *   3. Transparent proxy      — admin() + implementation() + upgradeTo()
+   *   4. Beacon proxy           — beacon() + implementation()
+   *   5. Raw delegatecall       — opcode 0xf4 present (generic catch-all)
+   */
+  private detectProxyPattern(bytecode: string): {
+    type: 'none' | 'minimal-clone' | 'uups' | 'transparent' | 'beacon' | 'delegatecall';
+    description: string;
+  } {
+    const hex = (bytecode.startsWith('0x') ? bytecode.slice(2) : bytecode).toLowerCase();
+
+    // EIP-1167: fixed 45-byte clone factory prefix
+    if (hex.startsWith('363d3d373d3d3d363d73')) {
+      return {
+        type: 'minimal-clone',
+        description:
+          'EIP-1167 minimal clone — delegates all calls to a fixed implementation address. ' +
+          'Cannot be upgraded.',
+      };
+    }
+
+    const selectors = new Set(this.extractSelectors(bytecode));
+
+    // UUPS (ERC-1822): upgradeTo/upgradeToAndCall + proxiableUUID
+    const hasUpgradeTo     = selectors.has('3659cfe6') || selectors.has('4f1ef286');
+    const hasProxiableUUID = selectors.has('52d1902d');
+    if (hasUpgradeTo && hasProxiableUUID) {
+      return {
+        type: 'uups',
+        description:
+          'UUPS upgradeable proxy (ERC-1822/EIP-1967) — the owner can swap the contract ' +
+          'implementation at any time. Verify that upgradeTo() is protected by a timelock ' +
+          'or multisig.',
+      };
+    }
+
+    // TransparentUpgradeableProxy: admin() + implementation() + upgradeTo()
+    const hasAdmin          = selectors.has('f851a440');
+    const hasImplementation = selectors.has('5c60da1b');
+    if (hasAdmin && hasImplementation && hasUpgradeTo) {
+      return {
+        type: 'transparent',
+        description:
+          'Transparent upgradeable proxy (EIP-1967) — a separate admin address can replace ' +
+          'the implementation. Verify the admin is a timelock or multisig, not an EOA.',
+      };
+    }
+
+    // Beacon proxy: beacon() + implementation()
+    const hasBeacon = selectors.has('59659e90');
+    if (hasBeacon && hasImplementation) {
+      return {
+        type: 'beacon',
+        description:
+          'Beacon proxy — implementation address is read from a beacon contract and can ' +
+          'be changed by the beacon owner for all proxies pointing at it.',
+      };
+    }
+
+    // Generic delegatecall (opcode 0xf4)
+    if (hex.includes('f4')) {
+      return {
+        type: 'delegatecall',
+        description:
+          'Contract uses delegatecall — execution logic may live in a separate contract. ' +
+          'Verify there is no hidden upgrade path.',
+      };
+    }
+
+    return { type: 'none', description: '' };
   }
 
   /**
@@ -580,5 +659,156 @@ export class ScamPatternService {
     const hash      = this.hashBytecode(bytecode);
     const selectors = this.extractSelectors(bytecode);
     this.knownBytecodes.set(hash, { wasScam: false, name, selectors });
+  }
+}
+
+// ── Standalone exports (required by scam-detection routes) ───────────────────
+
+/** Singleton used by standalone function wrappers below. */
+const _service = new ScamPatternService();
+
+/** Analyse a single contract for scam patterns. */
+export async function analyzeContract(
+  address: string,
+  _network?: string,
+): Promise<ScamAnalysis> {
+  return _service.analyzeContract(address);
+}
+
+// ── Tokenomics sanity check ───────────────────────────────────────────────────
+
+export interface TokenomicsAnalysis {
+  address: string;
+  riskScore: number;
+  riskLevel: 'low' | 'medium' | 'high' | 'critical';
+  flags: Array<{ type: string; severity: 'info' | 'warning' | 'danger'; description: string }>;
+  details: Record<string, unknown>;
+  analyzedAt: Date;
+}
+
+const REAL_BURN_ADDRESSES = new Set([
+  '0x000000000000000000000000000000000000dead',
+  '0x0000000000000000000000000000000000000000',
+  '0xdead000000000000000042069420694206942069',
+]);
+
+/**
+ * Tokenomics sanity check using GoPlus token_security data.
+ *
+ * Flags:
+ *   - DEV_WALLET_CONCENTRATION  : deployer wallet holds >15% of supply
+ *   - TOP_5_CONCENTRATION       : top 5 wallets hold >50% of supply
+ *   - FAKE_BURN_WALLET          : address resembles a burn but isn't a known dead address
+ */
+export async function analyzeTokenomics(
+  tokenAddress: string,
+  network = 'mainnet',
+): Promise<TokenomicsAnalysis> {
+  // Map service network string to a GoPlus-supported chain ID.
+  // Defaults to Base mainnet; expand per-chain as needed.
+  const chainId = network === 'testnet' ? 84532 : 8453;
+  const flags: TokenomicsAnalysis['flags'] = [];
+  let riskScore = 0;
+
+  try {
+    const res = await fetch(
+      `https://api.gopluslabs.io/api/v1/token_security/${chainId}?contract_addresses=${tokenAddress}`,
+      { headers: { Accept: 'application/json' } },
+    );
+    if (!res.ok) throw new Error(`GoPlus ${res.status}`);
+    const data = await res.json();
+    const token = Object.values(data?.result ?? {})[0] as Record<string, unknown> | undefined;
+    if (!token) throw new Error('no data');
+
+    const holders = Array.isArray(token.holders)
+      ? (token.holders as Array<{ address: string; tag?: string; percent: string; is_locked?: number }>)
+      : [];
+    const creatorAddress = typeof token.creator_address === 'string'
+      ? token.creator_address.toLowerCase()
+      : null;
+
+    // ── Check 1: Dev wallet concentration ────────────────────────────────────
+    if (creatorAddress) {
+      const devHolder = holders.find(h => h.address.toLowerCase() === creatorAddress);
+      if (devHolder) {
+        const pct = parseFloat(devHolder.percent) * 100;
+        if (pct > 15) {
+          flags.push({
+            type: 'DEV_WALLET_CONCENTRATION',
+            severity: pct > 30 ? 'danger' : 'warning',
+            description:
+              `Deployer wallet (${devHolder.address}) holds ${pct.toFixed(1)}% of supply. ` +
+              `Projects with >15% in developer control carry significant dump risk.`,
+          });
+          riskScore += pct > 30 ? 30 : 20;
+        }
+      }
+    }
+
+    // ── Check 2: Top-5 concentration ─────────────────────────────────────────
+    const top5Pct = holders.slice(0, 5).reduce((s, h) => s + parseFloat(h.percent) * 100, 0);
+    if (top5Pct > 50) {
+      flags.push({
+        type: 'TOP_5_CONCENTRATION',
+        severity: top5Pct > 70 ? 'danger' : 'warning',
+        description:
+          `Top 5 wallets collectively hold ${top5Pct.toFixed(1)}% of supply — ` +
+          `a coordinated sell could collapse price.`,
+      });
+      riskScore += top5Pct > 70 ? 25 : 15;
+    }
+
+    // ── Check 3: Fake burn wallet detection ───────────────────────────────────
+    // An address that LOOKS like a burn (many leading zeros, or contains 'dead')
+    // but is not one of the known provably-unspendable addresses.
+    for (const h of holders) {
+      const addr = h.address.toLowerCase();
+      const pct  = parseFloat(h.percent) * 100;
+      if (pct < 1) continue;
+
+      const looksLikeBurn =
+        /^0x0{15,}/.test(addr) ||                  // ≥15 leading zeros after 0x
+        (addr.includes('dead') && addr.length === 42); // contains 'dead' in 40-char hex
+
+      if (looksLikeBurn && !REAL_BURN_ADDRESSES.has(addr)) {
+        flags.push({
+          type: 'FAKE_BURN_WALLET',
+          severity: 'warning',
+          description:
+            `Address ${h.address} holds ${pct.toFixed(1)}% of supply and resembles a burn ` +
+            `address, but is not a provably unspendable address. Tokens here may be recoverable.`,
+        });
+        riskScore += 15;
+      }
+    }
+
+    riskScore = Math.min(100, riskScore);
+    const riskLevel =
+      riskScore < 20 ? 'low' :
+      riskScore < 50 ? 'medium' :
+      riskScore < 80 ? 'high' : 'critical';
+
+    return {
+      address: tokenAddress,
+      riskScore,
+      riskLevel,
+      flags,
+      details: {
+        top5Pct,
+        holderCount: holders.length,
+        creatorAddress,
+      },
+      analyzedAt: new Date(),
+    };
+  } catch (error) {
+    logger.error('[Tokenomics] analyzeTokenomics error:', error);
+    return {
+      address: tokenAddress,
+      riskScore: 0,
+      riskLevel: 'low',
+      flags: [],
+      details: { error: (error as Error).message },
+      analyzedAt: new Date(),
+    };
   }
 }
