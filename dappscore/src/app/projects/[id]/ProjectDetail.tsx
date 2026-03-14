@@ -648,7 +648,19 @@ export default function ProjectDetail() {
               )}
             </div>
 
-            {/* Project Details */}
+            {/* DappScore — composite signal panel */}
+            {showDappScore && <DappScorePanel
+              signals={signals}
+              project={{
+                upvotes: project.upvotes,
+                downvotes: project.downvotes,
+                team: project.team,
+                whitepaperUrl: project.whitepaperUrl,
+                socialLinks: project.socialLinks,
+              }}
+            />}
+
+            {/* Token Details */}
             <div className="bg-gray-800 rounded-xl p-6">
               <h3 className="font-bold mb-4">Token Details</h3>
               <div className="space-y-3">
@@ -671,22 +683,13 @@ export default function ProjectDetail() {
               </div>
             </div>
 
-            {/* DappScore — composite signal panel (shown first in sidebar) */}
-            {showDappScore && <DappScorePanel
-              signals={signals}
-              project={{
-                upvotes: project.upvotes,
-                downvotes: project.downvotes,
-                team: project.team,
-                whitepaperUrl: project.whitepaperUrl,
-                socialLinks: project.socialLinks,
-              }}
-            />}
-
             {/* Token Sale — only renders when project has sale data */}
             {project.saleData && (
               <TokenSalePanel projectId={project.id} mockData={project.saleData} />
             )}
+
+            {/* Token Security Scan (mint, setTax, setFee, blacklist, pause, excludeFromFee, setTradingEnabled) */}
+            <TokenSecurityPanel contractAddresses={project.contractAddresses} />
 
             {/* External Signals */}
             <ExternalSignalsPanel
@@ -704,9 +707,6 @@ export default function ProjectDetail() {
               contractAddresses={project.contractAddresses}
               preloaded={signals.contracts}
             />}
-
-            {/* Token Security Scan (mint, setTax, setFee, blacklist, pause, excludeFromFee, setTradingEnabled) */}
-            <TokenSecurityPanel contractAddresses={project.contractAddresses} />
 
             {/* Honeypot Check */}
             <HoneypotPanel contractAddresses={project.contractAddresses} />

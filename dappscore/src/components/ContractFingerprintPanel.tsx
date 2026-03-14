@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import {
   Code2, CheckCircle, XCircle, Loader2, ExternalLink, Layers,
-  AlertTriangle, HelpCircle,
+  AlertTriangle, HelpCircle, Dna, ShieldAlert,
 } from 'lucide-react';
 import {
   fetchContractInfo,
@@ -13,6 +13,119 @@ import {
   type ContractInfo,
 } from '@/lib/chainAdapters';
 import type { LoadState } from '@/lib/useProjectSignals';
+
+// ── Rug Genome types ─────────────────────────────────────────────────────────
+
+interface SimilarScam {
+  name: string;
+  similarity: number;
+  wasScam: boolean;
+}
+
+interface ContractFingerprint {
+  bytecodeHash: string;
+  selectorCount: number;
+  proxyType: string;
+  obfuscationScore: number;
+  similarScams: SimilarScam[];
+  genomeSummary: string;
+}
+
+type GenomeState =
+  | { status: 'idle' }
+  | { status: 'loading' }
+  | { status: 'ok'; data: ContractFingerprint }
+  | { status: 'error' };
+
+// ── Rug genome sub-component ─────────────────────────────────────────────────
+
+function RugGenomeSection({ chain, address }: { chain: string; address: string }) {
+  const [genome, setGenome] = useState<GenomeState>({ status: 'idle' });
+
+  useEffect(() => {
+    // Only run for EVM chains (chains with 0x addresses)
+    if (!address.startsWith('0x')) { setGenome({ status: 'idle' }); return; }
+    setGenome({ status: 'loading' });
+
+    const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL ?? 'http://localhost:3001';
+    fetch(`${backendUrl}/api/scam-detection/fingerprint`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ contractAddress: address, network: 'mainnet' }),
+    })
+      .then(r => r.json())
+      .then(json => {
+        if (json.success) setGenome({ status: 'ok', data: json.data });
+        else setGenome({ status: 'error' });
+      })
+      .catch(() => setGenome({ status: 'error' }));
+  }, [chain, address]);
+
+  if (genome.status === 'idle') return null;
+  if (genome.status === 'loading') return (
+    <div className="flex items-center space-x-1.5 text-gray-500 text-xs pt-2 border-t border-gray-700 mt-2">
+      <Loader2 className="h-3 w-3 animate-spin" />
+      <span>Analysing rug genome…</span>
+    </div>
+  );
+  if (genome.status === 'error') return null; // silent fail
+
+  const { data } = genome;
+  const topScam = data.similarScams.find(s => s.wasScam);
+  const pct = topScam ? Math.round(topScam.similarity * 100) : 0;
+
+  const obfColor =
+    data.obfuscationScore > 60 ? 'text-red-400' :
+    data.obfuscationScore > 30 ? 'text-orange-400' :
+    'text-gray-400';
+
+  return (
+    <div className="pt-2 mt-2 border-t border-gray-700 space-y-2">
+      {/* Genome summary */}
+      <div className="flex items-start space-x-1.5">
+        <Dna className="h-3.5 w-3.5 text-purple-400 flex-shrink-0 mt-0.5" />
+        <span className="text-xs text-gray-300">{data.genomeSummary}</span>
+      </div>
+
+      {/* Top rug match bar */}
+      {topScam && pct > 50 && (
+        <div className="space-y-0.5">
+          <div className="flex items-center justify-between text-xs">
+            <span className="text-gray-500 truncate max-w-[65%]">{topScam.name}</span>
+            <span className={pct >= 80 ? 'text-red-400 font-semibold' : 'text-orange-400'}>
+              {pct}% match
+            </span>
+          </div>
+          <div className="bg-gray-700 rounded-full h-1 overflow-hidden">
+            <div
+              className={`h-full rounded-full ${pct >= 80 ? 'bg-red-500' : 'bg-orange-500'}`}
+              style={{ width: `${pct}%` }}
+            />
+          </div>
+        </div>
+      )}
+
+      {/* Obfuscation score */}
+      {data.obfuscationScore > 0 && (
+        <div className="flex items-center justify-between text-xs">
+          <div className="flex items-center space-x-1.5 text-gray-500">
+            <ShieldAlert className="h-3 w-3" />
+            <span>Code obfuscation</span>
+          </div>
+          <span className={`font-medium ${obfColor}`}>{data.obfuscationScore}/100</span>
+        </div>
+      )}
+
+      {/* Function count */}
+      {data.selectorCount > 0 && (
+        <p className="text-xs text-gray-600">
+          {data.selectorCount} function selector{data.selectorCount !== 1 ? 's' : ''} detected
+          {data.proxyType !== 'none' ? ` · ${data.proxyType} proxy` : ''}
+        </p>
+      )}
+    </div>
+  );
+}
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -220,6 +333,9 @@ export default function ContractFingerprintPanel({ contractAddresses, preloaded 
                       )}
                     </div>
                   )}
+
+                  {/* Rug Genome — similarity + obfuscation score */}
+                  <RugGenomeSection chain={chain} address={address} />
                 </div>
               )}
             </div>

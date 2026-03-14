@@ -3,7 +3,8 @@
  */
 
 import { Router, Request, Response } from 'express';
-import { analyzeContract, analyzeTokenomics, type ScamAnalysis } from '../services/scam-patterns';
+import { analyzeContract, analyzeTokenomics, getFingerprint, type ScamAnalysis } from '../services/scam-patterns';
+import { monitorContractEvents } from '../services/event-monitor';
 
 const router = Router();
 
@@ -251,6 +252,85 @@ router.post('/report', async (req: Request, res: Response) => {
     res.status(500).json({
       success: false,
       error: error.message || 'Failed to submit report',
+    });
+  }
+});
+
+/**
+ * POST /api/scam-detection/fingerprint
+ * Full Rug Genome: bytecode hash, selectors, proxy type, obfuscation score,
+ * and Jaccard similarity against every seeded known-rug profile.
+ */
+router.post('/fingerprint', async (req: Request, res: Response) => {
+  try {
+    const { contractAddress, network = 'mainnet' } = req.body;
+
+    if (!contractAddress) {
+      return res.status(400).json({
+        success: false,
+        error: 'contractAddress is required',
+      });
+    }
+
+    const fingerprint = await getFingerprint(contractAddress, network);
+
+    res.json({
+      success: true,
+      data: fingerprint,
+    });
+  } catch (error: any) {
+    console.error('[ScamDetection API] Fingerprint error:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message || 'Failed to fingerprint contract',
+    });
+  }
+});
+
+/**
+ * GET /api/scam-detection/events?address=0x...&pair=0x...&network=mainnet&lookback=7200
+ * On-demand event monitor: recent OwnershipTransferred, Upgraded, LP Mint/Burn
+ * events for the given contract and optional LP pair address.
+ */
+router.get('/events', async (req: Request, res: Response) => {
+  try {
+    const { address, pair, network = 'mainnet', lookback } = req.query as Record<string, string>;
+
+    if (!address) {
+      return res.status(400).json({
+        success: false,
+        error: 'address query param is required',
+      });
+    }
+
+    const lookbackBlocks = lookback ? parseInt(lookback, 10) : 7_200;
+    if (Number.isNaN(lookbackBlocks) || lookbackBlocks < 1 || lookbackBlocks > 500_000) {
+      return res.status(400).json({
+        success: false,
+        error: 'lookback must be between 1 and 500000 blocks',
+      });
+    }
+
+    const result = await monitorContractEvents(
+      address,
+      pair || undefined,
+      network as 'mainnet' | 'testnet',
+      lookbackBlocks,
+    );
+
+    res.json({
+      success: true,
+      data: {
+        ...result,
+        // Serialise bigints to strings for JSON compatibility
+        events: result.events.map(e => ({ ...e, blockNumber: e.blockNumber.toString() })),
+      },
+    });
+  } catch (error: any) {
+    console.error('[ScamDetection API] Events error:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message || 'Failed to fetch contract events',
     });
   }
 });

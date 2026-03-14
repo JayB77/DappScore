@@ -104,6 +104,116 @@ const KNOWN_RUG_PROFILES: Array<{ name: string; selectors: string[] }> = [
       'f2fde38b', // transferOwnership(address)
     ],
   },
+  // ── Extended rug genome profiles (added for broader detection coverage) ────
+  {
+    name: 'Reflection token rug (SafeMoon/RFI fork)',
+    // Full ERC20 + reflection reward + fee exclusion + anti-bot — the RFI template
+    selectors: [
+      '06fdde03', // name()
+      '095ea7b3', // approve(address,uint256)
+      '18160ddd', // totalSupply()
+      '23b872dd', // transferFrom(address,address,uint256)
+      '313ce567', // decimals()
+      '3bbac579', // setTradingEnabled(bool)
+      '437823ec', // excludeFromFee(address)
+      '69fe0e2d', // setFee(uint256)
+      '70a08231', // balanceOf(address)
+      '715018a6', // renounceOwnership()
+      '8da5cb5b', // owner()
+      '95d89b41', // symbol()
+      'a9059cbb', // transfer(address,uint256)
+      'b515566a', // setBots(address[],bool)
+      'dd62ed3e', // allowance(address,address)
+      'f2fde38b', // transferOwnership(address)
+    ],
+  },
+  {
+    name: 'Anti-bot launch honeypot',
+    // Multi-layer anti-bot: setBots + blacklist + antiBot + setRule combined
+    selectors: [
+      '06fdde03', // name()
+      '095ea7b3', // approve(address,uint256)
+      '0b78f9c0', // antiBot(bool)
+      '18160ddd', // totalSupply()
+      '23b872dd', // transferFrom(address,address,uint256)
+      '313ce567', // decimals()
+      '3bbac579', // setTradingEnabled(bool)
+      '70a08231', // balanceOf(address)
+      '715018a6', // renounceOwnership()
+      '8da5cb5b', // owner()
+      '95d89b41', // symbol()
+      'a9059cbb', // transfer(address,uint256)
+      'b515566a', // setBots(address[],bool)
+      'c3c8cd80', // excludeFromMaxTransaction(address,bool)
+      'dd62ed3e', // allowance(address,address)
+      'f2fde38b', // transferOwnership(address)
+      'f9f92be4', // blacklist(address,bool)
+      'fa8b3c00', // setRule(bool)
+    ],
+  },
+  {
+    name: 'Max-wallet + max-TX rug (buy window trap)',
+    // Sets tight maxWallet/maxTx limits to prevent early sellers, then opens
+    selectors: [
+      '06fdde03', // name()
+      '095ea7b3', // approve(address,uint256)
+      '18160ddd', // totalSupply()
+      '23b872dd', // transferFrom(address,address,uint256)
+      '313ce567', // decimals()
+      '3bbac579', // setTradingEnabled(bool)
+      '3fd0d025', // setTax(uint256,uint256)
+      '437823ec', // excludeFromFee(address)
+      '70a08231', // balanceOf(address)
+      '715018a6', // renounceOwnership()
+      '8da5cb5b', // owner()
+      '95d89b41', // symbol()
+      'a9059cbb', // transfer(address,uint256)
+      'c3c8cd80', // excludeFromMaxTransaction(address,bool)
+      'dd62ed3e', // allowance(address,address)
+      'f2fde38b', // transferOwnership(address)
+    ],
+  },
+  {
+    name: 'Full-control admin scam (mint + pause + drain)',
+    // Owner retains ability to mint, pause, blacklist, and drain the contract
+    selectors: [
+      '06fdde03', // name()
+      '095ea7b3', // approve(address,uint256)
+      '18160ddd', // totalSupply()
+      '23b872dd', // transferFrom(address,address,uint256)
+      '313ce567', // decimals()
+      '3f4ba83a', // unpause()
+      '40c10f19', // mint(address,uint256)
+      '42966c68', // burn(uint256)
+      '437823ec', // excludeFromFee(address)
+      '70a08231', // balanceOf(address)
+      '715018a6', // renounceOwnership()
+      '8456cb59', // pause()
+      '8da5cb5b', // owner()
+      '95d89b41', // symbol()
+      'a9059cbb', // transfer(address,uint256)
+      'dd62ed3e', // allowance(address,address)
+      'f2fde38b', // transferOwnership(address)
+      'f9f92be4', // blacklist(address,bool)
+    ],
+  },
+  {
+    name: 'Upgradeable proxy honeypot (UUPS + trading toggle)',
+    // UUPS proxy combined with trading toggle and blacklist — logic can be
+    // swapped to a honeypot implementation post-launch
+    selectors: [
+      '3659cfe6', // upgradeTo(address)
+      '437823ec', // excludeFromFee(address)
+      '3bbac579', // setTradingEnabled(bool)
+      '4f1ef286', // upgradeToAndCall(address,bytes)
+      '52d1902d', // proxiableUUID()
+      '70a08231', // balanceOf(address)
+      '8da5cb5b', // owner()
+      'a9059cbb', // transfer(address,uint256)
+      'f2fde38b', // transferOwnership(address)
+      'f9f92be4', // blacklist(address,bool)
+    ],
+  },
 ];
 
 // ── Gnosis Safe function selectors (for owner multisig detection) ─────────────
@@ -126,6 +236,21 @@ interface ScamAnalysis {
   flags: ScamFlag[];
   similarContracts: SimilarContract[];
   recommendation: string;
+  obfuscationScore?: number; // 0-100: how obfuscated/unusual the bytecode appears
+}
+
+export interface ContractFingerprint {
+  address: string;
+  bytecodeHash: string;
+  selectorCount: number;
+  selectors: string[];
+  proxyType: string;
+  obfuscationScore: number;
+  /** Top matching known rug profiles, sorted by similarity descending. */
+  similarScams: Array<{ name: string; similarity: number; wasScam: boolean }>;
+  /** Human-readable summary suitable for display. */
+  genomeSummary: string;
+  analyzedAt: Date;
 }
 
 interface ScamFlag {
@@ -295,6 +420,7 @@ export class ScamPatternService {
         flags,
         similarContracts,
         recommendation,
+        obfuscationScore: bytecode ? this.computeObfuscationScore(bytecode) : 0,
       };
     } catch (error) {
       logger.error('Error analyzing contract:', error);
@@ -385,6 +511,98 @@ export class ScamPatternService {
     // 3. Store results / trigger alerts
   }
 
+  // ── Rug Genome fingerprint ─────────────────────────────────────────────────
+
+  /**
+   * Return a full "Rug Genome" fingerprint for a contract.
+   *
+   * Combines:
+   *   - Normalised bytecode hash (for exact-clone detection)
+   *   - Extracted function selectors (the ABI surface fingerprint)
+   *   - Proxy pattern type
+   *   - Obfuscation score (0–100)
+   *   - Jaccard similarity against every seeded rug profile
+   *   - Human-readable genome summary ("83% similar to SafeMoon Clone")
+   */
+  async getFingerprint(address: string): Promise<ContractFingerprint> {
+    try {
+      const bytecode = await this.client.getBytecode({ address: address as `0x${string}` });
+      if (!bytecode) {
+        return {
+          address,
+          bytecodeHash: '0x',
+          selectorCount: 0,
+          selectors: [],
+          proxyType: 'none',
+          obfuscationScore: 0,
+          similarScams: [],
+          genomeSummary: 'No contract bytecode found at this address',
+          analyzedAt: new Date(),
+        };
+      }
+
+      const bytecodeHash     = this.hashBytecode(bytecode);
+      const selectors        = this.extractSelectors(bytecode);
+      const proxy            = this.detectProxyPattern(bytecode);
+      const obfuscationScore = this.computeObfuscationScore(bytecode);
+
+      // Similarity against all seeded rug profiles (threshold 0.5 for inclusion)
+      const similar: ContractFingerprint['similarScams'] = [];
+      for (const [, info] of this.knownBytecodes) {
+        if (info.selectors.length === 0) continue;
+        const sim = this.calculateSelectorSimilarity(selectors, info.selectors);
+        if (sim > 0.5) {
+          similar.push({
+            name:      info.name ?? 'Unknown rug profile',
+            similarity: sim,
+            wasScam:   info.wasScam,
+          });
+        }
+      }
+      similar.sort((a, b) => b.similarity - a.similarity);
+      const topMatches  = similar.slice(0, 5);
+      const scamMatches = topMatches.filter(s => s.wasScam);
+      const totalProfiles = KNOWN_RUG_PROFILES.length;
+
+      let genomeSummary: string;
+      if (scamMatches.length === 0) {
+        genomeSummary =
+          `No significant similarity found across ${totalProfiles} known rug profiles`;
+      } else {
+        const top = scamMatches[0];
+        const pct = Math.round(top.similarity * 100);
+        genomeSummary =
+          `${pct}% similar to "${top.name}" — matched ${scamMatches.length} ` +
+          `of ${totalProfiles} known rug profiles`;
+      }
+
+      return {
+        address,
+        bytecodeHash,
+        selectorCount: selectors.length,
+        selectors,
+        proxyType: proxy.type,
+        obfuscationScore,
+        similarScams: topMatches,
+        genomeSummary,
+        analyzedAt: new Date(),
+      };
+    } catch (error) {
+      logger.error('[ScamPatterns] getFingerprint error:', error);
+      return {
+        address,
+        bytecodeHash: '0x',
+        selectorCount: 0,
+        selectors: [],
+        proxyType: 'none',
+        obfuscationScore: 0,
+        similarScams: [],
+        genomeSummary: 'Unable to analyze contract bytecode',
+        analyzedAt: new Date(),
+      };
+    }
+  }
+
   // ── Private helpers ────────────────────────────────────────────────────────
 
   private bytecodeContainsFunction(bytecode: string, funcName: string): boolean {
@@ -418,6 +636,66 @@ export class ScamPatternService {
     const hasMintKeyword = bytecode.toLowerCase().includes('6d696e74'); // "mint" in hex
 
     return hasMintKeyword && !hasMintSelector;
+  }
+
+  // ── Obfuscation / complexity score ────────────────────────────────────────
+
+  /**
+   * Estimate how obfuscated or unusual a contract's bytecode appears.
+   * Returns 0–100; higher = more obfuscated/suspicious.
+   *
+   * Signals:
+   *   1. Unknown-selector ratio: selectors not present in a catalog of all
+   *      standard ERC20, DeFi, and admin function ABIs. Many mystery selectors
+   *      in a large contract suggest hidden logic.
+   *   2. Selector sparsity: extremely few PUSH4 hits for a large bytecode blob.
+   *      Legitimate contracts average 0.5–3 selectors per 100 bytes; lower
+   *      suggests the dispatch table is intentionally obscured.
+   *   3. Zero detected selectors in a non-trivial contract.
+   *   4. Very large bytecode overall (> 10 KB).
+   */
+  private computeObfuscationScore(bytecode: string): number {
+    const hex = bytecode.startsWith('0x') ? bytecode.slice(2) : bytecode;
+    const byteLength = hex.length / 2;
+    if (byteLength < 10) return 0;
+
+    const selectors = this.extractSelectors(bytecode);
+
+    // Catalog of well-known ERC20, DeFi, OpenZeppelin, and common rug selectors.
+    // Selectors present here are "recognized" — ones absent from this catalog are
+    // "unknown" and raise the obfuscation score when they dominate the contract.
+    const CATALOG = new Set([
+      // ERC20 core
+      '06fdde03', '095ea7b3', '18160ddd', '23b872dd', '313ce567',
+      '42966c68', '70a08231', '79cc6790', '95d89b41', 'a0712d68',
+      'a9059cbb', 'dd62ed3e',
+      // ERC20 extensions / mint / pause
+      '40c10f19', '3f4ba83a', '8456cb59',
+      // OpenZeppelin Ownable
+      '715018a6', '8da5cb5b', 'f2fde38b',
+      // Common rug/scam selectors (still cataloged — their presence is
+      // a risk flag elsewhere, not an obfuscation signal)
+      '0b78f9c0', '3bbac579', '3fd0d025', '437823ec', '69fe0e2d',
+      'b515566a', 'c3c8cd80', 'f9f92be4', 'fa8b3c00',
+      // Proxy patterns
+      '3659cfe6', '4f1ef286', '52d1902d', '59659e90', '5c60da1b', 'f851a440',
+      // Uniswap V2
+      '0902f1ac', '18cbafe5', 'e8e33700', 'f305d719',
+    ]);
+
+    const unknownCount = selectors.filter(s => !CATALOG.has(s)).length;
+    const unknownRatio = selectors.length > 0 ? unknownCount / selectors.length : 1;
+    // Density: selector count per 100 bytes
+    const density = (selectors.length / byteLength) * 100;
+
+    let score = 0;
+    score += unknownRatio * 50;                              // up to 50 for unknown selectors
+    if (selectors.length === 0 && byteLength > 100) score += 20; // no dispatch table
+    if (density < 0.05 && byteLength > 1_000)      score += 15; // very sparse for large bytecode
+    if (byteLength > 20_000)                        score += 15; // unusually large
+    else if (byteLength > 10_000)                   score += 8;
+
+    return Math.round(Math.min(100, score));
   }
 
   // ── Proxy pattern detection ───────────────────────────────────────────────
@@ -673,6 +951,14 @@ export async function analyzeContract(
   _network?: string,
 ): Promise<ScamAnalysis> {
   return _service.analyzeContract(address);
+}
+
+/** Return the full Rug Genome fingerprint for a contract address. */
+export async function getFingerprint(
+  address: string,
+  _network?: string,
+): Promise<ContractFingerprint> {
+  return _service.getFingerprint(address);
 }
 
 // ── Tokenomics sanity check ───────────────────────────────────────────────────

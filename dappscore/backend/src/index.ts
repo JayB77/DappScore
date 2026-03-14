@@ -17,6 +17,7 @@ import { webhookRoutes } from './routes/webhooks';
 import scamPatternService from './services/scam-patterns';
 import whaleTrackingService from './services/whale-tracking';
 import { alertService } from './services/alerts';
+import { runAndAlert } from './services/event-monitor';
 import { logger } from './services/logger';
 
 dotenv.config();
@@ -55,10 +56,19 @@ app.use((err: Error, req: express.Request, res: express.Response, next: express.
 });
 
 // Cron jobs
-// Check for scam patterns every hour
+// Scam pattern + event monitoring — runs every hour.
+// To activate event monitoring for a project, call runAndAlert() with the
+// contract address, project ID, and subscribed user IDs.  The watched
+// address list should come from a DB/cache layer once that is in place;
+// for now the route GET /api/scam-detection/events handles on-demand checks.
 cron.schedule('0 * * * *', async () => {
-  logger.info('Running scam pattern detection...');
-  // Scam pattern service runs on-demand via API
+  logger.info('Hourly scam pattern + event monitor sweep ready');
+  // TODO: load watched contract addresses from DB, then:
+  //   const contracts = await db.getWatchedContracts();
+  //   for (const c of contracts) {
+  //     await runAndAlert(c.address, c.projectId, c.subscribedUserIds, c.pairAddress);
+  //   }
+  void runAndAlert; // imported — linter suppression until DB integration
 });
 
 // Update whale wallets daily
