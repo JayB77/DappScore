@@ -14,6 +14,16 @@ const SCAM_PATTERNS = {
     'antiBot',
   ],
 
+  // Owner-privileged control functions that signal rug/scam risk
+  OWNER_CONTROL_FUNCTIONS: [
+    'setTax',
+    'setFee',
+    'mint',
+    'pause',
+    'excludeFromFee',
+    'setTradingEnabled',
+  ],
+
   // Suspicious function signatures
   SUSPICIOUS_SIGNATURES: [
     '0x23b872dd', // transferFrom without proper implementation
@@ -95,6 +105,18 @@ export class ScamPatternService {
               description: `Contains suspicious function: ${func}`,
             });
             riskScore += 15;
+          }
+        }
+
+        // Check for owner-privileged control functions
+        for (const func of SCAM_PATTERNS.OWNER_CONTROL_FUNCTIONS) {
+          if (this.bytecodeContainsFunction(bytecode, func)) {
+            flags.push({
+              type: 'OWNER_CONTROL_FUNCTION',
+              severity: 'warning',
+              description: `Contains privileged owner function: ${func}()`,
+            });
+            riskScore += 10;
           }
         }
 
@@ -215,14 +237,22 @@ export class ScamPatternService {
   }
 
   private getFunctionSelector(funcName: string): string {
-    // Simplified - in production compute keccak256 of function signature
+    // keccak256 first 4 bytes of each function signature
     const selectors: Record<string, string> = {
+      // Honeypot / anti-bot functions
       excludeFromMaxTransaction: '0xc3c8cd80',
-      setRule: '0xfa8b3c00',
-      blacklist: '0xf9f92be4',
-      setBots: '0xb515566a',
-      setBlacklist: '0x884f99c4',
-      antiBot: '0x0b78f9c0',
+      setRule:                   '0xfa8b3c00',
+      blacklist:                 '0xf9f92be4',
+      setBots:                   '0xb515566a',
+      setBlacklist:              '0x884f99c4',
+      antiBot:                   '0x0b78f9c0',
+      // Owner control functions
+      setTax:                    '0x3fd0d025', // setTax(uint256,uint256)
+      setFee:                    '0x69fe0e2d', // setFee(uint256)
+      mint:                      '0x40c10f19', // mint(address,uint256)
+      pause:                     '0x8456cb59', // pause()
+      excludeFromFee:            '0x437823ec', // excludeFromFee(address)
+      setTradingEnabled:         '0x3bbac579', // setTradingEnabled(bool)
     };
     return selectors[funcName] || '0x00000000';
   }

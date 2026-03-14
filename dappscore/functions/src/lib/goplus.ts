@@ -269,6 +269,12 @@ export function parseGoPlusResult(raw: GoPlusRaw, chainId: string): GoPlusResult
       description: 'Owner can blacklist wallets and prevent them from trading the token.',
     });
   }
+  if (flag1(raw.personal_slippage_modifiable)) {
+    flags.push({
+      id: 'exclude-from-fee', name: 'excludeFromFee() Present', severity: 'medium',
+      description: 'Owner can exempt specific wallets from taxes. Insiders may trade fee-free while regular holders pay full fees.',
+    });
+  }
   if (flag1(raw.trading_cooldown)) {
     flags.push({
       id: 'trading-cooldown', name: 'Trading Cooldown', severity: 'low',
@@ -333,7 +339,7 @@ export function parseGoPlusResult(raw: GoPlusRaw, chainId: string): GoPlusResult
     'honeypot-creator-history': 30, 'high-buy-tax': 20, 'high-sell-tax': 25,
     'slippage-modifiable': 25, 'mintable': 20, 'hidden-owner': 40,
     'owner-can-change-balance': 40, 'ownership-not-renounced': 10,
-    'transfer-pausable': 25, 'blacklist-function': 15, 'trading-cooldown': 5,
+    'transfer-pausable': 25, 'blacklist-function': 15, 'exclude-from-fee': 10, 'trading-cooldown': 5,
     'unverified-contract': 20, 'proxy-contract': 5,
     'whale-concentration': 20, 'lp-not-locked': 25, 'lp-lock-unknown': 10,
   };
