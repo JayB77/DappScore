@@ -150,7 +150,7 @@ export function ProjectCard({ project }: { project: Project }) {
               <div>
                 <div className="flex items-center space-x-2">
                   <h3 className="text-white font-semibold">{project.name}</h3>
-                  {project.isPremium && <Crown className="h-4 w-4 text-yellow-400" title="Featured" />}
+                  {project.isPremium && <span title="Featured"><Crown className="h-4 w-4 text-yellow-400" /></span>}
                   {project.verified && (
                     <span title="Verified"><Shield className="h-4 w-4 text-green-500" /></span>
                   )}
