@@ -17,6 +17,7 @@ import AuditBadgePanel from '@/components/AuditBadgePanel';
 import SocialProofPanel from '@/components/SocialProofPanel';
 import TokenSalePanel from '@/components/TokenSalePanel';
 import WhaleTrackerPanel from '@/components/WhaleTrackerPanel';
+import TokenSecurityPanel from '@/components/TokenSecurityPanel';
 import type { SaleData } from '@/types/sale';
 import { useProjectSignals } from '@/lib/useProjectSignals';
 import { useFeatureFlag } from '@/lib/featureFlags';
@@ -703,6 +704,9 @@ export default function ProjectDetail() {
               contractAddresses={project.contractAddresses}
               preloaded={signals.contracts}
             />}
+
+            {/* Token Security Scan (mint, setTax, setFee, blacklist, pause, excludeFromFee, setTradingEnabled) */}
+            <TokenSecurityPanel contractAddresses={project.contractAddresses} />
 
             {/* Honeypot Check */}
             <HoneypotPanel contractAddresses={project.contractAddresses} />
