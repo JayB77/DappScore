@@ -102,13 +102,33 @@ function concentrationRisk(holders: Holder[]) {
   if (!holders.length) return null;
   const top1  = holders[0].share;
   const top3  = holders.slice(0, 3).reduce((s, h) => s + h.share, 0);
+  const top5  = holders.slice(0, 5).reduce((s, h) => s + h.share, 0);
   const top10 = holders.reduce((s, h) => s + h.share, 0);
 
-  if (top1 > 50)  return { label: `Top holder owns ${top1.toFixed(1)}% of supply`,    color: 'text-red-400',    flag: 'CRITICAL' };
-  if (top3 > 60)  return { label: `Top 3 wallets hold ${top3.toFixed(1)}% of supply`, color: 'text-red-400',    flag: 'HIGH RISK' };
-  if (top10 > 80) return { label: `Top 10 hold ${top10.toFixed(1)}% — elevated`,       color: 'text-orange-400', flag: 'ELEVATED' };
+  if (top1  > 50) return { label: `Top holder owns ${top1.toFixed(1)}% of supply`,    color: 'text-red-400',    flag: 'CRITICAL'  };
+  if (top3  > 60) return { label: `Top 3 wallets hold ${top3.toFixed(1)}% of supply`, color: 'text-red-400',    flag: 'HIGH RISK' };
+  if (top5  > 50) return { label: `Top 5 wallets hold ${top5.toFixed(1)}% of supply`, color: 'text-red-400',    flag: 'HIGH RISK' };
+  if (top10 > 80) return { label: `Top 10 hold ${top10.toFixed(1)}% — elevated`,       color: 'text-orange-400', flag: 'ELEVATED'  };
   if (top10 > 50) return { label: `Top 10 hold ${top10.toFixed(1)}% — moderate`,       color: 'text-yellow-400' };
-  return                 { label: 'Well distributed',                                   color: 'text-green-400' };
+  return                 { label: 'Well distributed',                                   color: 'text-green-400'  };
+}
+
+/**
+ * Detect fake burn wallets: addresses that look like a burn address
+ * (many leading zeros or contain 'dead') but are NOT in the known provably-
+ * unspendable set. Tokens sent here may still be recoverable by the team.
+ */
+function detectFakeBurns(holders: Holder[]): Holder[] {
+  return holders.filter(h => {
+    if (h.share < 1) return false;                          // too small to matter
+    if (KNOWN[h.address.toLowerCase()] === 'Burn Address') return false; // legit burn
+    if (KNOWN[h.address])                                   return false; // any other known label
+    const addr = h.address.toLowerCase();
+    return (
+      /^0x0{15,}/.test(addr) ||                             // ≥15 leading zeros
+      (addr.includes('dead') && addr.length === 42)         // contains 'dead'
+    );
+  });
 }
 
 function shareColor(pct: number): string {
@@ -311,8 +331,9 @@ function ContractRow({ chain, address }: ContractAddress) {
 
       {state.status === 'ok' && (() => {
         const { holders, meta } = state;
-        const risk = concentrationRisk(holders);
-        const maxShare = holders[0]?.share ?? 1;
+        const risk      = concentrationRisk(holders);
+        const fakeBurns = detectFakeBurns(holders);
+        const maxShare  = holders[0]?.share ?? 1;
 
         return (
           <div className="space-y-3">
@@ -341,6 +362,22 @@ function ContractRow({ chain, address }: ContractAddress) {
               <div className="flex items-center space-x-1.5 text-xs text-gray-500">
                 <Users className="h-3 w-3" />
                 <span>{meta.holdersCount.toLocaleString()} total holders</span>
+              </div>
+            )}
+
+            {/* Fake burn wallets */}
+            {fakeBurns.length > 0 && (
+              <div className="rounded border border-orange-500/30 bg-orange-500/10 px-2 py-1.5 space-y-1">
+                <div className="flex items-center space-x-1.5 text-xs font-semibold text-orange-400">
+                  <AlertTriangle className="h-3 w-3 flex-shrink-0" />
+                  <span>Unverified burn-like address{fakeBurns.length > 1 ? 'es' : ''}</span>
+                </div>
+                {fakeBurns.map(h => (
+                  <p key={h.address} className="text-xs text-orange-300/80 pl-4">
+                    {shortAddr(h.address)} holds {h.share.toFixed(1)}% — resembles a burn address
+                    but may not be provably unspendable
+                  </p>
+                ))}
               </div>
             )}
 

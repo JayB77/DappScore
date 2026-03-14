@@ -9,7 +9,7 @@ import { logger } from './logger';
 export interface Alert {
   id: string;
   userId: string;
-  type: 'trust_change' | 'scam_flag' | 'whale_activity' | 'vote_threshold' | 'premium_expiry' | 'market_resolution';
+  type: 'trust_change' | 'scam_flag' | 'whale_activity' | 'vote_threshold' | 'premium_expiry' | 'market_resolution' | 'contract_event';
   projectId?: string;
   title: string;
   message: string;
@@ -196,11 +196,12 @@ export class AlertService {
 
       // Check alert type preferences
       const shouldSend =
-        (alert.type === 'trust_change' && prefs.trustChangeAlerts) ||
-        (alert.type === 'scam_flag' && prefs.scamFlagAlerts) ||
-        (alert.type === 'whale_activity' && prefs.whaleActivityAlerts) ||
-        (alert.type === 'vote_threshold' && prefs.voteThresholdAlerts) ||
+        (alert.type === 'trust_change'    && prefs.trustChangeAlerts) ||
+        (alert.type === 'scam_flag'       && prefs.scamFlagAlerts) ||
+        (alert.type === 'whale_activity'  && prefs.whaleActivityAlerts) ||
+        (alert.type === 'vote_threshold'  && prefs.voteThresholdAlerts) ||
         (alert.type === 'market_resolution' && prefs.marketAlerts) ||
+        (alert.type === 'contract_event'  && prefs.scamFlagAlerts) || // routed through scam alerts
         alert.type === 'premium_expiry';
 
       if (!shouldSend) continue;
@@ -243,6 +244,7 @@ export class AlertService {
         vote_threshold: '🗳️',
         premium_expiry: '⏰',
         market_resolution: '🎲',
+        contract_event: '⛓️',
       }[alert.type];
 
       const severityEmoji = {

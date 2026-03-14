@@ -477,6 +477,197 @@ export function addWalletLabel(
   KNOWN_ENTITIES[address.toLowerCase()] = { label, type };
 }
 
+// ── Dump pattern detection ────────────────────────────────────────────────────
+
+export type DumpPatternType = 'early-exit' | 'synchronized-dump' | 'tax-farming';
+
+export interface DumpPattern {
+  type: DumpPatternType;
+  severity: 'medium' | 'high' | 'critical';
+  wallets: string[];
+  windowStart?: Date;
+  windowEnd?: Date;
+  description: string;
+}
+
+export interface DumpPatternResult {
+  patterns: DumpPattern[];
+  hasDumpRisk: boolean;
+  /** Top sellers sorted by total USD sold, descending. */
+  topSellers: { address: string; txCount: number; totalValueUsd: number }[];
+  /** 0–100 composite dump risk score. */
+  riskScore: number;
+}
+
+// Known Base / Ethereum DEX router addresses (lowercase)
+const DEX_ROUTERS = new Set<string>([
+  '0x7a250d5630b4cf539739df2c5dacb4c659f2488d', // Uniswap V2 Router (Ethereum)
+  '0x68b3465833fb72a70ecdf485e0e4c7bd8665fc45', // Uniswap V3 SwapRouter02 (Ethereum)
+  '0x4752ba5dbc23f44d87826276bf6fd6b1c372ad24', // Uniswap V3 Router (Base)
+  '0x2626664c2603336e57b271c5c0b26f421741e481', // Uniswap V3 Router2 (Base)
+  '0x327df1e6de05895d2ab08513aadd9313fe505d86', // BaseSwap Router
+  '0x6131b5fae19ea4f9d964eac0408e4408b66337b5', // Kyberswap Router
+]);
+
+const BLOCKS_PER_HOUR = 1800; // ~2s blocks on Base / Optimism
+
+/**
+ * Detect dump patterns in a token's recent sell activity.
+ *
+ * Strategies:
+ *   1. Early exit     — top holders sell within 72h of launch
+ *   2. Synchronized   — ≥4 distinct wallets sell in the same 1-hour block window
+ *   3. Tax farming    — same wallet makes ≥10 small sells in 24h
+ *
+ * @param tokenAddress    ERC-20 token contract address
+ * @param launchTimestamp When the token launched (first LP add or deploy)
+ * @param network         'mainnet' | 'testnet'
+ */
+export async function detectDumpPatterns(
+  tokenAddress: string,
+  launchTimestamp: Date,
+  network: 'mainnet' | 'testnet' = 'mainnet',
+): Promise<DumpPatternResult> {
+  const client = clients[network];
+  const token  = trackedTokens.get(tokenAddress.toLowerCase());
+  if (!token) throw new Error('Token not tracked — call trackToken() first.');
+
+  const patterns: DumpPattern[] = [];
+
+  // Fetch 72h of Transfer logs (covers the critical post-launch window)
+  const currentBlock = await client.getBlockNumber();
+  const fromBlock    = currentBlock - BigInt(BLOCKS_PER_HOUR * 72);
+
+  const logs = await client.getLogs({
+    address: tokenAddress as Address,
+    event: TRANSFER_EVENT,
+    fromBlock,
+    toBlock: 'latest',
+  });
+
+  // ── Classify transfers as sells ───────────────────────────────────────────
+  // A sell = token transferred TO a known DEX router address.
+  interface SellRecord {
+    wallet: string;
+    valueUsd: number;
+    blockNumber: bigint;
+    hash: string;
+  }
+
+  const allSells: SellRecord[] = [];
+  const sellsByWallet = new Map<string, SellRecord[]>();
+
+  for (const log of logs) {
+    const to   = (log.args.to  ?? '').toLowerCase();
+    const from = (log.args.from ?? '').toLowerCase();
+    if (!DEX_ROUTERS.has(to)) continue;
+
+    const value           = log.args.value ?? 0n;
+    const amountFormatted = Number(value) / Math.pow(10, token.decimals);
+    const valueUsd        = amountFormatted * token.priceUsd;
+
+    const record: SellRecord = {
+      wallet: from,
+      valueUsd,
+      blockNumber: log.blockNumber ?? 0n,
+      hash: log.transactionHash ?? '',
+    };
+    allSells.push(record);
+    const existing = sellsByWallet.get(from) ?? [];
+    existing.push(record);
+    sellsByWallet.set(from, existing);
+  }
+
+  // ── Check 1: Early exit ───────────────────────────────────────────────────
+  // Wallets that sold any amount within 72h of launch — early sell = insider signal.
+  // We're already looking at 72h of logs so all sells here qualify.
+  // Only flag if ≥2 distinct wallets sold (avoids noise from single bots).
+  const earlyExiters = [...sellsByWallet.keys()].filter(wallet => {
+    const walletSells = sellsByWallet.get(wallet)!;
+    // Exclude trivially small sells (<$10) to avoid dust noise
+    return walletSells.some(s => s.valueUsd >= 10);
+  });
+
+  if (earlyExiters.length >= 2) {
+    patterns.push({
+      type: 'early-exit',
+      severity: earlyExiters.length >= 10 ? 'critical' : earlyExiters.length >= 5 ? 'high' : 'medium',
+      wallets: earlyExiters,
+      windowStart: launchTimestamp,
+      windowEnd: new Date(launchTimestamp.getTime() + 72 * 3_600_000),
+      description:
+        `${earlyExiters.length} wallets sold tokens within 72h of launch — ` +
+        `consistent with insiders exiting early`,
+    });
+  }
+
+  // ── Check 2: Synchronized dump ────────────────────────────────────────────
+  // Group sells into 1-hour block buckets. Flag buckets with ≥4 distinct sellers.
+  const hourBuckets = new Map<bigint, Set<string>>(); // bucketKey → wallets
+  for (const sell of allSells) {
+    if (sell.valueUsd < 10) continue;
+    const bucket = sell.blockNumber / BigInt(BLOCKS_PER_HOUR);
+    if (!hourBuckets.has(bucket)) hourBuckets.set(bucket, new Set());
+    hourBuckets.get(bucket)!.add(sell.wallet);
+  }
+
+  for (const [bucket, wallets] of hourBuckets) {
+    if (wallets.size >= 4) {
+      const windowStartBlock = bucket * BigInt(BLOCKS_PER_HOUR);
+      patterns.push({
+        type: 'synchronized-dump',
+        severity: wallets.size >= 8 ? 'critical' : 'high',
+        wallets: Array.from(wallets),
+        description:
+          `${wallets.size} distinct wallets sold in the same ~1-hour window ` +
+          `(around block ${windowStartBlock}) — possible coordinated dump`,
+      });
+    }
+  }
+
+  // ── Check 3: Tax farming ──────────────────────────────────────────────────
+  // A wallet making ≥10 sells within the analysis window, each below $500,
+  // suggests it is repeatedly triggering sell-side fees (tax farming).
+  for (const [wallet, walletSells] of sellsByWallet) {
+    const smallSells = walletSells.filter(s => s.valueUsd < 500 && s.valueUsd > 1);
+    if (smallSells.length >= 10) {
+      patterns.push({
+        type: 'tax-farming',
+        severity: smallSells.length >= 20 ? 'critical' : 'medium',
+        wallets: [wallet],
+        description:
+          `Wallet ${wallet} executed ${smallSells.length} small sells under $500 — ` +
+          `likely repeatedly triggering sell-side fees (tax farming)`,
+      });
+    }
+  }
+
+  // ── Top sellers ───────────────────────────────────────────────────────────
+  const topSellers = Array.from(sellsByWallet.entries())
+    .map(([address, sells]) => ({
+      address,
+      txCount:      sells.length,
+      totalValueUsd: sells.reduce((s, t) => s + t.valueUsd, 0),
+    }))
+    .sort((a, b) => b.totalValueUsd - a.totalValueUsd)
+    .slice(0, 10);
+
+  // ── Composite risk score ──────────────────────────────────────────────────
+  let riskScore = 0;
+  for (const p of patterns) {
+    if (p.type === 'early-exit') {
+      riskScore += p.severity === 'critical' ? 35 : p.severity === 'high' ? 25 : 15;
+    } else if (p.type === 'synchronized-dump') {
+      riskScore += p.severity === 'critical' ? 40 : 25;
+    } else if (p.type === 'tax-farming') {
+      riskScore += p.severity === 'critical' ? 20 : 10;
+    }
+  }
+  riskScore = Math.min(100, riskScore);
+
+  return { patterns, hasDumpRisk: patterns.length > 0, topSellers, riskScore };
+}
+
 // Export for API routes
 export const whaleTrackingService = {
   trackToken,
@@ -487,6 +678,7 @@ export const whaleTrackingService = {
   checkForAlerts,
   getWalletInfo,
   addWalletLabel,
+  detectDumpPatterns,
 };
 
 export default whaleTrackingService;

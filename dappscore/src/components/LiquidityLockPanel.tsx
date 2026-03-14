@@ -53,12 +53,23 @@ interface LpHolder {
   }>;
 }
 
+interface UnlockedHolder {
+  address: string;
+  tag: string;        // GoPlus-provided label, if any
+  pct: number;        // 0–100: percentage of total LP supply held
+  isContract: boolean;
+}
+
 interface LockSummary {
   lockedPct: number;       // 0–100
   burnedPct: number;       // 0–100
   platforms: string[];     // e.g. ["PinkLock", "Uncx"]
   earliestUnlock: number | null;   // unix seconds; null = no dated locks
   lpHolderCount: number;
+  /** Unlocked LP holders that each control >2% of LP supply. */
+  unlockedHolders: UnlockedHolder[];
+  /** Uniswap V2/V3 pair addresses for the token (from GoPlus dex field). */
+  pairAddresses: string[];
 }
 
 type State =
@@ -127,9 +138,10 @@ async function fetchLockSummary(chainId: number, address: string): Promise<LockS
   let burnedPct = 0;
   const platforms: string[] = [];
   let earliestUnlock: number | null = null;
+  const unlockedHolders: UnlockedHolder[] = [];
 
   for (const h of holders) {
-    const pct = parseFloat(h.percent) * 100;
+    const pct    = parseFloat(h.percent) * 100;
     const isDead = DEAD_ADDRESSES.has(h.address.toLowerCase());
 
     if (isDead) {
@@ -146,15 +158,38 @@ async function fetchLockSummary(chainId: number, address: string): Promise<LockS
           earliestUnlock = endTs;
         }
       }
+    } else {
+      // Unlocked, non-dead holder — flag those with meaningful holdings (>2%)
+      if (pct >= 2) {
+        unlockedHolders.push({
+          address:    h.address,
+          tag:        h.tag ?? '',
+          pct,
+          isContract: h.is_contract === 1,
+        });
+      }
     }
   }
 
+  // Sort unlocked holders by size descending
+  unlockedHolders.sort((a, b) => b.pct - a.pct);
+
+  // Extract pair addresses from GoPlus dex field
+  const dexList = Array.isArray(token.dex)
+    ? (token.dex as Array<{ pair?: string; name?: string }>)
+    : [];
+  const pairAddresses = dexList
+    .map(d => d.pair ?? '')
+    .filter(Boolean);
+
   return {
-    lockedPct: Math.min(lockedPct, 100),
-    burnedPct: Math.min(burnedPct, 100),
+    lockedPct:      Math.min(lockedPct, 100),
+    burnedPct:      Math.min(burnedPct, 100),
     platforms,
     earliestUnlock,
     lpHolderCount,
+    unlockedHolders,
+    pairAddresses,
   };
 }
 
@@ -270,6 +305,34 @@ function ContractRow({ chain, address }: ContractAddress) {
             {/* LP holder count context */}
             {lpHolderCount > 0 && (
               <p className="text-xs text-gray-600">{lpHolderCount} LP holder{lpHolderCount !== 1 ? 's' : ''} total</p>
+            )}
+
+            {/* Unlocked LP holder risk — wallets holding >2% LP with no lock */}
+            {summary.unlockedHolders.length > 0 && (
+              <div className="mt-1 space-y-1">
+                <div className="flex items-center space-x-1.5 text-xs font-semibold text-orange-400">
+                  <Unlock className="h-3 w-3 flex-shrink-0" />
+                  <span>Unlocked LP — rug-pull risk</span>
+                </div>
+                <div className="space-y-1 pl-1 border-l border-orange-500/30">
+                  {summary.unlockedHolders.slice(0, 4).map((h) => (
+                    <div key={h.address} className="flex items-center justify-between gap-2 text-xs">
+                      <span className="font-mono text-gray-400 truncate">
+                        {h.tag || `${h.address.slice(0, 6)}…${h.address.slice(-4)}`}
+                      </span>
+                      <span className={`font-semibold shrink-0 ${h.pct >= 10 ? 'text-red-400' : 'text-orange-400'}`}>
+                        {h.pct.toFixed(1)}%
+                        {h.pct >= 10 && (
+                          <span className="ml-1 px-1 py-0.5 bg-red-500/20 rounded text-red-400">HIGH</span>
+                        )}
+                      </span>
+                    </div>
+                  ))}
+                  {summary.unlockedHolders.length > 4 && (
+                    <p className="text-gray-600">+{summary.unlockedHolders.length - 4} more unlocked holders</p>
+                  )}
+                </div>
+              </div>
             )}
           </div>
         );
