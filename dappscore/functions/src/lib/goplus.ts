@@ -16,6 +16,16 @@
 
 const BASE_URL = 'https://api.gopluslabs.io/api/v1';
 
+/**
+ * Known scam / rug deployer addresses.
+ * All entries must be lowercase. Populated as confirmed rugs are indexed on-chain.
+ * Export lets other services (e.g. scam-patterns) share the same source of truth.
+ */
+export const KNOWN_SCAM_DEPLOYERS = new Set<string>([
+  // Entries added as confirmed rug pulls are identified on-chain.
+  // Format: '0x<40-char-lowercase-hex>'
+]);
+
 // Maps our canonical network key → GoPlus chain ID string
 const GOPLUS_CHAIN_IDS: Record<string, string> = {
   // ── EVM L1s ──────────────────────────────────────────────────────────────
@@ -252,7 +262,17 @@ export function parseGoPlusResult(raw: GoPlusRaw, chainId: string): GoPlusResult
   if (!flag1(raw.is_contract_renounced) && raw.owner_address && raw.owner_address !== '0x0000000000000000000000000000000000000000') {
     flags.push({
       id: 'ownership-not-renounced', name: 'Ownership Not Renounced', severity: 'medium',
-      description: `Contract is owned by ${raw.owner_address}. Owner retains admin control.`,
+      description: `Contract is owned by ${raw.owner_address}. Owner retains admin control. ` +
+        `Verify on-chain whether this is an EOA, a Gnosis Safe multisig, or an unrecognised proxy.`,
+    });
+  }
+
+  // ── Creator in known scam deployer set ───────────────────────────────────
+  if (raw.creator_address && KNOWN_SCAM_DEPLOYERS.has(raw.creator_address.toLowerCase())) {
+    flags.push({
+      id: 'known-scam-deployer', name: 'Known Scam Deployer', severity: 'critical',
+      description: `This contract was deployed by ${raw.creator_address}, ` +
+        `an address previously associated with confirmed rug pulls or scam projects.`,
     });
   }
 
@@ -342,6 +362,7 @@ export function parseGoPlusResult(raw: GoPlusRaw, chainId: string): GoPlusResult
     'transfer-pausable': 25, 'blacklist-function': 15, 'exclude-from-fee': 10, 'trading-cooldown': 5,
     'unverified-contract': 20, 'proxy-contract': 5,
     'whale-concentration': 20, 'lp-not-locked': 25, 'lp-lock-unknown': 10,
+    'known-scam-deployer': 50,
   };
 
   const riskScore = Math.min(

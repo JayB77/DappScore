@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import {
   User, Clock, AlertTriangle, ExternalLink, Loader2,
-  Box, HelpCircle, CheckCircle,
+  Box, HelpCircle, CheckCircle, Shield,
 } from 'lucide-react';
 import { useFeatureFlag } from '@/lib/featureFlags';
 import { getChainConfig, getExplorerUrl } from '@/lib/chainAdapters';
@@ -30,7 +30,8 @@ interface DeployedContract {
 
 interface DeployerInfo {
   deployer: string;
-  firstTxTimestamp: number | null;   // unix seconds; null = no txs found
+  firstTxTimestamp: number | null;        // unix seconds; null = no txs found
+  contractCreationTimestamp: number | null; // unix seconds; when THIS contract was deployed
   deployedContracts: DeployedContract[];  // other contracts from this wallet
 }
 
@@ -59,6 +60,30 @@ function walletAgeLabel(firstTxTs: number | null): { label: string; days: number
   return { label, days };
 }
 
+type AgeRisk = 'very-high' | 'high' | 'medium' | 'low';
+
+function contractAgeRisk(creationTs: number | null): {
+  label: string;
+  risk: AgeRisk | null;
+  hours: number | null;
+} {
+  if (creationTs === null) return { label: 'Age unknown', risk: null, hours: null };
+  const hours = (Date.now() / 1000 - creationTs) / 3600;
+  if (hours < 24)         return { label: `${Math.floor(hours)}h old`,              risk: 'very-high', hours };
+  if (hours < 24 * 7)     return { label: `${Math.floor(hours / 24)}d old`,         risk: 'high',      hours };
+  if (hours < 24 * 30)    return { label: `${Math.floor(hours / 24)}d old`,         risk: 'medium',    hours };
+  if (hours < 24 * 365)   return { label: `${Math.floor(hours / 24)}d old`,         risk: 'low',       hours };
+  const years = Math.floor(hours / (24 * 365));
+  return { label: `${years}yr old`, risk: 'low', hours };
+}
+
+const AGE_RISK_STYLES: Record<AgeRisk, { text: string; badge: string; label: string }> = {
+  'very-high': { text: 'text-red-400',    badge: 'bg-red-500/20 text-red-400',    label: 'VERY HIGH RISK' },
+  'high':      { text: 'text-orange-400', badge: 'bg-orange-500/20 text-orange-400', label: 'HIGH RISK' },
+  'medium':    { text: 'text-yellow-400', badge: 'bg-yellow-500/20 text-yellow-400', label: 'MEDIUM RISK' },
+  'low':       { text: 'text-green-400',  badge: 'bg-green-500/20 text-green-400',   label: 'LOW RISK' },
+};
+
 function deploymentCountRisk(n: number): 'ok' | 'warn' {
   // 1–4 other contracts = worth noting; 5+ = pattern deployer
   return n >= 5 ? 'warn' : 'ok';
@@ -83,12 +108,13 @@ async function fetchDeployerInfo(
   apiBase: string,
   contractAddress: string,
 ): Promise<DeployerInfo> {
-  // Step 1: get the contract creator
+  // Step 1: get the contract creator + creation tx hash
   const creationRes = await fetch(
     `${apiBase}?module=contract&action=getcontractcreation&contractaddresses=${contractAddress}`,
   );
   const creationData = await creationRes.json();
-  const deployer: string | undefined = creationData?.result?.[0]?.contractCreator;
+  const deployer: string | undefined        = creationData?.result?.[0]?.contractCreator;
+  const creationTxHash: string | undefined  = creationData?.result?.[0]?.txHash;
   if (!deployer) throw new Error('no-creator');
 
   // Step 2: wallet age — earliest transaction
@@ -125,6 +151,36 @@ async function fetchDeployerInfo(
       timestamp: parseInt(tx.timeStamp, 10),
     }));
 
+  // Resolve the creation timestamp for THIS contract.
+  // First check if the creation tx is already in the deployer's recent 100 txs
+  // (true for recently deployed contracts — the common rug case).
+  // Fall back to block explorer proxy calls for older contracts.
+  let contractCreationTimestamp: number | null = null;
+  if (creationTxHash) {
+    const creationTxInList = txs.find(
+      (tx) => tx.hash.toLowerCase() === creationTxHash.toLowerCase(),
+    );
+    if (creationTxInList) {
+      contractCreationTimestamp = parseInt(creationTxInList.timeStamp, 10);
+    } else {
+      try {
+        // eth_getTransactionByHash → get blockNumber (hex)
+        const txRes   = await fetch(`${apiBase}?module=proxy&action=eth_getTransactionByHash&txhash=${creationTxHash}`);
+        const txData  = await txRes.json();
+        const blockHex: string | undefined = txData?.result?.blockNumber;
+        if (blockHex) {
+          // eth_getBlockByNumber → get timestamp (hex)
+          const blkRes  = await fetch(`${apiBase}?module=proxy&action=eth_getBlockByNumber&tag=${blockHex}&boolean=false`);
+          const blkData = await blkRes.json();
+          const tsHex: string | undefined = blkData?.result?.timestamp;
+          if (tsHex) contractCreationTimestamp = parseInt(tsHex, 16);
+        }
+      } catch {
+        // non-critical — contract age just won't display
+      }
+    }
+  }
+
   // Enrich with DappScore data for deployed contracts
   if (deployedContracts.length > 0) {
     try {
@@ -145,7 +201,7 @@ async function fetchDeployerInfo(
     }
   }
 
-  return { deployer, firstTxTimestamp, deployedContracts };
+  return { deployer, firstTxTimestamp, contractCreationTimestamp, deployedContracts };
 }
 
 // ── Single contract row ───────────────────────────────────────────────────────
@@ -216,6 +272,22 @@ function ContractRow({ chain, address }: ContractAddress) {
                 <ExternalLink className="h-3 w-3 ml-0.5" />
               </a>
             </div>
+
+            {/* Contract age with risk bucket */}
+            {(() => {
+              const cAge = contractAgeRisk(info.contractCreationTimestamp);
+              if (cAge.risk === null) return null;
+              const s = AGE_RISK_STYLES[cAge.risk];
+              return (
+                <div className="flex items-center space-x-1.5">
+                  <Shield className={`h-3.5 w-3.5 flex-shrink-0 ${s.text}`} />
+                  <span className={`text-sm ${s.text}`}>Contract {cAge.label}</span>
+                  <span className={`text-xs px-1.5 py-0.5 rounded font-semibold ${s.badge}`}>
+                    {s.label}
+                  </span>
+                </div>
+              );
+            })()}
 
             {/* Wallet age — informational only; new wallets can be a deliberate security choice */}
             <div className="flex items-center space-x-1.5">
@@ -318,7 +390,7 @@ export default function DeployerHistoryPanel({ contractAddresses }: Props) {
       </div>
 
       <p className="text-xs text-gray-600 mt-4">
-        Wallet age &amp; deployment history via block explorer APIs · EVM chains only
+        Contract age, wallet age &amp; deployment history via block explorer APIs · EVM chains only
       </p>
     </div>
   );
