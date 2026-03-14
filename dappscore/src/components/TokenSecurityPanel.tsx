@@ -77,14 +77,19 @@ const FLAG_DEFS: Record<string, FlagDef> = {
     why: 'The wallet that deployed this contract has previously deployed confirmed honeypot tokens.',
   },
   mintable: {
-    id: 'mintable', name: 'mint() Present', severity: 'high',
-    label: 'Mintable',
-    why: 'The owner can create unlimited new tokens at any time, diluting every holder\'s position to near-zero without warning.',
+    id: 'mintable', name: 'Unlimited Minting — mint() Present', severity: 'high',
+    label: 'Unlimited Mint',
+    why: 'The owner can create unlimited new tokens at any time with no supply cap. Your holdings can be diluted to near-zero without warning.',
   },
   'slippage-modifiable': {
-    id: 'slippage-modifiable', name: 'setTax() / setFee() Present', severity: 'high',
-    label: 'Tax Modifiable',
-    why: 'The owner can raise buy/sell taxes to any value — including 100%. This can make it impossible to profit or even exit your position.',
+    id: 'slippage-modifiable', name: 'Adjustable Taxes — setTax() / setFee() Present', severity: 'high',
+    label: 'Tax Adjustable',
+    why: 'The owner can raise buy/sell taxes to any value — including 100%. Taxes above 20% make it effectively impossible to profit.',
+  },
+  'tax-over-20': {
+    id: 'tax-over-20', name: 'Tax Currently >20%', severity: 'critical',
+    label: 'Tax >20%',
+    why: 'Current buy or sell tax already exceeds 20%. At this level, you lose at least 1-in-5 of your funds on every trade.',
   },
   'exclude-from-fee': {
     id: 'exclude-from-fee', name: 'excludeFromFee() Present', severity: 'medium',
@@ -92,12 +97,12 @@ const FLAG_DEFS: Record<string, FlagDef> = {
     why: 'Specific wallets (typically team/insiders) can be made tax-exempt while regular buyers pay full fees — a structural insider advantage.',
   },
   'transfer-pausable': {
-    id: 'transfer-pausable', name: 'pause() Present', severity: 'high',
-    label: 'Pausable',
-    why: 'The owner can halt all token transfers instantly. Once paused, nobody can buy, sell, or move tokens until the owner allows it.',
+    id: 'transfer-pausable', name: 'Trading Lock — pause() Present', severity: 'high',
+    label: 'Trading Lock',
+    why: 'The owner can disable all trading at any time. Once paused, nobody can buy, sell, or move tokens until the owner re-enables it.',
   },
   'blacklist-function': {
-    id: 'blacklist-function', name: 'blacklist() Present', severity: 'medium',
+    id: 'blacklist-function', name: 'Blacklist — Owner Can Block Wallets', severity: 'medium',
     label: 'Blacklist',
     why: 'The owner can blacklist any wallet address, permanently blocking that address from buying or selling the token.',
   },
@@ -168,14 +173,24 @@ interface GoPlusTokenRaw {
   is_open_source?:            '0' | '1';
   is_proxy?:                  '0' | '1';
   trading_cooldown?:          '0' | '1';
-  buy_tax?:                   string;
+  buy_tax?:                   string;  // GoPlus returns decimal, e.g. "0.05" = 5%
   sell_tax?:                  string;
+  total_supply?:              string;
   holders?: Array<{ percent: string }>;
   lp_holders?: Array<{ percent: string; is_locked: number }>;
   lp_total_supply?: string;
   dex?: Array<{ name: string }>;
   token_name?:   string;
   token_symbol?: string;
+}
+
+interface Heuristic {
+  key:      string;
+  label:    string;
+  active:   boolean;
+  severity: 'critical' | 'high' | 'medium';
+  detail:   string;  // short note shown inline (e.g. "5% buy / 10% sell")
+  why:      string;  // full tooltip explanation
 }
 
 interface ParsedFlag {
@@ -187,11 +202,12 @@ interface ParsedFlag {
 }
 
 interface TokenSecurity {
-  flags:     ParsedFlag[];
-  riskScore: number;     // 0–100
-  name:      string | null;
-  symbol:    string | null;
-  allClear:  boolean;
+  flags:      ParsedFlag[];
+  heuristics: Heuristic[];
+  riskScore:  number;     // 0–100
+  name:       string | null;
+  symbol:     string | null;
+  allClear:   boolean;
 }
 
 // ── Parser ───────────────────────────────────────────────────────────────────
@@ -212,7 +228,7 @@ function resolveFlag(id: string, extra?: Partial<FlagDef>): ParsedFlag {
 const WEIGHTS: Record<string, number> = {
   honeypot: 50, 'cannot-buy': 50, 'cannot-sell-all': 40,
   'honeypot-creator-history': 30,
-  mintable: 20, 'slippage-modifiable': 25,
+  mintable: 20, 'slippage-modifiable': 25, 'tax-over-20': 35,
   'exclude-from-fee': 10,
   'transfer-pausable': 25, 'blacklist-function': 15,
   'hidden-owner': 40, 'owner-can-change-balance': 40,
@@ -239,6 +255,11 @@ function parseTokenSecurity(raw: GoPlusTokenRaw): TokenSecurity {
   if (!f1(raw.is_open_source))           flagIds.push('unverified-contract');
   if (f1(raw.is_proxy))                  flagIds.push('proxy-contract');
   if (f1(raw.trading_cooldown))          flagIds.push('trading-cooldown');
+
+  // Tax thresholds — GoPlus returns decimal fractions (0.05 = 5%)
+  const buyTaxPct  = raw.buy_tax  ? parseFloat(raw.buy_tax)  * 100 : 0;
+  const sellTaxPct = raw.sell_tax ? parseFloat(raw.sell_tax) * 100 : 0;
+  if (buyTaxPct > 20 || sellTaxPct > 20) flagIds.push('tax-over-20');
 
   // Ownership
   if (
@@ -275,8 +296,58 @@ function parseTokenSecurity(raw: GoPlusTokenRaw): TokenSecurity {
     100,
   );
 
+  // ── Heuristic summary (4 key risk categories) ────────────────────────────
+  const flagSet = new Set(flagIds);
+
+  const taxDetail =
+    buyTaxPct > 0 || sellTaxPct > 0
+      ? `Currently ${buyTaxPct.toFixed(1)}% buy / ${sellTaxPct.toFixed(1)}% sell`
+      : flagSet.has('slippage-modifiable') ? 'Can be raised to any value' : 'Taxes appear fixed';
+
+  const heuristics: Heuristic[] = [
+    {
+      key:      'unlimited-minting',
+      label:    'Unlimited Minting',
+      active:   flagSet.has('mintable'),
+      severity: 'high',
+      detail:   flagSet.has('mintable') ? 'mint() detected in contract' : 'No mint function detected',
+      why:      FLAG_DEFS['mintable'].why,
+    },
+    {
+      key:      'trading-lock',
+      label:    'Trading Lock',
+      active:   flagSet.has('transfer-pausable') || flagSet.has('cannot-buy'),
+      severity: 'high',
+      detail:   flagSet.has('cannot-buy')
+        ? 'Trading currently disabled'
+        : flagSet.has('transfer-pausable')
+          ? 'pause() present — can be disabled'
+          : 'No trading lock detected',
+      why:      FLAG_DEFS['transfer-pausable'].why,
+    },
+    {
+      key:      'blacklist',
+      label:    'Blacklist',
+      active:   flagSet.has('blacklist-function'),
+      severity: 'medium',
+      detail:   flagSet.has('blacklist-function') ? 'blacklist() present in contract' : 'No blacklist function detected',
+      why:      FLAG_DEFS['blacklist-function'].why,
+    },
+    {
+      key:      'adjustable-taxes',
+      label:    'Adjustable Taxes >20%',
+      active:   flagSet.has('slippage-modifiable') || flagSet.has('tax-over-20'),
+      severity: flagSet.has('tax-over-20') ? 'critical' : 'high',
+      detail:   taxDetail,
+      why:      flagSet.has('tax-over-20')
+        ? FLAG_DEFS['tax-over-20'].why
+        : FLAG_DEFS['slippage-modifiable'].why,
+    },
+  ];
+
   return {
     flags,
+    heuristics,
     riskScore,
     name:     raw.token_name   ?? null,
     symbol:   raw.token_symbol ?? null,
@@ -310,6 +381,99 @@ const SEV_CONFIG = {
   medium:   { bg: 'bg-yellow-500/20', text: 'text-yellow-400', border: 'border-yellow-500/40', dot: 'bg-yellow-400', label: 'MED' },
   low:      { bg: 'bg-blue-500/20',   text: 'text-blue-400',   border: 'border-blue-500/40',   dot: 'bg-blue-400',   label: 'LOW' },
 };
+
+// ── Heuristic summary grid ────────────────────────────────────────────────────
+
+function HeuristicItem({
+  h,
+  open,
+  onToggle,
+}: {
+  h: Heuristic;
+  open: boolean;
+  onToggle: () => void;
+}) {
+  const activeCfg = SEV_CONFIG[h.severity];
+  return (
+    <div
+      className={`rounded-lg border p-2.5 flex flex-col gap-1 transition-colors ${
+        h.active
+          ? `${activeCfg.bg} ${activeCfg.border}`
+          : 'bg-gray-700/30 border-gray-700'
+      }`}
+    >
+      <div className="flex items-center justify-between gap-1.5">
+        {/* Status dot + label */}
+        <div className="flex items-center gap-1.5 min-w-0">
+          <span
+            className={`w-2 h-2 rounded-full flex-shrink-0 ${
+              h.active ? activeCfg.dot : 'bg-green-500'
+            }`}
+          />
+          <span
+            className={`text-xs font-semibold truncate ${
+              h.active ? activeCfg.text : 'text-green-400'
+            }`}
+          >
+            {h.label}
+          </span>
+        </div>
+
+        {/* Info toggle */}
+        <button
+          onClick={onToggle}
+          title={h.why}
+          aria-label={open ? 'Hide details' : 'Why is this dangerous?'}
+          className={`flex-shrink-0 p-0.5 rounded transition-colors ${
+            open ? `${activeCfg.text}` : 'text-gray-600 hover:text-gray-400'
+          }`}
+        >
+          <Info className="h-3.5 w-3.5" />
+        </button>
+      </div>
+
+      {/* Detail note */}
+      <span className={`text-xs ${h.active ? activeCfg.text + ' opacity-75' : 'text-gray-500'}`}>
+        {h.detail}
+      </span>
+
+      {/* Expanded why */}
+      {open && (
+        <p className={`text-xs leading-relaxed mt-0.5 ${h.active ? activeCfg.text : 'text-gray-400'} opacity-90`}>
+          {h.why}
+        </p>
+      )}
+    </div>
+  );
+}
+
+function HeuristicSummary({
+  heuristics,
+  openTip,
+  onToggle,
+}: {
+  heuristics: Heuristic[];
+  openTip: string | null;
+  onToggle: (key: string) => void;
+}) {
+  return (
+    <div>
+      <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">
+        Heuristic Flags
+      </p>
+      <div className="grid grid-cols-2 gap-1.5">
+        {heuristics.map(h => (
+          <HeuristicItem
+            key={h.key}
+            h={h}
+            open={openTip === `h:${h.key}`}
+            onToggle={() => onToggle(`h:${h.key}`)}
+          />
+        ))}
+      </div>
+    </div>
+  );
+}
 
 // ── Flag item with tooltip ────────────────────────────────────────────────────
 
@@ -453,30 +617,38 @@ function ContractRow({ chain, address }: ContractAddress) {
         <>
           <RiskBar score={state.data.riskScore} />
 
+          {/* 4-cell heuristic summary — always shown */}
+          <HeuristicSummary
+            heuristics={state.data.heuristics}
+            openTip={openTip}
+            onToggle={toggleTip}
+          />
+
+          {/* Detailed flag list */}
           {state.data.allClear ? (
             <div className="flex items-center space-x-2">
               <CheckCircle className="h-4 w-4 text-green-400 flex-shrink-0" />
-              <span className="text-sm text-green-400">No dangerous functions detected</span>
+              <span className="text-sm text-green-400">No additional flags detected</span>
             </div>
           ) : (
-            <div className="space-y-2">
-              {/* Group: critical first */}
-              {(['critical', 'high', 'medium', 'low'] as const).map(sev => {
-                const group = state.data.flags.filter(f => f.severity === sev);
-                if (!group.length) return null;
-                return (
-                  <div key={sev} className="space-y-1.5">
-                    {group.map(flag => (
-                      <FlagItem
-                        key={flag.id}
-                        flag={flag}
-                        open={openTip === flag.id}
-                        onToggle={() => toggleTip(flag.id)}
-                      />
-                    ))}
-                  </div>
-                );
-              })}
+            <div>
+              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">
+                All Flags
+              </p>
+              <div className="space-y-1.5">
+                {(['critical', 'high', 'medium', 'low'] as const).map(sev => {
+                  const group = state.data.flags.filter(f => f.severity === sev);
+                  if (!group.length) return null;
+                  return group.map(flag => (
+                    <FlagItem
+                      key={flag.id}
+                      flag={flag}
+                      open={openTip === flag.id}
+                      onToggle={() => toggleTip(flag.id)}
+                    />
+                  ));
+                })}
+              </div>
             </div>
           )}
         </>
