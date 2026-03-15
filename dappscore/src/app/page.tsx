@@ -128,8 +128,8 @@ export default function HomePage() {
               <span className="text-yellow-500">Community</span>
             </h1>
             <p className="text-xl text-gray-400 mb-8 max-w-2xl mx-auto">
-              Community-driven crypto project vetting platform. Vote on projects,
-              expose scams, and build your reputation.
+              Community-driven crypto project vetting platform. Vote on blockchain projects,
+              expose scams, and gain on-chain reputation for contributing.
             </p>
             <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
               <Link

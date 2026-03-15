@@ -7,8 +7,8 @@ import { Footer } from '@/components/Footer';
 
 export const metadata: Metadata = {
   title: 'DappScore - Community-Driven Crypto Project Vetting',
-  description: 'Vote, comment, and help separate legitimate crypto projects from scams. Earn $SCORE tokens for contributing to the community.',
-  keywords: ['dapp', 'crypto', 'blockchain', 'score', 'voting', 'DeFi', 'token sale', 'vetting'],
+  description: 'Community-driven crypto project vetting platform. Vote on blockchain projects, expose scams, and gain on-chain reputation for contributing.',
+  keywords: ['crypto project vetting', 'blockchain due diligence', 'crypto scam detection', 'DeFi community voting', 'on-chain reputation', 'dapp', 'DeFi', 'rug pull detector'],
 };
 
 export default function RootLayout({
