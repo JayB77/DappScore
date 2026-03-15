@@ -1,11 +1,10 @@
 import EditProject from './EditProject';
 
-// Generate static params for export
+// Static export requires at least one pre-rendered shell.
+// All real project data is fetched client-side via useParams() + API calls,
+// so this single shell works for any project ID at runtime.
 export function generateStaticParams() {
-  // Pre-generate paths for IDs 1-100
-  return Array.from({ length: 100 }, (_, i) => ({
-    id: String(i + 1),
-  }));
+  return [{ id: 'index' }];
 }
 
 export default function EditProjectPage() {

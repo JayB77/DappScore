@@ -19,6 +19,30 @@
         "function": "api"
       },
       {
+        "source": "/projects/*/analysis",
+        "destination": "/projects/index/analysis/index.html"
+      },
+      {
+        "source": "/projects/*/analysis/",
+        "destination": "/projects/index/analysis/index.html"
+      },
+      {
+        "source": "/projects/*/edit",
+        "destination": "/projects/index/edit/index.html"
+      },
+      {
+        "source": "/projects/*/edit/",
+        "destination": "/projects/index/edit/index.html"
+      },
+      {
+        "source": "/projects/*",
+        "destination": "/projects/index/index.html"
+      },
+      {
+        "source": "/projects/*/",
+        "destination": "/projects/index/index.html"
+      },
+      {
         "source": "**",
         "destination": "/index.html"
       }
