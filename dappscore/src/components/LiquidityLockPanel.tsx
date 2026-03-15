@@ -195,7 +195,7 @@ async function fetchLockSummary(chainId: number, address: string): Promise<LockS
 
 // ── Single contract row ───────────────────────────────────────────────────────
 
-function ContractRow({ chain, address }: ContractAddress) {
+function ContractRow({ chain, address, expanded = false }: ContractAddress & { expanded?: boolean }) {
   const [state, setState] = useState<State>({ status: 'idle' });
   const chainId = GOPLUS_CHAIN_IDS[chain.toLowerCase()];
 
@@ -315,7 +315,7 @@ function ContractRow({ chain, address }: ContractAddress) {
                   <span>Unlocked LP — rug-pull risk</span>
                 </div>
                 <div className="space-y-1 pl-1 border-l border-orange-500/30">
-                  {summary.unlockedHolders.slice(0, 4).map((h) => (
+                  {(expanded ? summary.unlockedHolders : summary.unlockedHolders.slice(0, 4)).map((h) => (
                     <div key={h.address} className="flex items-center justify-between gap-2 text-xs">
                       <span className="font-mono text-gray-400 truncate">
                         {h.tag || `${h.address.slice(0, 6)}…${h.address.slice(-4)}`}
@@ -328,8 +328,8 @@ function ContractRow({ chain, address }: ContractAddress) {
                       </span>
                     </div>
                   ))}
-                  {summary.unlockedHolders.length > 4 && (
-                    <p className="text-gray-600">+{summary.unlockedHolders.length - 4} more unlocked holders</p>
+                  {!expanded && summary.unlockedHolders.length > 4 && (
+                    <p className="text-gray-600">+{summary.unlockedHolders.length - 4} more unlocked holders — see Full Analysis</p>
                   )}
                 </div>
               </div>
@@ -345,9 +345,11 @@ function ContractRow({ chain, address }: ContractAddress) {
 
 interface Props {
   contractAddresses: ContractAddress[];
+  /** When true, render all unlocked LP holders instead of top 4. Used by the analysis page. */
+  expanded?: boolean;
 }
 
-export default function LiquidityLockPanel({ contractAddresses }: Props) {
+export default function LiquidityLockPanel({ contractAddresses, expanded = false }: Props) {
   const enabled = useFeatureFlag('liquidityLock', false);
   if (!enabled) return null;
 
@@ -365,7 +367,7 @@ export default function LiquidityLockPanel({ contractAddresses }: Props) {
 
       <div className="space-y-3">
         {supported.map(({ chain, address }) => (
-          <ContractRow key={`${chain}:${address}`} chain={chain} address={address} />
+          <ContractRow key={`${chain}:${address}`} chain={chain} address={address} expanded={expanded} />
         ))}
       </div>
 

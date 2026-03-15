@@ -206,7 +206,7 @@ async function fetchDeployerInfo(
 
 // ── Single contract row ───────────────────────────────────────────────────────
 
-function ContractRow({ chain, address }: ContractAddress) {
+function ContractRow({ chain, address, expanded = false }: ContractAddress & { expanded?: boolean }) {
   const [state, setState] = useState<State>({ status: 'idle' });
 
   useEffect(() => {
@@ -317,7 +317,7 @@ function ContractRow({ chain, address }: ContractAddress) {
             {/* Other deployment list */}
             {otherCount > 0 && (
               <div className="space-y-1 pl-1 border-l border-gray-700">
-                {info.deployedContracts.slice(0, 5).map((c) => {
+                {(expanded ? info.deployedContracts : info.deployedContracts.slice(0, 5)).map((c) => {
                   const daysAgo = Math.floor((Date.now() / 1000 - c.timestamp) / 86_400);
                   const url = `${explorerBase}/address/${c.address}`;
                   return (
@@ -340,15 +340,10 @@ function ContractRow({ chain, address }: ContractAddress) {
                     </div>
                   );
                 })}
-                {otherCount > 5 && (
-                  <a
-                    href={deployerUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-xs text-gray-500 hover:text-gray-400 transition-colors"
-                  >
-                    +{otherCount - 5} more — view on explorer
-                  </a>
+                {!expanded && otherCount > 5 && (
+                  <span className="text-xs text-gray-500">
+                    +{otherCount - 5} more — see Full Analysis
+                  </span>
                 )}
               </div>
             )}
@@ -363,9 +358,11 @@ function ContractRow({ chain, address }: ContractAddress) {
 
 interface Props {
   contractAddresses: ContractAddress[];
+  /** When true, render all deployed contracts instead of top 5. Used by the analysis page. */
+  expanded?: boolean;
 }
 
-export default function DeployerHistoryPanel({ contractAddresses }: Props) {
+export default function DeployerHistoryPanel({ contractAddresses, expanded = false }: Props) {
   const enabled = useFeatureFlag('deployerHistory', false);
   if (!enabled) return null;
 
@@ -385,7 +382,7 @@ export default function DeployerHistoryPanel({ contractAddresses }: Props) {
 
       <div className="space-y-3">
         {supported.map(({ chain, address }) => (
-          <ContractRow key={`${chain}:${address}`} chain={chain} address={address} />
+          <ContractRow key={`${chain}:${address}`} chain={chain} address={address} expanded={expanded} />
         ))}
       </div>
 
