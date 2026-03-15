@@ -4,6 +4,10 @@ Project ownership allows team members to manage and update their listings on Dap
 
 ## Claiming Ownership
 
+Ownership is verified by signing a message with the **project's owner wallet** — the deployer address or a wallet the team controls. A signature from an unrelated wallet will not confer any special trust status.
+
+> **Concerned about signing on a third-party site?** That's a reasonable concern. Message signing never exposes your private key and cannot move funds, but we understand teams may prefer to avoid using their primary deployer wallet on any external site. Alternative verification methods are on the roadmap — see [Alternative Verification](#alternative-verification) below.
+
 ### During Submission
 
 1. On Step 1 of the submission form, check "I am a team member of this project"
@@ -21,6 +25,16 @@ Project ownership allows team members to manage and update their listings on Dap
 ### After Submission
 
 Coming soon: Claim ownership of existing listings.
+
+### Alternative Verification
+
+Wallet signing is the only supported method today. Additional methods planned for future releases:
+
+- **DNS TXT record** — Add a TXT record to your project domain pointing to your DappScore listing. No wallet required.
+- **GitHub file** — Commit a small verification file to your public repo. Useful for open-source projects.
+- **Contract function** — Call a lightweight on-chain function from the owner address, so the proof lives entirely on-chain.
+
+If any of these would unblock your team sooner, [open a request](https://github.com/DappScore/platform_private/issues) and we'll prioritise accordingly.
 
 ## Owner Capabilities
 

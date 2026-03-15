@@ -2,31 +2,7 @@
 
 The **Deep Analysis** page gives you a dedicated, full-screen view of every automated security signal for a project — broken into focused sections with a sticky navigation bar so you can jump between them instantly.
 
-Access it from any project detail page by clicking **"Deep Analysis →"**.
-
----
-
-## Navigation
-
-The sticky header at the top of the page shows:
-
-* A back link to the project detail page
-* The page title ("Deep Analysis")
-* The chain the project is deployed on
-
-Below the header, pill buttons let you jump to any section without scrolling:
-
-| Pill | Section |
-|------|---------|
-| 🛡️ Security | Honeypot + GoPlus risk flags |
-| 💧 Liquidity | DEX price, volume, and buy/sell pressure |
-| 🔒 LP Locks | Liquidity lock status and expiry |
-| 📊 Holders | Token distribution and top holders |
-| 🕵️ Deployer | Deployer wallet history |
-| 🐋 Whales | Large 24h transfers and trends |
-| 📅 Events | Recent on-chain activity |
-
-The active pill highlights automatically as you scroll through sections.
+Access it from any project detail page by clicking **"Full Analysis"**.
 
 ---
 
