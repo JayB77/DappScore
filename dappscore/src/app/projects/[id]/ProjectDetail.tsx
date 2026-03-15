@@ -658,6 +658,7 @@ export default function ProjectDetail() {
                 whitepaperUrl: project.whitepaperUrl,
                 socialLinks: project.socialLinks,
               }}
+              analysisHref={`/projects/${params.id}/analysis`}
             />}
 
             {/* Token Details */}

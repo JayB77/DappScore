@@ -1,6 +1,7 @@
 'use client';
 
 import { useMemo } from 'react';
+import Link from 'next/link';
 import { Loader2, TrendingUp } from 'lucide-react';
 import { computeScore, type ProjectSignals, type CompositeScore } from '@/lib/useProjectSignals';
 
@@ -39,9 +40,10 @@ interface Props {
     whitepaperUrl?: string;
     socialLinks?: Record<string, string>;
   };
+  analysisHref?: string;
 }
 
-export default function DappScorePanel({ signals, project }: Props) {
+export default function DappScorePanel({ signals, project, analysisHref }: Props) {
   const score = useMemo(() => computeScore(signals, project), [signals, project]);
   const style = GRADE_STYLE[score.grade];
 
@@ -97,6 +99,15 @@ export default function DappScorePanel({ signals, project }: Props) {
       <p className="text-xs text-gray-600 mt-4">
         Score updates live as signals resolve · Not financial advice
       </p>
+
+      {analysisHref && (
+        <Link
+          href={analysisHref}
+          className="mt-4 flex w-full items-center justify-center rounded-lg bg-yellow-500 py-2.5 text-sm font-semibold text-black transition-colors hover:bg-yellow-400 active:bg-yellow-300"
+        >
+          Full Analysis
+        </Link>
+      )}
     </div>
   );
 }
