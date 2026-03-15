@@ -194,7 +194,7 @@ export default function DashboardPage() {
               {rewardsEnabled && (
                 <div className="text-center">
                   <div className="text-2xl font-bold text-yellow-500">{userStats.tokensBalance.toLocaleString()}</div>
-                  <div className="text-xs text-gray-400">$SCORE Balance</div>
+                  <div className="text-xs text-gray-400">Rewards Balance</div>
                 </div>
               )}
               <div className="text-center">
@@ -375,26 +375,26 @@ export default function DashboardPage() {
                     <div className="space-y-3">
                       <div className="flex justify-between">
                         <span className="text-gray-400">Total Earned</span>
-                        <span className="font-bold">{userStats.tokensEarned.toLocaleString()} $SCORE</span>
+                        <span className="font-bold">{userStats.tokensEarned.toLocaleString()} pts</span>
                       </div>
                       <div className="flex justify-between">
                         <span className="text-gray-400">From Voting</span>
-                        <span className="text-green-400">+890 $SCORE</span>
+                        <span className="text-green-400">+890 pts</span>
                       </div>
                       <div className="flex justify-between">
                         <span className="text-gray-400">From Comments</span>
-                        <span className="text-green-400">+210 $SCORE</span>
+                        <span className="text-green-400">+210 pts</span>
                       </div>
                       <div className="flex justify-between">
                         <span className="text-gray-400">Scam Bonuses</span>
-                        <span className="text-green-400">+150 $SCORE</span>
+                        <span className="text-green-400">+150 pts</span>
                       </div>
                     </div>
                   </div>
                 ) : (
                   <div className="bg-gray-800 rounded-xl p-6 text-center">
                     <Gift className="h-8 w-8 text-yellow-500/50 mx-auto mb-3" />
-                    <p className="text-sm font-medium text-gray-300">$SCORE Token Launching Soon</p>
+                    <p className="text-sm font-medium text-gray-300">Rewards Launching Soon</p>
                     <p className="text-xs text-gray-500 mt-1">
                       Your activity is being tracked. Early participants will receive a token allocation at launch.
                     </p>
@@ -469,7 +469,7 @@ export default function DashboardPage() {
             <div className="bg-gray-800 rounded-xl p-6">
               <h2 className="text-lg font-bold mb-2">Achievement NFTs</h2>
               <p className="text-gray-400 text-sm mb-6">
-                Earn NFTs through platform activity. Own the Standard version first, then upgrade to Legendary by burning $SCORE tokens.
+                Earn NFTs through platform activity. Own the Standard version first, then upgrade to Legendary.
               </p>
               <div className="grid md:grid-cols-3 gap-6">
                 {nfts.map((nft) => (
@@ -549,7 +549,7 @@ export default function DashboardPage() {
                       {nft.owned && nft.tier === 'standard' && (
                         <button className="w-full py-2 bg-yellow-500 text-black font-semibold rounded-lg hover:bg-yellow-400 transition-colors flex items-center justify-center">
                           <Zap className="h-4 w-4 mr-2" />
-                          Upgrade for {nft.upgradePrice.toLocaleString()} $SCORE
+                          Upgrade to Legendary
                         </button>
                       )}
 

@@ -386,7 +386,7 @@ export default function AnalysisPage() {
         <div className="max-w-5xl mx-auto px-4">
 
           {/* Top bar */}
-          <div className="flex items-center justify-between py-3">
+          <div className="flex items-center justify-between py-6.5">
             <Link
               href={`/projects/${id}`}
               className="flex items-center gap-1.5 text-gray-400 hover:text-white text-sm transition-colors"

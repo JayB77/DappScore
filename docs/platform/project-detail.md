@@ -31,7 +31,7 @@ Cast your vote and see the current community consensus:
 | 👎 **Distrust**       | Vote that you have concerns                      |
 | **Vote count**        | Total trust and distrust votes                   |
 | **Trust ratio**       | % of weighted votes that are Trust               |
-| **Your SCORE reward** | $SCORE earned for voting                         |
+| **Your reward** | Rewards earned for voting (tracked for future distribution) |
 
 Your vote is recorded on-chain via the VotingEngine contract.
 
@@ -70,6 +70,14 @@ This data is provided by the project owner — DappScore never holds or processe
 
 ***
 
+### Deep Analysis Link
+
+Every project with a contract address has a **"Deep Analysis →"** button that opens a dedicated full-screen analysis page. It breaks each signal into its own scrollable section with sticky navigation pills — useful for a thorough review without the rest of the project page in the way.
+
+See [Deep Analysis](deep-analysis.md) for full documentation.
+
+***
+
 ### Security Signal Panels
 
 Nine automated on-chain signal panels are displayed for every project with a contract address:
@@ -103,7 +111,7 @@ Community members can:
 * Leave comments explaining their vote rationale
 * Upvote or downvote others' comments
 * Share evidence (links, transaction hashes)
-* Get $SCORE rewards when their comments are upvoted
+* Earn rewards when their comments are upvoted
 
 ***
 

@@ -112,7 +112,7 @@ const stats = [
   { label: 'Projects Listed', value: '1,234', icon: Shield },
   { label: 'Community Votes', value: '45.6K', icon: TrendingUp },
   { label: 'Active Users', value: '12.3K', icon: Users },
-  { label: '$SCORE Distributed', value: '2.1M', icon: Coins },
+  { label: 'Rewards Distributed', value: '2.1M', icon: Coins },
 ];
 
 export default function HomePage() {
@@ -128,8 +128,8 @@ export default function HomePage() {
               <span className="text-yellow-500">Community</span>
             </h1>
             <p className="text-xl text-gray-400 mb-8 max-w-2xl mx-auto">
-              Community-driven crypto project vetting platform. Vote on projects,
-              expose scams, and earn $SCORE tokens for contributing.
+              Community-driven crypto project vetting platform. Vote on blockchain projects,
+              expose scams, and gain on-chain reputation for contributing.
             </p>
             <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
               <Link
@@ -193,9 +193,9 @@ export default function HomePage() {
               <div className="w-16 h-16 bg-yellow-500/20 rounded-full flex items-center justify-center mx-auto mb-4">
                 <Coins className="h-8 w-8 text-yellow-500" />
               </div>
-              <h3 className="text-xl font-semibold mb-2">3. Earn $SCORE</h3>
+              <h3 className="text-xl font-semibold mb-2">3. Earn Rewards</h3>
               <p className="text-gray-400">
-                Earn $SCORE tokens for every vote. Stake to boost your rewards.
+                Earn rewards for every vote and comment. Build reputation and boost your impact.
               </p>
             </div>
           </div>

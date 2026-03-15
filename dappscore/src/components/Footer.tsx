@@ -17,8 +17,8 @@ export function Footer() {
               </span>
             </Link>
             <p className="text-gray-400 mb-4 max-w-md">
-              Community-driven crypto project vetting platform. Vote, comment, and help separate
-              legitimate projects from scams. Earn $SCORE tokens for contributing.
+              Community-driven crypto project vetting platform. Vote on blockchain projects,
+              expose scams, and gain on-chain reputation for contributing.
             </p>
             <div className="flex space-x-4">
               <a href="#" target="_blank" rel="noopener noreferrer" className="text-gray-400 hover:text-yellow-500 transition-colors">
