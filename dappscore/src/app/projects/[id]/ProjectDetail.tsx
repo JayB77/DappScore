@@ -689,7 +689,14 @@ export default function ProjectDetail() {
             )}
 
             {/* Token Security Scan (mint, setTax, setFee, blacklist, pause, excludeFromFee, setTradingEnabled) */}
-            <TokenSecurityPanel contractAddresses={project.contractAddresses} />
+            <div>
+              <TokenSecurityPanel contractAddresses={project.contractAddresses} />
+              <div className="flex justify-end mt-2">
+                <Link href={`/projects/${params.id}/analysis#security`} className="text-xs text-yellow-500/70 hover:text-yellow-400 transition-colors">
+                  Full Analysis →
+                </Link>
+              </div>
+            </div>
 
             {/* External Signals */}
             <ExternalSignalsPanel
@@ -703,31 +710,82 @@ export default function ProjectDetail() {
             <SocialProofPanel socialLinks={project.socialLinks} />
 
             {/* Contract Signals */}
-            {showContracts && <ContractFingerprintPanel
-              contractAddresses={project.contractAddresses}
-              preloaded={signals.contracts}
-            />}
+            {showContracts && (
+              <div>
+                <ContractFingerprintPanel
+                  contractAddresses={project.contractAddresses}
+                  preloaded={signals.contracts}
+                />
+                <div className="flex justify-end mt-2">
+                  <Link href={`/projects/${params.id}/analysis#security`} className="text-xs text-yellow-500/70 hover:text-yellow-400 transition-colors">
+                    Full Analysis →
+                  </Link>
+                </div>
+              </div>
+            )}
 
             {/* Honeypot Check */}
-            <HoneypotPanel contractAddresses={project.contractAddresses} />
+            <div>
+              <HoneypotPanel contractAddresses={project.contractAddresses} />
+              <div className="flex justify-end mt-2">
+                <Link href={`/projects/${params.id}/analysis#security`} className="text-xs text-yellow-500/70 hover:text-yellow-400 transition-colors">
+                  Full Analysis →
+                </Link>
+              </div>
+            </div>
 
             {/* DEX Liquidity */}
-            <DexLiquidityPanel contractAddresses={project.contractAddresses} />
+            <div>
+              <DexLiquidityPanel contractAddresses={project.contractAddresses} />
+              <div className="flex justify-end mt-2">
+                <Link href={`/projects/${params.id}/analysis#liquidity`} className="text-xs text-yellow-500/70 hover:text-yellow-400 transition-colors">
+                  Full Analysis →
+                </Link>
+              </div>
+            </div>
 
             {/* Liquidity Lock */}
-            <LiquidityLockPanel contractAddresses={project.contractAddresses} />
+            <div>
+              <LiquidityLockPanel contractAddresses={project.contractAddresses} />
+              <div className="flex justify-end mt-2">
+                <Link href={`/projects/${params.id}/analysis#locks`} className="text-xs text-yellow-500/70 hover:text-yellow-400 transition-colors">
+                  Full Analysis →
+                </Link>
+              </div>
+            </div>
 
             {/* Security Audits */}
             <AuditBadgePanel audits={project.audits} />
 
             {/* Deployer Wallet History */}
-            <DeployerHistoryPanel contractAddresses={project.contractAddresses} />
+            <div>
+              <DeployerHistoryPanel contractAddresses={project.contractAddresses} />
+              <div className="flex justify-end mt-2">
+                <Link href={`/projects/${params.id}/analysis#deployer`} className="text-xs text-yellow-500/70 hover:text-yellow-400 transition-colors">
+                  Full Analysis →
+                </Link>
+              </div>
+            </div>
 
             {/* Token Distribution */}
-            <TokenDistributionPanel contractAddresses={project.contractAddresses} />
+            <div>
+              <TokenDistributionPanel contractAddresses={project.contractAddresses} />
+              <div className="flex justify-end mt-2">
+                <Link href={`/projects/${params.id}/analysis#holders`} className="text-xs text-yellow-500/70 hover:text-yellow-400 transition-colors">
+                  Full Analysis →
+                </Link>
+              </div>
+            </div>
 
             {/* Whale Tracker */}
-            <WhaleTrackerPanel contractAddresses={project.contractAddresses} />
+            <div>
+              <WhaleTrackerPanel contractAddresses={project.contractAddresses} />
+              <div className="flex justify-end mt-2">
+                <Link href={`/projects/${params.id}/analysis#whales`} className="text-xs text-yellow-500/70 hover:text-yellow-400 transition-colors">
+                  Full Analysis →
+                </Link>
+              </div>
+            </div>
 
             {/* Report Button */}
             <button className="w-full py-3 border border-red-500/50 text-red-400 rounded-lg hover:bg-red-500/10 flex items-center justify-center space-x-2">
