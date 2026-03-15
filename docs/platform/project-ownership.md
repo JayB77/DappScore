@@ -28,11 +28,71 @@ Coming soon: Claim ownership of existing listings.
 
 ### Alternative Verification
 
-Wallet signing is the only supported method today. Additional methods planned for future releases:
+Wallet signing is the only supported method today. Here are the methods planned, ranked by how little trust they require from either party:
 
-- **DNS TXT record** — Add a TXT record to your project domain pointing to your DappScore listing. No wallet required.
-- **GitHub file** — Commit a small verification file to your public repo. Useful for open-source projects.
-- **Contract function** — Call a lightweight on-chain function from the owner address, so the proof lives entirely on-chain.
+---
+
+#### 1. On-chain ownership read *(no signing required)*
+
+The cleanest option for crypto projects. Most ERC-20 and DeFi contracts expose a public `owner()` or `admin()` function. DappScore can call that function directly and compare the returned address to your connected wallet.
+
+- **No signature, no interaction** — you just connect the right wallet
+- Fully trustless: the check happens against the chain, not our database
+- Works for any contract that implements `Ownable` or equivalent
+- If your contract uses a Gnosis Safe or multisig as owner, that address is what gets checked
+
+This is the method we'd most like to ship first. If your contract has an `owner()` function, this would already work today in theory.
+
+---
+
+#### 2. DNS TXT record
+
+Add a TXT record to your project domain:
+
+```
+dappscore-verify=<your-verification-token>
+```
+
+DappScore checks the record via a DNS lookup from our backend. No wallet involved — team controls the domain, that's sufficient proof.
+
+- Works for any project with a domain
+- Standard practice (same approach as Google Search Console, Stripe, etc.)
+- Record can be removed after verification if desired
+
+---
+
+#### 3. Well-known URL
+
+Place a small file at a predictable path on your project's website:
+
+```
+https://yourproject.io/.well-known/dappscore.txt
+```
+
+File contents: your verification token. DappScore fetches it server-side.
+
+- No wallet, no DNS access needed — just web hosting
+- Same pattern as `apple-app-site-association`, `assetlinks.json`, etc.
+
+---
+
+#### 4. GitHub file
+
+Commit a verification file to the root of your public repo:
+
+```
+/.well-known/dappscore.txt
+```
+
+DappScore checks via the GitHub API. Useful for open-source projects where the repo is the canonical source of truth.
+
+---
+
+#### 5. Multisig / Gnosis Safe
+
+If your team already uses a Safe, connect it via WalletConnect. Verification becomes a Safe transaction, meaning multiple team members sign, the approval is transparent on-chain, and no individual's personal wallet is ever involved.
+
+---
 
 If any of these would unblock your team sooner, [open a request](https://github.com/DappScore/platform_private/issues) and we'll prioritise accordingly.
 
