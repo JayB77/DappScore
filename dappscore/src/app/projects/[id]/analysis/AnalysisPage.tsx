@@ -26,7 +26,7 @@ const MOCK_PROJECT = {
   contractAddresses: [
     { chain: 'base', address: '0x1234567890abcdef1234567890abcdef12345678' },
   ] as { chain: string; address: string }[],
-  audits: [] as { firm: string; date: string; url: string }[],
+  audits: [] as { firm: string; date: string; reportUrl: string }[],
   walletScannerChain: 'base',
 };
 
