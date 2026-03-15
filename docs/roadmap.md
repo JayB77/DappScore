@@ -41,6 +41,9 @@ Core infrastructure and project detail experience.
 | 50+ chains in chain adapter layer             | ✅ Live |
 | Centralized Alchemy client (per-network keys) | ✅ Live |
 | Firebase Functions API backend                | ✅ Live |
+| Deep Analysis page (per-signal drill-down)    | ✅ Live |
+| Public API + API key management               | ✅ Live |
+| Project ownership & edit flow                 | ✅ Live |
 
 ***
 
@@ -67,7 +70,7 @@ Core infrastructure and project detail experience.
 | On-chain watchlists                     | 📋 Planned |
 | Affiliate / referral program            | 📋 Planned |
 | Mobile app (iOS + Android)              | 📋 Planned |
-| Public API access for developers        | 📋 Planned |
+| Public API access for developers        | ✅ Live     |
 | Telegram bot (@DappScoreBot)            | 📋 Planned |
 | Browser extension                       | 📋 Planned |
 

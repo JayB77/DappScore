@@ -10,6 +10,7 @@
 
 * [How It Works](platform/overview.md)
 * [Project Detail Page](platform/project-detail.md)
+* [Deep Analysis](platform/deep-analysis.md)
 * [Submitting Projects](platform/submitting-projects.md)
 * [Project Ownership](platform/project-ownership.md)
 

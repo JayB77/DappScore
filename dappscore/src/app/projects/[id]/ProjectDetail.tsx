@@ -625,7 +625,7 @@ export default function ProjectDetail() {
                   <div className="flex items-center justify-between">
                     <div className="flex items-center space-x-2">
                       <Gift className="h-4 w-4 text-yellow-400" />
-                      <span className="text-sm text-yellow-400 font-medium">{pendingRewards} $SCORE pending</span>
+                      <span className="text-sm text-yellow-400 font-medium">{pendingRewards} rewards pending</span>
                     </div>
                     <button
                       onClick={claimScoreRewards}
@@ -643,7 +643,7 @@ export default function ProjectDetail() {
               {!isContractDeployed && effectiveVote && (
                 <div className="mt-4 p-3 bg-yellow-500/10 border border-yellow-500/30 rounded-lg flex items-center space-x-2">
                   <Gift className="h-4 w-4 text-yellow-400 flex-shrink-0" />
-                  <p className="text-xs text-yellow-400">You'll earn $SCORE rewards once the rewards contract launches</p>
+                  <p className="text-xs text-yellow-400">You'll earn rewards once the rewards contract launches</p>
                 </div>
               )}
             </div>
