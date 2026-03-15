@@ -6,7 +6,7 @@ import { ConnectButton } from '@rainbow-me/rainbowkit';
 import {
   Check, ChevronLeft, ChevronRight, Wallet, Upload, AlertCircle,
   Plus, Trash2, AlertTriangle, Shield, Loader2,
-  SkipForward, Crown, Zap
+  SkipForward, Crown, Zap, Globe, CheckCircle, Copy
 } from 'lucide-react';
 import { CHAIN_NAMES } from '@/config/chains';
 
@@ -79,6 +79,17 @@ export default function SubmitProjectPage() {
   const [submitted, setSubmitted] = useState(false);
   const [isPremium, setIsPremium] = useState(false);
   const [premiumDays, setPremiumDays] = useState(7);
+
+  // DNS TXT record verification state
+  const [dnsVerified, setDnsVerified] = useState(false);
+  const [dnsChecking, setDnsChecking] = useState(false);
+  const [dnsMessage, setDnsMessage] = useState<{ type: 'error' | 'timeout' | 'success'; text: string } | null>(null);
+  const [copiedToken, setCopiedToken] = useState(false);
+
+  const BACKEND = process.env.NEXT_PUBLIC_BACKEND_URL ?? 'http://localhost:3001';
+
+  // Verification token is the submitter's wallet address (ties DNS ownership to the wallet)
+  const dnsToken = address?.toLowerCase() ?? '';
 
   const [formData, setFormData] = useState({
     // General (only name, symbol, category, description are required)
@@ -209,6 +220,43 @@ export default function SubmitProjectPage() {
 
   const nextStep = () => setCurrentStep((prev) => Math.min(prev + 1, 5));
   const prevStep = () => setCurrentStep((prev) => Math.max(prev - 1, 1));
+
+  const copyDnsToken = async () => {
+    const record = `dappscore-verify=${dnsToken}`;
+    try {
+      await navigator.clipboard.writeText(record);
+      setCopiedToken(true);
+      setTimeout(() => setCopiedToken(false), 2000);
+    } catch {
+      // fallback — silently fail
+    }
+  };
+
+  const checkDns = async () => {
+    if (!formData.website || !dnsToken) return;
+    setDnsChecking(true);
+    setDnsMessage(null);
+    try {
+      const res = await fetch(`${BACKEND}/api/v1/verify/dns`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ domain: formData.website, token: dnsToken }),
+        signal: AbortSignal.timeout(12_000), // 12s hard limit
+      });
+      const data = await res.json();
+      if (data.success) {
+        setDnsVerified(true);
+        setDnsMessage({ type: 'success', text: 'Domain verified!' });
+      } else if (data.reason === 'timeout') {
+        setDnsMessage({ type: 'timeout', text: 'DNS lookup timed out — try again in a few moments.' });
+      } else {
+        setDnsMessage({ type: 'error', text: 'TXT record not found yet — DNS propagation can take a few minutes. Try again shortly.' });
+      }
+    } catch {
+      setDnsMessage({ type: 'timeout', text: 'Request timed out — try again in a few moments.' });
+    }
+    setDnsChecking(false);
+  };
 
   const isStepValid = () => {
     if (currentStep === 1) {
@@ -642,10 +690,79 @@ export default function SubmitProjectPage() {
                 <input
                   type="url"
                   value={formData.website}
-                  onChange={(e) => updateFormData('website', e.target.value)}
+                  onChange={(e) => {
+                    updateFormData('website', e.target.value);
+                    // Reset DNS verification if URL changes
+                    setDnsVerified(false);
+                    setDnsMessage(null);
+                  }}
                   placeholder="https://yourproject.com"
                   className="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-3 focus:border-yellow-500 focus:outline-none"
                 />
+
+                {/* DNS TXT verification — only shown when a website URL has been entered */}
+                {formData.website && !dnsVerified && (
+                  <div className="mt-3 p-4 bg-gray-700/60 border border-gray-600 rounded-lg space-y-3">
+                    <div className="flex items-center space-x-2">
+                      <Globe className="h-4 w-4 text-gray-400 flex-shrink-0" />
+                      <span className="text-sm font-medium text-gray-300">Verify domain ownership (optional)</span>
+                    </div>
+                    <p className="text-xs text-gray-400">
+                      Add this TXT record to your domain's DNS to prove ownership. This boosts your trust score.
+                    </p>
+                    <div className="flex items-center space-x-2">
+                      <code className="flex-1 text-xs bg-gray-900 text-yellow-300 px-3 py-2 rounded font-mono break-all">
+                        dappscore-verify={dnsToken}
+                      </code>
+                      <button
+                        type="button"
+                        onClick={copyDnsToken}
+                        className="px-3 py-2 bg-gray-600 hover:bg-gray-500 rounded-lg transition-colors flex-shrink-0"
+                        title="Copy TXT record"
+                      >
+                        {copiedToken ? <Check className="h-4 w-4 text-green-400" /> : <Copy className="h-4 w-4 text-gray-300" />}
+                      </button>
+                    </div>
+                    <p className="text-xs text-gray-500">
+                      Name: <code className="text-gray-400">@</code> (root domain) · Type: <code className="text-gray-400">TXT</code>
+                    </p>
+                    {dnsMessage && (
+                      <div className={`flex items-start space-x-2 text-xs rounded-lg px-3 py-2 ${
+                        dnsMessage.type === 'success'
+                          ? 'bg-green-500/10 border border-green-500/30 text-green-400'
+                          : dnsMessage.type === 'timeout'
+                          ? 'bg-yellow-500/10 border border-yellow-500/30 text-yellow-400'
+                          : 'bg-orange-500/10 border border-orange-500/30 text-orange-400'
+                      }`}>
+                        {dnsMessage.type === 'success'
+                          ? <CheckCircle className="h-3.5 w-3.5 flex-shrink-0 mt-0.5" />
+                          : <AlertTriangle className="h-3.5 w-3.5 flex-shrink-0 mt-0.5" />
+                        }
+                        <span>{dnsMessage.text}</span>
+                      </div>
+                    )}
+                    <button
+                      type="button"
+                      onClick={checkDns}
+                      disabled={dnsChecking}
+                      className="flex items-center space-x-2 px-4 py-2 bg-yellow-500 text-black text-sm font-medium rounded-lg hover:bg-yellow-400 disabled:opacity-60 disabled:cursor-not-allowed transition-colors"
+                    >
+                      {dnsChecking ? (
+                        <><Loader2 className="h-4 w-4 animate-spin" /><span>Checking DNS…</span></>
+                      ) : (
+                        <><Globe className="h-4 w-4" /><span>Check DNS</span></>
+                      )}
+                    </button>
+                  </div>
+                )}
+
+                {/* Verified state */}
+                {formData.website && dnsVerified && (
+                  <div className="mt-3 flex items-center space-x-2 text-sm text-green-400 bg-green-500/10 border border-green-500/30 rounded-lg px-4 py-2.5">
+                    <CheckCircle className="h-4 w-4 flex-shrink-0" />
+                    <span className="font-medium">Domain ownership verified</span>
+                  </div>
+                )}
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

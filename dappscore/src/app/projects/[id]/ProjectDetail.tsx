@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import { useAccount } from 'wagmi';
@@ -165,6 +165,16 @@ const mockComments: Comment[] = [
 
 export default function ProjectDetail() {
   const params = useParams();
+
+  // In static export + Firebase rewrite, useParams() returns the shell id ('index').
+  // Read the real project ID from window.location after mount.
+  const [id, setId] = useState<string>(params.id as string ?? '');
+  useEffect(() => {
+    const parts = window.location.pathname.split('/').filter(Boolean);
+    const idx = parts.findIndex(p => p === 'projects');
+    if (idx !== -1 && parts[idx + 1]) setId(parts[idx + 1]);
+  }, []);
+
   const { isConnected, address } = useAccount();
   const [userVote, setUserVote] = useState<'up' | 'down' | null>(null);
   const [comment, setComment] = useState('');
@@ -658,7 +668,7 @@ export default function ProjectDetail() {
                 whitepaperUrl: project.whitepaperUrl,
                 socialLinks: project.socialLinks,
               }}
-              analysisHref={`/projects/${params.id}/analysis`}
+              analysisHref={`/projects/${id}/analysis`}
             />}
 
             {/* Token Details */}
@@ -693,7 +703,7 @@ export default function ProjectDetail() {
             <div>
               <TokenSecurityPanel contractAddresses={project.contractAddresses} />
               <div className="flex justify-end mt-2">
-                <Link href={`/projects/${params.id}/analysis#security`} className="text-xs text-yellow-500/70 hover:text-yellow-400 transition-colors">
+                <Link href={`/projects/${id}/analysis#security`} className="text-xs text-yellow-500/70 hover:text-yellow-400 transition-colors">
                   Full Analysis →
                 </Link>
               </div>
@@ -718,7 +728,7 @@ export default function ProjectDetail() {
                   preloaded={signals.contracts}
                 />
                 <div className="flex justify-end mt-2">
-                  <Link href={`/projects/${params.id}/analysis#security`} className="text-xs text-yellow-500/70 hover:text-yellow-400 transition-colors">
+                  <Link href={`/projects/${id}/analysis#security`} className="text-xs text-yellow-500/70 hover:text-yellow-400 transition-colors">
                     Full Analysis →
                   </Link>
                 </div>
@@ -729,7 +739,7 @@ export default function ProjectDetail() {
             <div>
               <HoneypotPanel contractAddresses={project.contractAddresses} />
               <div className="flex justify-end mt-2">
-                <Link href={`/projects/${params.id}/analysis#security`} className="text-xs text-yellow-500/70 hover:text-yellow-400 transition-colors">
+                <Link href={`/projects/${id}/analysis#security`} className="text-xs text-yellow-500/70 hover:text-yellow-400 transition-colors">
                   Full Analysis →
                 </Link>
               </div>
@@ -739,7 +749,7 @@ export default function ProjectDetail() {
             <div>
               <DexLiquidityPanel contractAddresses={project.contractAddresses} />
               <div className="flex justify-end mt-2">
-                <Link href={`/projects/${params.id}/analysis#liquidity`} className="text-xs text-yellow-500/70 hover:text-yellow-400 transition-colors">
+                <Link href={`/projects/${id}/analysis#liquidity`} className="text-xs text-yellow-500/70 hover:text-yellow-400 transition-colors">
                   Full Analysis →
                 </Link>
               </div>
@@ -749,7 +759,7 @@ export default function ProjectDetail() {
             <div>
               <LiquidityLockPanel contractAddresses={project.contractAddresses} />
               <div className="flex justify-end mt-2">
-                <Link href={`/projects/${params.id}/analysis#locks`} className="text-xs text-yellow-500/70 hover:text-yellow-400 transition-colors">
+                <Link href={`/projects/${id}/analysis#locks`} className="text-xs text-yellow-500/70 hover:text-yellow-400 transition-colors">
                   Full Analysis →
                 </Link>
               </div>
@@ -762,7 +772,7 @@ export default function ProjectDetail() {
             <div>
               <DeployerHistoryPanel contractAddresses={project.contractAddresses} />
               <div className="flex justify-end mt-2">
-                <Link href={`/projects/${params.id}/analysis#deployer`} className="text-xs text-yellow-500/70 hover:text-yellow-400 transition-colors">
+                <Link href={`/projects/${id}/analysis#deployer`} className="text-xs text-yellow-500/70 hover:text-yellow-400 transition-colors">
                   Full Analysis →
                 </Link>
               </div>
@@ -772,7 +782,7 @@ export default function ProjectDetail() {
             <div>
               <TokenDistributionPanel contractAddresses={project.contractAddresses} />
               <div className="flex justify-end mt-2">
-                <Link href={`/projects/${params.id}/analysis#holders`} className="text-xs text-yellow-500/70 hover:text-yellow-400 transition-colors">
+                <Link href={`/projects/${id}/analysis#holders`} className="text-xs text-yellow-500/70 hover:text-yellow-400 transition-colors">
                   Full Analysis →
                 </Link>
               </div>
@@ -782,7 +792,7 @@ export default function ProjectDetail() {
             <div>
               <WhaleTrackerPanel contractAddresses={project.contractAddresses} />
               <div className="flex justify-end mt-2">
-                <Link href={`/projects/${params.id}/analysis#whales`} className="text-xs text-yellow-500/70 hover:text-yellow-400 transition-colors">
+                <Link href={`/projects/${id}/analysis#whales`} className="text-xs text-yellow-500/70 hover:text-yellow-400 transition-colors">
                   Full Analysis →
                 </Link>
               </div>
