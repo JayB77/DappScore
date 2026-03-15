@@ -34,6 +34,23 @@ jobs:
       - name: Install Firebase CLI
         run: npm install -g firebase-tools
 
+      - name: Delete stale preview channels
+        run: |
+          # List all channels, extract pr-* channel IDs, then delete any whose PR is closed
+          CHANNELS=$(firebase hosting:channel:list --project dappscore --token "$FIREBASE_TOKEN" --json 2>/dev/null \
+            | node -e "const d=JSON.parse(require('fs').readFileSync('/dev/stdin','utf8')); (d.result||[]).forEach(c=>{ const m=c.name.match(/\/channels\/(pr-\d+)$/); if(m) console.log(m[1]); })")
+          for CHANNEL in $CHANNELS; do
+            PR_NUM="${CHANNEL#pr-}"
+            STATE=$(gh pr view "$PR_NUM" --json state -q .state 2>/dev/null || echo "unknown")
+            if [ "$STATE" = "CLOSED" ] || [ "$STATE" = "MERGED" ]; then
+              echo "Deleting stale channel $CHANNEL (PR #$PR_NUM is $STATE)"
+              firebase hosting:channel:delete "$CHANNEL" --project dappscore --token "$FIREBASE_TOKEN" --force || true
+            fi
+          done
+        env:
+          FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
+          GH_TOKEN: ${{ github.token }}
+
       - name: Deploy Preview to Firebase
         working-directory: ./dappscore
         run: firebase hosting:channel:deploy pr-${{ github.event.pull_request.number }} --expires 7d --project dappscore --token "$FIREBASE_TOKEN"
