@@ -347,9 +347,18 @@ function EventsSection({ contractAddresses }: { contractAddresses: { chain: stri
 
 export default function AnalysisPage() {
   const params   = useParams();
-  const id       = params.id as string;
-  const project  = MOCK_PROJECT; // swap for real fetch when API is ready
   const navRef   = useRef<HTMLDivElement>(null);
+
+  // In static export + Firebase rewrite, useParams() returns the shell id ('index').
+  // Read the real project ID from window.location after mount.
+  const [id, setId] = useState<string>(params.id as string ?? '');
+  useEffect(() => {
+    const parts = window.location.pathname.split('/').filter(Boolean);
+    const idx = parts.findIndex(p => p === 'projects');
+    if (idx !== -1 && parts[idx + 1]) setId(parts[idx + 1]);
+  }, []);
+
+  const project  = MOCK_PROJECT; // swap for real fetch when API is ready
 
   const [activeSection, setActiveSection] = useState<string>('security');
 
