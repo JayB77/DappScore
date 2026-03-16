@@ -36,17 +36,78 @@ jobs:
 
       - name: Delete stale preview channels
         run: |
-          # List all channels, extract pr-* channel IDs, then delete any whose PR is closed
-          CHANNELS=$(firebase hosting:channel:list --project dappscore --token "$FIREBASE_TOKEN" --json 2>/dev/null \
-            | node -e "const d=JSON.parse(require('fs').readFileSync('/dev/stdin','utf8')); (d.result||[]).forEach(c=>{ const m=c.name.match(/\/channels\/(pr-\d+)$/); if(m) console.log(m[1]); })")
-          for CHANNEL in $CHANNELS; do
+          # Fetch the full channel list as JSON once
+          CHANNEL_JSON=$(firebase hosting:channel:list \
+            --project dappscore --token "$FIREBASE_TOKEN" --json 2>/dev/null || echo '{}')
+
+          # ── 1. Delete channels whose PR is closed/merged ─────────────────────
+          PR_CHANNELS=$(echo "$CHANNEL_JSON" \
+            | node -e "
+                const d=JSON.parse(require('fs').readFileSync('/dev/stdin','utf8'));
+                (d.result||[]).forEach(c=>{
+                  const m=c.name.match(/\/channels\/(pr-\d+)$/);
+                  if(m) console.log(m[1]);
+                });
+              ")
+          for CHANNEL in $PR_CHANNELS; do
             PR_NUM="${CHANNEL#pr-}"
             STATE=$(gh pr view "$PR_NUM" --json state -q .state 2>/dev/null || echo "unknown")
             if [ "$STATE" = "CLOSED" ] || [ "$STATE" = "MERGED" ]; then
               echo "Deleting stale channel $CHANNEL (PR #$PR_NUM is $STATE)"
-              firebase hosting:channel:delete "$CHANNEL" --project dappscore --token "$FIREBASE_TOKEN" --force || true
+              firebase hosting:channel:delete "$CHANNEL" \
+                --project dappscore --token "$FIREBASE_TOKEN" --force || true
             fi
           done
+
+          # ── 2. Delete any channel whose expireTime is in the past ────────────
+          NOW_MS=$(date +%s%3N)
+          EXPIRED=$(echo "$CHANNEL_JSON" \
+            | node -e "
+                const d=JSON.parse(require('fs').readFileSync('/dev/stdin','utf8'));
+                const now=Date.now();
+                (d.result||[]).forEach(c=>{
+                  if(!c.expireTime) return;          // live channel — never expires
+                  if(new Date(c.expireTime).getTime() < now){
+                    const m=c.name.match(/\/channels\/([^/]+)$/);
+                    if(m && m[1]!=='live') console.log(m[1]);
+                  }
+                });
+              ")
+          for CHANNEL in $EXPIRED; do
+            echo "Deleting expired channel $CHANNEL"
+            firebase hosting:channel:delete "$CHANNEL" \
+              --project dappscore --token "$FIREBASE_TOKEN" --force || true
+          done
+
+          # ── 3. If still ≥ 38 channels, delete oldest non-live ones ───────────
+          # Refresh list after previous deletions
+          CHANNEL_JSON=$(firebase hosting:channel:list \
+            --project dappscore --token "$FIREBASE_TOKEN" --json 2>/dev/null || echo '{}')
+          COUNT=$(echo "$CHANNEL_JSON" \
+            | node -e "
+                const d=JSON.parse(require('fs').readFileSync('/dev/stdin','utf8'));
+                console.log((d.result||[]).length);
+              ")
+          echo "Current channel count: $COUNT"
+          if [ "$COUNT" -ge 38 ]; then
+            EXCESS=$(( COUNT - 37 ))
+            echo "Over budget by $EXCESS — removing oldest channels"
+            TO_DELETE=$(echo "$CHANNEL_JSON" \
+              | node -e "
+                  const d=JSON.parse(require('fs').readFileSync('/dev/stdin','utf8'));
+                  const chans=(d.result||[])
+                    .filter(c=>{ const m=c.name.match(/\/channels\/([^/]+)$/); return m&&m[1]!=='live'; })
+                    .sort((a,b)=>new Date(a.createTime||0)-new Date(b.createTime||0))
+                    .slice(0,$EXCESS)
+                    .map(c=>{ const m=c.name.match(/\/channels\/([^/]+)$/); return m[1]; });
+                  chans.forEach(n=>console.log(n));
+                ")
+            for CHANNEL in $TO_DELETE; do
+              echo "Deleting oldest channel $CHANNEL to free quota"
+              firebase hosting:channel:delete "$CHANNEL" \
+                --project dappscore --token "$FIREBASE_TOKEN" --force || true
+            done
+          fi
         env:
           FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
           GH_TOKEN: ${{ github.token }}
