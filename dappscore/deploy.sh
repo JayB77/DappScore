@@ -2,10 +2,10 @@
 # deploy.sh — build both apps and reload PM2
 #
 # Run from anywhere on the VPS:
-#   bash /var/www/dappscore/deploy.sh
+#   bash /var/www/dappscore/dappscore/deploy.sh
 #
 # Optionally pull latest code first:
-#   bash /var/www/dappscore/deploy.sh --pull
+#   bash /var/www/dappscore/dappscore/deploy.sh --pull
 
 set -euo pipefail
 
