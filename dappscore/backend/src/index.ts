@@ -13,6 +13,7 @@ import { shareRoutes } from './routes/share';
 import { scamDetectionRoutes } from './routes/scam-detection';
 import whaleRoutes from './routes/whales';
 import { webhookRoutes } from './routes/webhooks';
+import apiKeyRoutes from './routes/api-keys';
 
 import whaleTrackingService from './services/whale-tracking';
 import { alertService } from './services/alerts';
@@ -47,6 +48,7 @@ app.use('/api/v1/share', shareRoutes);
 app.use('/api/v1/scam-detection', scamDetectionRoutes);
 app.use('/api/v1/whales', whaleRoutes);
 app.use('/api/v1/webhooks', webhookRoutes);
+app.use('/api/v1/api-keys', apiKeyRoutes);
 
 // Error handler
 app.use((err: Error, req: express.Request, res: express.Response, next: express.NextFunction) => {
