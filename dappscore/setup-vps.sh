@@ -40,7 +40,7 @@ npm run build
 
 echo "==> [6/8] Install dependencies & build backend"
 cd backend
-npm ci --prefer-offline
+npm install
 npm run build
 cd ..
 
