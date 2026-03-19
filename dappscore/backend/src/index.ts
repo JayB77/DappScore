@@ -39,14 +39,14 @@ app.get('/health', (req, res) => {
 });
 
 // API Routes
-app.use('/api/projects', projectRoutes);
-app.use('/api/users', userRoutes);
-app.use('/api/stats', statsRoutes);
-app.use('/api/alerts', alertRoutes);
-app.use('/api/share', shareRoutes);
-app.use('/api/scam-detection', scamDetectionRoutes);
-app.use('/api/whales', whaleRoutes);
-app.use('/api/webhooks', webhookRoutes);
+app.use('/api/v1/projects', projectRoutes);
+app.use('/api/v1/users', userRoutes);
+app.use('/api/v1/stats', statsRoutes);
+app.use('/api/v1/alerts', alertRoutes);
+app.use('/api/v1/share', shareRoutes);
+app.use('/api/v1/scam-detection', scamDetectionRoutes);
+app.use('/api/v1/whales', whaleRoutes);
+app.use('/api/v1/webhooks', webhookRoutes);
 
 // Error handler
 app.use((err: Error, req: express.Request, res: express.Response, next: express.NextFunction) => {
