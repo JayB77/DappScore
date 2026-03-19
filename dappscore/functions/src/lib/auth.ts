@@ -1,6 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 
-/** Read admin key from env — set via firebase functions:config:set or Secret Manager. */
+/** Read admin key from environment variable. */
 function adminKey(): string {
   return process.env.ADMIN_API_KEY ?? '';
 }
