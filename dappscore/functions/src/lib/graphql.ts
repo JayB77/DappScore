@@ -1,9 +1,3 @@
-import { defineString } from 'firebase-functions/params';
-
-const subgraphUrl = defineString('SUBGRAPH_URL', {
-  description: 'The Graph subgraph endpoint for DappScore',
-});
-
 export interface GqlResponse<T> {
   data: T;
   errors?: Array<{ message: string }>;
@@ -14,7 +8,7 @@ export async function gql<T = Record<string, unknown>>(
   query: string,
   variables?: Record<string, unknown>,
 ): Promise<T> {
-  const url = subgraphUrl.value();
+  const url = process.env.SUBGRAPH_URL;
   if (!url) throw new Error('SUBGRAPH_URL is not configured.');
 
   const res = await fetch(url, {

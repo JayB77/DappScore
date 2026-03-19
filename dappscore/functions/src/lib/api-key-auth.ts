@@ -1,6 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import { createHash } from 'crypto';
-import { getFirestore, FieldValue } from 'firebase-admin/firestore';
+import { db } from './db';
 
 export interface ApiKeyData {
   id: string;
@@ -28,11 +28,11 @@ export function hashApiKey(key: string): string {
 }
 
 /**
- * Middleware: validate a Bearer API key against the `api_keys` Firestore collection.
+ * Middleware: validate a Bearer API key against the api_keys PostgreSQL table.
  *
- * @param permission  Optional permission string that must be in the key's `permissions` array.
+ * @param permission    Optional permission string that must be in the key's permissions array.
  * @param projectParam  Optional Express route param name (e.g. 'id') whose value must match
- *                      the key's `projectId` field. Use this when a key is scoped to a project.
+ *                      the key's project_id field. Use this when a key is scoped to a project.
  */
 export function requireApiKey(permission?: string, projectParam?: string) {
   return async (req: Request, res: Response, next: NextFunction): Promise<void> => {
@@ -40,61 +40,61 @@ export function requireApiKey(permission?: string, projectParam?: string) {
     if (!header.startsWith('Bearer ')) {
       res.status(401).json({
         error: 'Authorization header required.',
-        hint: 'Authorization: Bearer sk_test_...',
+        hint: 'Authorization: Bearer sk_live_...',
       });
       return;
     }
 
     const key = header.slice(7).trim();
     if (!key.startsWith('sk_')) {
-      res.status(401).json({ error: 'Invalid API key format. Keys begin with sk_test_ or sk_live_.' });
+      res.status(401).json({ error: 'Invalid API key format. Keys begin with sk_live_.' });
       return;
     }
 
     const hash = hashApiKey(key);
-    const db = getFirestore();
 
     try {
-      const snap = await db
-        .collection('api_keys')
-        .where('keyHash', '==', hash)
-        .where('active', '==', true)
-        .limit(1)
-        .get();
+      const { rows } = await db.query<{
+        id: string; key_prefix: string; name: string; owner_id: string;
+        project_id: string | null; permissions: string[]; active: boolean;
+        usage_count: number; expires_at: Date | null;
+      }>(
+        `SELECT id, key_prefix, name, owner_id, project_id, permissions,
+                active, usage_count, expires_at
+         FROM api_keys
+         WHERE key_hash = $1 AND active = TRUE
+         LIMIT 1`,
+        [hash],
+      );
 
-      if (snap.empty) {
+      if (rows.length === 0) {
         res.status(403).json({ error: 'Invalid or revoked API key.' });
         return;
       }
 
-      const doc = snap.docs[0];
-      const d = doc.data();
+      const row = rows[0];
 
-      // Check expiry
-      if (d.expiresAt) {
-        const expiresAt: Date = d.expiresAt.toDate();
-        if (expiresAt < new Date()) {
-          res.status(403).json({ error: 'API key has expired.' });
-          return;
-        }
+      if (row.expires_at && row.expires_at < new Date()) {
+        res.status(403).json({ error: 'API key has expired.' });
+        return;
       }
 
       const keyData: ApiKeyData = {
-        id: doc.id,
-        keyPrefix: d.keyPrefix,
-        name: d.name,
-        ownerId: d.ownerId,
-        projectId: d.projectId,
-        permissions: d.permissions ?? [],
-        active: d.active,
-        usageCount: d.usageCount ?? 0,
+        id:          row.id,
+        keyPrefix:   row.key_prefix,
+        name:        row.name,
+        ownerId:     row.owner_id,
+        projectId:   row.project_id ?? undefined,
+        permissions: row.permissions ?? [],
+        active:      row.active,
+        usageCount:  row.usage_count,
       };
 
       if (permission && !keyData.permissions.includes(permission)) {
         res.status(403).json({
-          error: 'Insufficient permissions.',
+          error:    'Insufficient permissions.',
           required: permission,
-          granted: keyData.permissions,
+          granted:  keyData.permissions,
         });
         return;
       }
@@ -110,10 +110,10 @@ export function requireApiKey(permission?: string, projectParam?: string) {
       }
 
       // Fire-and-forget: update usage stats
-      doc.ref.update({
-        lastUsedAt: FieldValue.serverTimestamp(),
-        usageCount: FieldValue.increment(1),
-      }).catch(() => {/* non-fatal */});
+      db.query(
+        'UPDATE api_keys SET last_used_at = NOW(), usage_count = usage_count + 1 WHERE id = $1',
+        [row.id],
+      ).catch(() => {/* non-fatal */});
 
       req.apiKeyData = keyData;
       next();

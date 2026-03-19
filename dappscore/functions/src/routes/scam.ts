@@ -17,8 +17,8 @@
  */
 
 import { Router } from 'express';
-import { getFirestore, Timestamp } from 'firebase-admin/firestore';
 import { z } from 'zod';
+import { db } from '../lib/db';
 
 import { alchemyRpc, alchemyConfigured, isAlchemyNetwork } from '../lib/alchemy';
 import {
@@ -506,12 +506,16 @@ router.post('/report', async (req, res) => {
   }
 
   try {
-    const ref = getFirestore().collection('scam_reports').doc();
-    await ref.set({ ...parsed.data, status: 'pending', createdAt: Timestamp.now() });
+    const { rows } = await db.query<{ id: string }>(
+      `INSERT INTO scam_reports (status, data, created_at)
+       VALUES ('pending', $1::jsonb, NOW())
+       RETURNING id`,
+      [JSON.stringify(parsed.data)],
+    );
 
     res.json({
       success: true,
-      data: { reportId: ref.id, message: 'Report submitted. Our team will review it within 24 hours.' },
+      data: { reportId: rows[0].id, message: 'Report submitted. Our team will review it within 24 hours.' },
     });
   } catch (err) {
     console.error('[scam] report', err);

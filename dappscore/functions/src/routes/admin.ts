@@ -3,30 +3,32 @@
  *
  * Feature flags, project overrides, cache invalidation, system health.
  *
- * Collections:
- *   feature_flags/{flagId}
- *   project_overrides/{projectId}
- *   admin_audit_log/{logId}
+ * Tables:
+ *   feature_flags     (replaces Firestore feature_flags/{flagId})
+ *   project_overrides (replaces Firestore project_overrides/{projectId})
+ *   admin_audit_log   (replaces Firestore admin_audit_log/{logId})
+ *   project_sales     (replaces Firestore project_sales/{projectId})
+ *   scam_reports      (replaces Firestore scam_reports/{id})
  */
 
 import { Router } from 'express';
-import { getFirestore, Timestamp } from 'firebase-admin/firestore';
 import { z } from 'zod';
+import { db } from '../lib/db';
+import { cacheDel, cacheDelPattern, redisPing } from '../lib/cache';
 import { requireAdmin } from '../lib/auth';
 
 const router = Router();
 
-// All admin routes require the API key
 router.use(requireAdmin);
 
 // ── Audit helper ──────────────────────────────────────────────────────────────
 
 async function audit(action: string, payload: Record<string, unknown>): Promise<void> {
-  await getFirestore().collection('admin_audit_log').add({
-    action,
-    payload,
-    timestamp: Timestamp.now(),
-  });
+  await db.query(
+    `INSERT INTO admin_audit_log (action, payload, timestamp)
+     VALUES ($1, $2::jsonb, NOW())`,
+    [action, JSON.stringify(payload)],
+  );
 }
 
 // ── Feature Flags ─────────────────────────────────────────────────────────────
@@ -34,17 +36,18 @@ async function audit(action: string, payload: Record<string, unknown>): Promise<
 const flagSchema = z.object({
   enabled:     z.boolean(),
   description: z.string().max(500).optional(),
-  rollout:     z.number().min(0).max(100).optional(), // % of users to enable for
-  allowlist:   z.array(z.string()).optional(),         // specific user IDs
+  rollout:     z.number().min(0).max(100).optional(),
+  allowlist:   z.array(z.string()).optional(),
   metadata:    z.record(z.unknown()).optional(),
 });
 
 /** GET /api/v1/admin/flags */
 router.get('/flags', async (_req, res) => {
   try {
-    const snap = await getFirestore().collection('feature_flags').orderBy('updatedAt', 'desc').get();
-    const flags = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-    res.json({ success: true, data: { flags } });
+    const { rows } = await db.query(
+      'SELECT * FROM feature_flags ORDER BY updated_at DESC',
+    );
+    res.json({ success: true, data: { flags: rows } });
   } catch (err) {
     console.error('[admin] GET /flags', err);
     res.status(500).json({ success: false, error: 'Failed to fetch flags.' });
@@ -58,10 +61,27 @@ router.put('/flags/:id', async (req, res) => {
     return res.status(422).json({ success: false, error: 'Invalid fields.', details: parsed.error.flatten() });
   }
 
+  const d = parsed.data;
   try {
-    const ref = getFirestore().collection('feature_flags').doc(req.params.id);
-    await ref.set({ ...parsed.data, updatedAt: Timestamp.now() }, { merge: true });
-    await audit('flag.updated', { flagId: req.params.id, ...parsed.data });
+    await db.query(
+      `INSERT INTO feature_flags (id, enabled, description, rollout, allowlist, metadata, updated_at)
+       VALUES ($1,$2,$3,$4,$5::text[],$6::jsonb,NOW())
+       ON CONFLICT (id) DO UPDATE SET
+         enabled     = $2,
+         description = COALESCE($3, feature_flags.description),
+         rollout     = COALESCE($4, feature_flags.rollout),
+         allowlist   = COALESCE($5::text[], feature_flags.allowlist),
+         metadata    = COALESCE($6::jsonb, feature_flags.metadata),
+         updated_at  = NOW()`,
+      [
+        req.params.id, d.enabled,
+        d.description ?? null,
+        d.rollout ?? null,
+        d.allowlist ? `{${d.allowlist.join(',')}}` : null,
+        d.metadata ? JSON.stringify(d.metadata) : null,
+      ],
+    );
+    await audit('flag.updated', { flagId: req.params.id, ...d });
     res.json({ success: true, message: `Flag '${req.params.id}' updated.` });
   } catch (err) {
     console.error('[admin] PUT /flags/:id', err);
@@ -72,7 +92,7 @@ router.put('/flags/:id', async (req, res) => {
 /** DELETE /api/v1/admin/flags/:id */
 router.delete('/flags/:id', async (req, res) => {
   try {
-    await getFirestore().collection('feature_flags').doc(req.params.id).delete();
+    await db.query('DELETE FROM feature_flags WHERE id = $1', [req.params.id]);
     await audit('flag.deleted', { flagId: req.params.id });
     res.json({ success: true, message: 'Flag deleted.' });
   } catch (err) {
@@ -82,8 +102,6 @@ router.delete('/flags/:id', async (req, res) => {
 });
 
 // ── Project Overrides ─────────────────────────────────────────────────────────
-// Overrides let admins manually pin trust scores, add/remove risk flags,
-// or mark a project as verified/scam without waiting for subgraph indexing.
 
 const overrideSchema = z.object({
   trustLevel:    z.number().int().min(0).max(5).optional(),
@@ -99,8 +117,10 @@ const overrideSchema = z.object({
 /** GET /api/v1/admin/overrides */
 router.get('/overrides', async (_req, res) => {
   try {
-    const snap = await getFirestore().collection('project_overrides').orderBy('updatedAt', 'desc').get();
-    res.json({ success: true, data: { overrides: snap.docs.map(d => ({ id: d.id, ...d.data() })) } });
+    const { rows } = await db.query(
+      'SELECT * FROM project_overrides ORDER BY updated_at DESC',
+    );
+    res.json({ success: true, data: { overrides: rows } });
   } catch (err) {
     console.error('[admin] GET /overrides', err);
     res.status(500).json({ success: false, error: 'Failed to fetch overrides.' });
@@ -114,10 +134,33 @@ router.put('/overrides/:projectId', async (req, res) => {
     return res.status(422).json({ success: false, error: 'Invalid fields.', details: parsed.error.flatten() });
   }
 
+  const d = parsed.data;
   try {
-    const ref = getFirestore().collection('project_overrides').doc(req.params.projectId);
-    await ref.set({ ...parsed.data, updatedAt: Timestamp.now() }, { merge: true });
-    await audit('override.updated', { projectId: req.params.projectId, ...parsed.data });
+    await db.query(
+      `INSERT INTO project_overrides
+         (project_id, trust_level, verified, scam_flag, scam_reason,
+          featured, banner_message, risk_flags, notes, updated_at)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8::text[],$9,NOW())
+       ON CONFLICT (project_id) DO UPDATE SET
+         trust_level    = COALESCE($2, project_overrides.trust_level),
+         verified       = COALESCE($3, project_overrides.verified),
+         scam_flag      = COALESCE($4, project_overrides.scam_flag),
+         scam_reason    = COALESCE($5, project_overrides.scam_reason),
+         featured       = COALESCE($6, project_overrides.featured),
+         banner_message = COALESCE($7, project_overrides.banner_message),
+         risk_flags     = COALESCE($8::text[], project_overrides.risk_flags),
+         notes          = COALESCE($9, project_overrides.notes),
+         updated_at     = NOW()`,
+      [
+        req.params.projectId,
+        d.trustLevel ?? null, d.verified ?? null,
+        d.scamFlag ?? null, d.scamReason ?? null,
+        d.featured ?? null, d.bannerMessage ?? null,
+        d.riskFlags ? `{${d.riskFlags.join(',')}}` : null,
+        d.notes ?? null,
+      ],
+    );
+    await audit('override.updated', { projectId: req.params.projectId, ...d });
     res.json({ success: true, message: 'Override saved.' });
   } catch (err) {
     console.error('[admin] PUT /overrides/:id', err);
@@ -128,7 +171,7 @@ router.put('/overrides/:projectId', async (req, res) => {
 /** DELETE /api/v1/admin/overrides/:projectId */
 router.delete('/overrides/:projectId', async (req, res) => {
   try {
-    await getFirestore().collection('project_overrides').doc(req.params.projectId).delete();
+    await db.query('DELETE FROM project_overrides WHERE project_id = $1', [req.params.projectId]);
     await audit('override.deleted', { projectId: req.params.projectId });
     res.json({ success: true, message: 'Override removed.' });
   } catch (err) {
@@ -139,11 +182,13 @@ router.delete('/overrides/:projectId', async (req, res) => {
 
 // ── Sale Management ───────────────────────────────────────────────────────────
 
-/** GET /api/v1/admin/sales — list all project sales */
+/** GET /api/v1/admin/sales */
 router.get('/sales', async (_req, res) => {
   try {
-    const snap = await getFirestore().collection('project_sales').orderBy('updatedAt', 'desc').get();
-    res.json({ success: true, data: { sales: snap.docs.map(d => ({ id: d.id, ...d.data() })) } });
+    const { rows } = await db.query(
+      'SELECT * FROM project_sales ORDER BY updated_at DESC',
+    );
+    res.json({ success: true, data: { sales: rows } });
   } catch (err) {
     console.error('[admin] GET /sales', err);
     res.status(500).json({ success: false, error: 'Failed to fetch sales.' });
@@ -153,7 +198,7 @@ router.get('/sales', async (_req, res) => {
 /** DELETE /api/v1/admin/sales/:projectId */
 router.delete('/sales/:projectId', async (req, res) => {
   try {
-    await getFirestore().collection('project_sales').doc(req.params.projectId).delete();
+    await db.query('DELETE FROM project_sales WHERE project_id = $1', [req.params.projectId]);
     await audit('sale.deleted', { projectId: req.params.projectId });
     res.json({ success: true, message: 'Sale data removed.' });
   } catch (err) {
@@ -164,10 +209,10 @@ router.delete('/sales/:projectId', async (req, res) => {
 
 // ── Cache Management ──────────────────────────────────────────────────────────
 
-/** DELETE /api/v1/admin/cache/:key — invalidate a specific stats cache key */
+/** DELETE /api/v1/admin/cache/:key */
 router.delete('/cache/:key', async (req, res) => {
   try {
-    await getFirestore().collection('stats_cache').doc(req.params.key).delete();
+    await cacheDel(req.params.key);
     await audit('cache.invalidated', { key: req.params.key });
     res.json({ success: true, message: `Cache '${req.params.key}' invalidated.` });
   } catch (err) {
@@ -179,12 +224,9 @@ router.delete('/cache/:key', async (req, res) => {
 /** DELETE /api/v1/admin/cache — wipe entire stats cache */
 router.delete('/cache', async (_req, res) => {
   try {
-    const snap  = await getFirestore().collection('stats_cache').get();
-    const batch = getFirestore().batch();
-    snap.docs.forEach(d => batch.delete(d.ref));
-    await batch.commit();
-    await audit('cache.purged', { count: snap.size });
-    res.json({ success: true, message: `Purged ${snap.size} cache entries.` });
+    await cacheDelPattern('*');
+    await audit('cache.purged', {});
+    res.json({ success: true, message: 'Stats cache purged.' });
   } catch (err) {
     console.error('[admin] DELETE /cache', err);
     res.status(500).json({ success: false, error: 'Failed to purge cache.' });
@@ -197,18 +239,26 @@ router.delete('/cache', async (_req, res) => {
 router.get('/reports', async (req, res) => {
   try {
     const { status } = req.query;
-    let query = getFirestore().collection('scam_reports').orderBy('createdAt', 'desc') as FirebaseFirestore.Query;
-    if (status) query = query.where('status', '==', status);
+    const params: unknown[] = [];
+    let where = '';
 
-    const snap = await query.limit(100).get();
-    res.json({ success: true, data: { reports: snap.docs.map(d => ({ id: d.id, ...d.data() })) } });
+    if (typeof status === 'string') {
+      params.push(status);
+      where = `WHERE status = $1`;
+    }
+
+    const { rows } = await db.query(
+      `SELECT * FROM scam_reports ${where} ORDER BY created_at DESC LIMIT 100`,
+      params,
+    );
+    res.json({ success: true, data: { reports: rows } });
   } catch (err) {
     console.error('[admin] GET /reports', err);
     res.status(500).json({ success: false, error: 'Failed to fetch reports.' });
   }
 });
 
-/** PUT /api/v1/admin/reports/:id — update status */
+/** PUT /api/v1/admin/reports/:id */
 router.put('/reports/:id', async (req, res) => {
   const { status, resolution } = req.body ?? {};
   if (!['pending', 'investigating', 'confirmed', 'dismissed'].includes(status)) {
@@ -216,11 +266,17 @@ router.put('/reports/:id', async (req, res) => {
   }
 
   try {
-    const ref = getFirestore().collection('scam_reports').doc(req.params.id);
-    const snap = await ref.get();
-    if (!snap.exists) return res.status(404).json({ success: false, error: 'Report not found.' });
+    const { rowCount } = await db.query(
+      `UPDATE scam_reports
+       SET status = $1, resolution = $2, updated_at = NOW()
+       WHERE id = $3`,
+      [status, resolution ?? null, req.params.id],
+    );
 
-    await ref.update({ status, resolution: resolution ?? null, updatedAt: Timestamp.now() });
+    if (rowCount === 0) {
+      return res.status(404).json({ success: false, error: 'Report not found.' });
+    }
+
     await audit('report.updated', { reportId: req.params.id, status });
     res.json({ success: true, message: 'Report updated.' });
   } catch (err) {
@@ -235,13 +291,11 @@ router.put('/reports/:id', async (req, res) => {
 router.get('/audit', async (req, res) => {
   try {
     const limit = Math.min(parseInt(req.query.limit as string) || 50, 500);
-    const snap  = await getFirestore()
-      .collection('admin_audit_log')
-      .orderBy('timestamp', 'desc')
-      .limit(limit)
-      .get();
-
-    res.json({ success: true, data: { entries: snap.docs.map(d => ({ id: d.id, ...d.data() })) } });
+    const { rows } = await db.query(
+      'SELECT * FROM admin_audit_log ORDER BY timestamp DESC LIMIT $1',
+      [limit],
+    );
+    res.json({ success: true, data: { entries: rows } });
   } catch (err) {
     console.error('[admin] GET /audit', err);
     res.status(500).json({ success: false, error: 'Failed to fetch audit log.' });
@@ -253,21 +307,24 @@ router.get('/audit', async (req, res) => {
 /** GET /api/v1/admin/health */
 router.get('/health', async (_req, res) => {
   try {
-    // Probe Firestore
+    // Probe PostgreSQL
     const t0 = Date.now();
-    await getFirestore().collection('_health_probe').doc('ping').set({ ts: Timestamp.now() });
-    const firestoreMs = Date.now() - t0;
+    await db.query('SELECT 1');
+    const pgMs = Date.now() - t0;
 
-    // Probe subgraph (if configured)
+    // Probe Redis
+    const redisStatus = await redisPing();
+
+    // Probe subgraph
     let subgraphStatus = 'not_configured';
     const subgraphUrl  = process.env.SUBGRAPH_URL;
     if (subgraphUrl) {
       try {
         const r = await fetch(subgraphUrl, {
-          method: 'POST',
+          method:  'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ query: '{ _meta { block { number } } }' }),
-          signal: AbortSignal.timeout(5_000),
+          body:    JSON.stringify({ query: '{ _meta { block { number } } }' }),
+          signal:  AbortSignal.timeout(5_000),
         });
         subgraphStatus = r.ok ? 'ok' : `http_${r.status}`;
       } catch {
@@ -278,14 +335,16 @@ router.get('/health', async (_req, res) => {
     res.json({
       success: true,
       data: {
-        status: 'ok',
-        firestore: { status: 'ok', latencyMs: firestoreMs },
+        status:   'ok',
+        postgres: { status: 'ok', latencyMs: pgMs },
+        redis:    { status: redisStatus },
         subgraph: { status: subgraphStatus },
         env: {
-          hasAlchemyKey:  !!process.env.ALCHEMY_API_KEY,
-          hasAdminKey:    !!process.env.ADMIN_API_KEY,
-          hasSubgraphUrl: !!process.env.SUBGRAPH_URL,
-          hasSaleKeys:    !!process.env.SALE_API_KEYS,
+          hasAlchemyKey:   !!process.env.ALCHEMY_API_KEY,
+          hasAdminKey:     !!process.env.ADMIN_API_KEY,
+          hasSubgraphUrl:  !!process.env.SUBGRAPH_URL,
+          hasDatabaseUrl:  !!process.env.DATABASE_URL,
+          hasRedisUrl:     !!process.env.REDIS_URL,
         },
         timestamp: new Date().toISOString(),
       },

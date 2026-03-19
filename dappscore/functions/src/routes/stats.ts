@@ -1,33 +1,17 @@
 import { Router } from 'express';
-import { getFirestore, Timestamp } from 'firebase-admin/firestore';
 import { gql } from '../lib/graphql';
+import { withCache } from '../lib/cache';
 
 const router = Router();
 
 const CACHE_TTL_SECONDS = 5 * 60; // 5 min
-
-async function getCached<T>(key: string, fetcher: () => Promise<T>): Promise<T> {
-  const db   = getFirestore();
-  const ref  = db.collection('stats_cache').doc(key);
-  const snap = await ref.get();
-
-  if (snap.exists) {
-    const d   = snap.data()!;
-    const age = Date.now() / 1000 - (d.cachedAt as Timestamp).seconds;
-    if (age < CACHE_TTL_SECONDS) return d.value as T;
-  }
-
-  const value = await fetcher();
-  await ref.set({ value, cachedAt: Timestamp.now() });
-  return value;
-}
 
 // ── Routes ────────────────────────────────────────────────────────────────────
 
 /** GET /api/v1/stats/global */
 router.get('/global', async (_req, res) => {
   try {
-    const data = await getCached('global', () =>
+    const data = await withCache('stats:global', CACHE_TTL_SECONDS, () =>
       gql(
         `query GlobalStats {
           globalStats(id: "1") {
@@ -52,7 +36,7 @@ router.get('/daily', async (req, res) => {
   try {
     const days = Math.min(parseInt(req.query.days as string) || 30, 365);
 
-    const data = await getCached(`daily_${days}`, () =>
+    const data = await withCache(`stats:daily:${days}`, CACHE_TTL_SECONDS, () =>
       gql(
         `query DailyStats($first: Int!) {
           dailyStats(first: $first, orderBy: date, orderDirection: desc) {
@@ -75,7 +59,7 @@ router.get('/daily', async (req, res) => {
 /** GET /api/v1/stats/token */
 router.get('/token', async (_req, res) => {
   try {
-    const data = await getCached('token', () =>
+    const data = await withCache('stats:token', CACHE_TTL_SECONDS, () =>
       gql(
         `query TokenStats {
           tokenStats(id: "1") {
@@ -98,7 +82,7 @@ router.get('/token', async (_req, res) => {
 /** GET /api/v1/stats/insurance */
 router.get('/insurance', async (_req, res) => {
   try {
-    const data = await getCached('insurance', () =>
+    const data = await withCache('stats:insurance', CACHE_TTL_SECONDS, () =>
       gql(
         `query InsuranceStats {
           insurancePool(id: "1") {
@@ -120,7 +104,7 @@ router.get('/insurance', async (_req, res) => {
 /** GET /api/v1/stats/predictions */
 router.get('/predictions', async (_req, res) => {
   try {
-    const data = await getCached('predictions', () =>
+    const data = await withCache('stats:predictions', CACHE_TTL_SECONDS, () =>
       gql(
         `query PredictionStats {
           predictionStats(id: "1") {
@@ -142,7 +126,7 @@ router.get('/predictions', async (_req, res) => {
 /** GET /api/v1/stats/bounties */
 router.get('/bounties', async (_req, res) => {
   try {
-    const data = await getCached('bounties', () =>
+    const data = await withCache('stats:bounties', CACHE_TTL_SECONDS, () =>
       gql(
         `query BountyStats {
           bountyStats(id: "1") {
