@@ -1,15 +1,15 @@
 /**
- * Webhooks — Firestore-backed (replaces in-memory Map from the Express backend).
+ * Webhooks — PostgreSQL-backed.
  *
- * Collections:
- *   webhooks/{webhookId}
- *   webhooks/{webhookId}/logs/{logId}
+ * Tables:
+ *   webhooks      (replaces Firestore webhooks/{webhookId})
+ *   webhook_logs  (replaces Firestore webhooks/{webhookId}/logs/{logId})
  */
 
 import { Router } from 'express';
-import { getFirestore, FieldValue, Timestamp } from 'firebase-admin/firestore';
 import { z } from 'zod';
 import crypto from 'crypto';
+import { db } from '../lib/db';
 import { requireUserId } from '../lib/auth';
 import { notifyUsersForEvent } from '../lib/notify';
 
@@ -45,18 +45,14 @@ router.get('/', async (req, res) => {
   if (!userId) return;
 
   try {
-    const snap = await getFirestore()
-      .collection('webhooks')
-      .where('userId', '==', userId)
-      .orderBy('createdAt', 'desc')
-      .get();
+    const { rows } = await db.query(
+      `SELECT id, user_id, url, events, active, failure_count,
+              created_at, updated_at, last_triggered
+       FROM webhooks WHERE user_id = $1 ORDER BY created_at DESC`,
+      [userId],
+    );
 
-    const webhooks = snap.docs.map(d => {
-      const { secret: _s, ...safe } = d.data() as Record<string, unknown>;
-      return { id: d.id, ...safe };
-    });
-
-    res.json({ success: true, data: { webhooks } });
+    res.json({ success: true, data: { webhooks: rows } });
   } catch (err) {
     console.error('[webhooks] GET /', err);
     res.status(500).json({ success: false, error: 'Failed to list webhooks.' });
@@ -74,34 +70,31 @@ router.post('/register', async (req, res) => {
   }
 
   try {
-    // Max 5 per user
-    const existing = await getFirestore()
-      .collection('webhooks').where('userId', '==', userId).count().get();
+    const { rows: countRows } = await db.query<{ count: string }>(
+      'SELECT COUNT(*) FROM webhooks WHERE user_id = $1',
+      [userId],
+    );
 
-    if (existing.data().count >= 5) {
+    if (parseInt(countRows[0].count, 10) >= 5) {
       return res.status(400).json({ success: false, error: 'Maximum 5 webhooks per user.' });
     }
 
     const secret = generateSecret();
-    const ref = getFirestore().collection('webhooks').doc();
+    const eventsArray = `{${parsed.data.events.join(',')}}`;
 
-    await ref.set({
-      userId,
-      url: parsed.data.url,
-      events: parsed.data.events,
-      secret,
-      active: true,
-      failureCount: 0,
-      createdAt: Timestamp.now(),
-      lastTriggered: null,
-    });
+    const { rows } = await db.query<{ id: string }>(
+      `INSERT INTO webhooks (user_id, url, events, secret, active, failure_count, created_at)
+       VALUES ($1, $2, $3::text[], $4, TRUE, 0, NOW())
+       RETURNING id`,
+      [userId, parsed.data.url, eventsArray, secret],
+    );
 
     res.json({
       success: true,
       data: {
-        id: ref.id,
-        url: parsed.data.url,
-        events: parsed.data.events,
+        id:      rows[0].id,
+        url:     parsed.data.url,
+        events:  parsed.data.events,
         secret,
         message: 'Webhook registered. Store the secret — it will not be shown again.',
       },
@@ -123,14 +116,36 @@ router.put('/:id', async (req, res) => {
   }
 
   try {
-    const ref  = getFirestore().collection('webhooks').doc(req.params.id);
-    const snap = await ref.get();
+    const { rows } = await db.query<{ user_id: string }>(
+      'SELECT user_id FROM webhooks WHERE id = $1',
+      [req.params.id],
+    );
 
-    if (!snap.exists || (snap.data() as Record<string, unknown>).userId !== userId) {
+    if (rows.length === 0 || rows[0].user_id !== userId) {
       return res.status(404).json({ success: false, error: 'Webhook not found.' });
     }
 
-    await ref.update({ ...parsed.data, updatedAt: Timestamp.now() });
+    const updates: string[] = ['updated_at = NOW()'];
+    const params: unknown[] = [req.params.id];
+
+    if (parsed.data.url !== undefined) {
+      params.push(parsed.data.url);
+      updates.push(`url = $${params.length}`);
+    }
+    if (parsed.data.events !== undefined) {
+      params.push(`{${parsed.data.events.join(',')}}`);
+      updates.push(`events = $${params.length}::text[]`);
+    }
+    if (parsed.data.active !== undefined) {
+      params.push(parsed.data.active);
+      updates.push(`active = $${params.length}`);
+    }
+
+    await db.query(
+      `UPDATE webhooks SET ${updates.join(', ')} WHERE id = $1`,
+      params,
+    );
+
     res.json({ success: true, message: 'Webhook updated.' });
   } catch (err) {
     console.error('[webhooks] PUT /:id', err);
@@ -144,14 +159,16 @@ router.delete('/:id', async (req, res) => {
   if (!userId) return;
 
   try {
-    const ref  = getFirestore().collection('webhooks').doc(req.params.id);
-    const snap = await ref.get();
+    const { rows } = await db.query<{ user_id: string }>(
+      'SELECT user_id FROM webhooks WHERE id = $1',
+      [req.params.id],
+    );
 
-    if (!snap.exists || (snap.data() as Record<string, unknown>).userId !== userId) {
+    if (rows.length === 0 || rows[0].user_id !== userId) {
       return res.status(404).json({ success: false, error: 'Webhook not found.' });
     }
 
-    await ref.delete();
+    await db.query('DELETE FROM webhooks WHERE id = $1', [req.params.id]);
     res.json({ success: true, message: 'Webhook deleted.' });
   } catch (err) {
     console.error('[webhooks] DELETE /:id', err);
@@ -165,24 +182,26 @@ router.post('/:id/test', async (req, res) => {
   if (!userId) return;
 
   try {
-    const ref  = getFirestore().collection('webhooks').doc(req.params.id);
-    const snap = await ref.get();
-    const data = snap.data() as Record<string, unknown> | undefined;
+    const { rows } = await db.query<{ user_id: string; url: string; secret: string }>(
+      'SELECT user_id, url, secret FROM webhooks WHERE id = $1',
+      [req.params.id],
+    );
 
-    if (!snap.exists || data?.userId !== userId) {
+    if (rows.length === 0 || rows[0].user_id !== userId) {
       return res.status(404).json({ success: false, error: 'Webhook not found.' });
     }
 
+    const { url, secret } = rows[0];
     const payload = {
-      event: 'webhook.test',
+      event:     'webhook.test',
       timestamp: new Date().toISOString(),
-      data: { message: 'Test from DappScore', webhookId: req.params.id },
+      data:      { message: 'Test from DappScore', webhookId: req.params.id },
     };
 
     const body      = JSON.stringify(payload);
-    const signature = crypto.createHmac('sha256', data.secret as string).update(body).digest('hex');
+    const signature = crypto.createHmac('sha256', secret).update(body).digest('hex');
 
-    const httpRes = await fetch(data.url as string, {
+    const httpRes = await fetch(url, {
       method:  'POST',
       headers: {
         'Content-Type':             'application/json',
@@ -194,14 +213,17 @@ router.post('/:id/test', async (req, res) => {
       signal: AbortSignal.timeout(10_000),
     });
 
-    await ref.update({
-      lastTriggered: Timestamp.now(),
-      failureCount: httpRes.ok ? 0 : FieldValue.increment(1),
-    });
+    await db.query(
+      `UPDATE webhooks
+       SET last_triggered = NOW(),
+           failure_count  = CASE WHEN $1 THEN 0 ELSE failure_count + 1 END
+       WHERE id = $2`,
+      [httpRes.ok, req.params.id],
+    );
 
     res.json({
       success: httpRes.ok,
-      data: { statusCode: httpRes.status },
+      data:    { statusCode: httpRes.status },
       message: httpRes.ok ? 'Test delivered.' : 'Endpoint returned an error.',
     });
   } catch (err: unknown) {
@@ -217,19 +239,23 @@ router.get('/:id/logs', async (req, res) => {
   if (!userId) return;
 
   try {
-    const ref  = getFirestore().collection('webhooks').doc(req.params.id);
-    const snap = await ref.get();
+    const { rows: wh } = await db.query<{ user_id: string }>(
+      'SELECT user_id FROM webhooks WHERE id = $1',
+      [req.params.id],
+    );
 
-    if (!snap.exists || (snap.data() as Record<string, unknown>).userId !== userId) {
+    if (wh.length === 0 || wh[0].user_id !== userId) {
       return res.status(404).json({ success: false, error: 'Webhook not found.' });
     }
 
-    const logs = await ref.collection('logs')
-      .orderBy('timestamp', 'desc')
-      .limit(50)
-      .get();
+    const { rows } = await db.query(
+      `SELECT id, event, status, ok, timestamp
+       FROM webhook_logs WHERE webhook_id = $1
+       ORDER BY timestamp DESC LIMIT 50`,
+      [req.params.id],
+    );
 
-    res.json({ success: true, data: { logs: logs.docs.map(d => ({ id: d.id, ...d.data() })) } });
+    res.json({ success: true, data: { logs: rows } });
   } catch (err) {
     console.error('[webhooks] GET /:id/logs', err);
     res.status(500).json({ success: false, error: 'Failed to get logs.' });
@@ -242,19 +268,24 @@ router.post('/:id/rotate-secret', async (req, res) => {
   if (!userId) return;
 
   try {
-    const ref  = getFirestore().collection('webhooks').doc(req.params.id);
-    const snap = await ref.get();
+    const { rows } = await db.query<{ user_id: string }>(
+      'SELECT user_id FROM webhooks WHERE id = $1',
+      [req.params.id],
+    );
 
-    if (!snap.exists || (snap.data() as Record<string, unknown>).userId !== userId) {
+    if (rows.length === 0 || rows[0].user_id !== userId) {
       return res.status(404).json({ success: false, error: 'Webhook not found.' });
     }
 
     const secret = generateSecret();
-    await ref.update({ secret, updatedAt: Timestamp.now() });
+    await db.query(
+      'UPDATE webhooks SET secret = $1, updated_at = NOW() WHERE id = $2',
+      [secret, req.params.id],
+    );
 
     res.json({
       success: true,
-      data: { secret },
+      data:    { secret },
       message: 'Secret rotated. Update your webhook verification.',
     });
   } catch (err) {
@@ -268,7 +299,6 @@ router.post('/:id/rotate-secret', async (req, res) => {
 /** POST /api/v1/webhooks/incoming/graph — The Graph / Notifi event push */
 router.post('/incoming/graph', async (req, res) => {
   try {
-    // Verify shared secret configured in the graph webhook provider
     const secret = process.env.SUBGRAPH_WEBHOOK_SECRET;
     if (secret) {
       const provided = req.headers['x-webhook-secret'] as string | undefined;
@@ -277,12 +307,11 @@ router.post('/incoming/graph', async (req, res) => {
       }
     }
 
-    const body = req.body as Record<string, unknown>;
+    const body      = req.body as Record<string, unknown>;
     const eventType = (body.event as string) || '';
 
     console.info('[webhooks] incoming/graph', { event: eventType });
 
-    // Map subgraph event types to DappScore webhook events
     const eventMap: Record<string, string> = {
       'ProjectSubmitted':         'project.created',
       'ProjectStatusChanged':     'project.trust_changed',
@@ -299,7 +328,7 @@ router.post('/incoming/graph', async (req, res) => {
 
     if (dispatchEvent && data) {
       await dispatchGlobalWebhook(dispatchEvent, data);
-      await notifyUsersForEvent(dispatchEvent, data as Record<string, unknown>);
+      await notifyUsersForEvent(dispatchEvent, data);
     }
 
     res.json({ success: true });
@@ -312,15 +341,11 @@ router.post('/incoming/graph', async (req, res) => {
 /** POST /api/v1/webhooks/incoming/alchemy — Alchemy address activity (whale tracking) */
 router.post('/incoming/alchemy', async (req, res) => {
   try {
-    // Verify Alchemy HMAC signature
     const signingKey = process.env.ALCHEMY_SIGNING_KEY;
     if (signingKey) {
       const signature = req.headers['x-alchemy-signature'] as string | undefined;
-      const rawBody = JSON.stringify(req.body);
-      const expected = crypto
-        .createHmac('sha256', signingKey)
-        .update(rawBody)
-        .digest('hex');
+      const rawBody   = JSON.stringify(req.body);
+      const expected  = crypto.createHmac('sha256', signingKey).update(rawBody).digest('hex');
       if (signature !== expected) {
         return res.status(401).json({ success: false, error: 'Invalid signature' });
       }
@@ -331,11 +356,8 @@ router.post('/incoming/alchemy', async (req, res) => {
       event?: {
         network?: string;
         activity?: Array<{
-          fromAddress?: string;
-          toAddress?: string;
-          value?: number;
-          asset?: string;
-          hash?: string;
+          fromAddress?: string; toAddress?: string;
+          value?: number; asset?: string; hash?: string;
         }>;
       };
     };
@@ -344,7 +366,6 @@ router.post('/incoming/alchemy', async (req, res) => {
       return res.json({ success: true });
     }
 
-    // Flag transfers over 100k SCORE as whale activity
     const WHALE_THRESHOLD = 100_000;
 
     for (const activity of payload.event.activity) {
@@ -373,128 +394,98 @@ router.post('/incoming/alchemy', async (req, res) => {
   }
 });
 
-// ── Internal send helper ──────────────────────────────────────────────────────
+// ── Internal delivery helpers ─────────────────────────────────────────────────
+
+async function deliverWebhook(
+  webhookId: string,
+  url: string,
+  secret: string,
+  event: string,
+  data: unknown,
+): Promise<void> {
+  const payload = { event, timestamp: new Date().toISOString(), data };
+  const body    = JSON.stringify(payload);
+  const sig     = crypto.createHmac('sha256', secret).update(body).digest('hex');
+
+  let status = 0;
+  let ok     = false;
+
+  try {
+    const httpRes = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type':           'application/json',
+        'X-DappScore-Signature':  `sha256=${sig}`,
+        'X-DappScore-Event':      event,
+        'X-DappScore-Webhook-Id': webhookId,
+      },
+      body,
+      signal: AbortSignal.timeout(10_000),
+    });
+    status = httpRes.status;
+    ok     = httpRes.ok;
+  } catch { /* network failure */ }
+
+  // Write delivery log + update stats in a single round-trip
+  await db.query(
+    `WITH log_insert AS (
+       INSERT INTO webhook_logs (webhook_id, event, status, ok, timestamp)
+       VALUES ($1, $2, $3, $4, NOW())
+     )
+     UPDATE webhooks
+     SET last_triggered = NOW(),
+         failure_count  = CASE WHEN $4 THEN 0 ELSE failure_count + 1 END
+     WHERE id = $1`,
+    [webhookId, event, status, ok],
+  );
+
+  // Disable after 10 consecutive failures
+  if (!ok) {
+    await db.query(
+      `UPDATE webhooks SET active = FALSE
+       WHERE id = $1 AND failure_count >= 10`,
+      [webhookId],
+    );
+  }
+}
 
 /**
  * Fan out an event to all active registered webhooks for a given userId.
- * Called internally from other route handlers.
  */
 export async function dispatchWebhook(
   userId: string,
   event: string,
   data: unknown,
 ): Promise<void> {
-  const snap = await getFirestore()
-    .collection('webhooks')
-    .where('userId', '==', userId)
-    .where('active', '==', true)
-    .get();
+  const { rows } = await db.query<{ id: string; url: string; secret: string; events: string[] }>(
+    `SELECT id, url, secret, events
+     FROM webhooks WHERE user_id = $1 AND active = TRUE`,
+    [userId],
+  );
 
-  await Promise.allSettled(snap.docs.map(async doc => {
-    const wh = doc.data() as Record<string, unknown>;
-    if (!Array.isArray(wh.events)) return;
-    const events = wh.events as string[];
-    if (!events.includes('all') && !events.includes(event)) return;
-
-    const payload = { event, timestamp: new Date().toISOString(), data };
-    const body    = JSON.stringify(payload);
-    const sig     = crypto.createHmac('sha256', wh.secret as string).update(body).digest('hex');
-
-    let status = 0;
-    let ok     = false;
-
-    try {
-      const httpRes = await fetch(wh.url as string, {
-        method: 'POST',
-        headers: {
-          'Content-Type':           'application/json',
-          'X-DappScore-Signature':  `sha256=${sig}`,
-          'X-DappScore-Event':      event,
-          'X-DappScore-Webhook-Id': doc.id,
-        },
-        body,
-        signal: AbortSignal.timeout(10_000),
-      });
-      status = httpRes.status;
-      ok     = httpRes.ok;
-    } catch { /* network failure */ }
-
-    // Write delivery log
-    const ref = doc.ref;
-    await ref.collection('logs').add({ event, status, ok, timestamp: Timestamp.now() });
-    await ref.update({
-      lastTriggered: Timestamp.now(),
-      failureCount: ok ? 0 : FieldValue.increment(1),
-      // Disable after 10 consecutive failures
-      ...(ok ? {} : {}),
-    });
-
-    if (!ok) {
-      // Re-read to check failureCount and possibly disable
-      const updated = await ref.get();
-      if ((updated.data()?.failureCount as number) >= 10) {
-        await ref.update({ active: false });
-      }
-    }
-  }));
+  await Promise.allSettled(
+    rows
+      .filter(wh => wh.events.includes('all') || wh.events.includes(event))
+      .map(wh => deliverWebhook(wh.id, wh.url, wh.secret, event, data)),
+  );
 }
 
 /**
  * Fan out an event to ALL active webhooks subscribed to the event (platform-wide).
- * Used by incoming external webhooks (Graph, Alchemy) that aren't tied to a single user.
  */
 export async function dispatchGlobalWebhook(
   event: string,
   data: unknown,
 ): Promise<void> {
-  const snap = await getFirestore()
-    .collection('webhooks')
-    .where('active', '==', true)
-    .get();
+  const { rows } = await db.query<{ id: string; url: string; secret: string; events: string[] }>(
+    `SELECT id, url, secret, events FROM webhooks WHERE active = TRUE`,
+  );
 
-  await Promise.allSettled(snap.docs.map(async doc => {
-    const wh = doc.data() as Record<string, unknown>;
-    if (!Array.isArray(wh.events)) return;
-    const events = wh.events as string[];
-    if (!events.includes('all') && !events.includes(event)) return;
-
-    const payload = { event, timestamp: new Date().toISOString(), data };
-    const body    = JSON.stringify(payload);
-    const sig     = crypto.createHmac('sha256', wh.secret as string).update(body).digest('hex');
-
-    let status = 0;
-    let ok     = false;
-
-    try {
-      const httpRes = await fetch(wh.url as string, {
-        method: 'POST',
-        headers: {
-          'Content-Type':           'application/json',
-          'X-DappScore-Signature':  `sha256=${sig}`,
-          'X-DappScore-Event':      event,
-          'X-DappScore-Webhook-Id': doc.id,
-        },
-        body,
-        signal: AbortSignal.timeout(10_000),
-      });
-      status = httpRes.status;
-      ok     = httpRes.ok;
-    } catch { /* network failure */ }
-
-    const ref = doc.ref;
-    await ref.collection('logs').add({ event, status, ok, timestamp: Timestamp.now() });
-    await ref.update({
-      lastTriggered: Timestamp.now(),
-      failureCount: ok ? 0 : FieldValue.increment(1),
-    });
-
-    if (!ok) {
-      const updated = await ref.get();
-      if ((updated.data()?.failureCount as number) >= 10) {
-        await ref.update({ active: false });
-      }
-    }
-  }));
+  await Promise.allSettled(
+    rows
+      .filter(wh => wh.events.includes('all') || wh.events.includes(event))
+      .map(wh => deliverWebhook(wh.id, wh.url, wh.secret, event, data)),
+  );
 }
 
 export default router;

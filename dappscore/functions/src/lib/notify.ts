@@ -6,7 +6,7 @@
  * outbound webhooks; this handles the in-app alert side.
  */
 
-import { getFirestore } from 'firebase-admin/firestore';
+import { db } from './db';
 import { pushAlert } from '../routes/alerts';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -22,24 +22,15 @@ const TRUST_LABELS: Record<number, string> = {
   3: 'Suspicious',  4: 'Suspected Scam', 5: 'Probable Scam',
 };
 
-// ── Event → preference field mapping ─────────────────────────────────────────
+// ── Event → preference column mapping ────────────────────────────────────────
 
-const EVENT_PREF: Record<string, keyof AlertPrefs> = {
-  'project.scam_flagged':  'scamFlagAlerts',
-  'project.trust_changed': 'trustChangeAlerts',
-  'whale.activity':        'whaleActivityAlerts',
-  'vote.cast':             'voteThresholdAlerts',
-  'market.resolved':       'marketAlerts',
+const EVENT_PREF_COL: Record<string, string> = {
+  'project.scam_flagged':  'scam_flag_alerts',
+  'project.trust_changed': 'trust_change_alerts',
+  'whale.activity':        'whale_activity_alerts',
+  'vote.cast':             'vote_threshold_alerts',
+  'market.resolved':       'market_alerts',
 };
-
-interface AlertPrefs {
-  scamFlagAlerts:       boolean;
-  trustChangeAlerts:    boolean;
-  whaleActivityAlerts:  boolean;
-  voteThresholdAlerts:  boolean;
-  marketAlerts:         boolean;
-  minSeverity:          Severity;
-}
 
 // ── Alert content builder ─────────────────────────────────────────────────────
 
@@ -113,26 +104,25 @@ export async function notifyUsersForEvent(
   event: string,
   data: Record<string, unknown>,
 ): Promise<void> {
-  const prefField = EVENT_PREF[event];
-  if (!prefField) return;
+  const prefCol = EVENT_PREF_COL[event];
+  if (!prefCol) return;
 
   const { title, message, severity } = buildContent(event, data);
 
   try {
-    const snap = await getFirestore()
-      .collection('alert_preferences')
-      .where(prefField, '==', true)
-      .get();
+    // Query users who have opted in to this event type
+    const { rows } = await db.query<{ user_id: string; min_severity: Severity }>(
+      `SELECT user_id, min_severity
+       FROM alert_preferences
+       WHERE ${prefCol} = TRUE`,
+    );
 
-    if (snap.empty) return;
+    if (rows.length === 0) return;
 
     await Promise.allSettled(
-      snap.docs.map(async doc => {
-        const prefs = doc.data() as Partial<AlertPrefs>;
-        const minSev = (prefs.minSeverity ?? 'low') as Severity;
-        if (SEVERITY_ORDER[severity] < SEVERITY_ORDER[minSev]) return;
-
-        await pushAlert(doc.id, { type: event, title, message, severity, data });
+      rows.map(async row => {
+        if (SEVERITY_ORDER[severity] < SEVERITY_ORDER[row.min_severity]) return;
+        await pushAlert(row.user_id, { type: event, title, message, severity, data });
       }),
     );
   } catch (err) {

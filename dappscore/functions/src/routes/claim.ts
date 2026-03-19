@@ -3,9 +3,9 @@
  *
  * Manages pre-launch $SCORE claim allocations for early participants.
  * Intentionally uses a separate key from ADMIN_API_KEY so the
- * frontend-exposed key only grants access to this collection.
+ * frontend-exposed key only grants access to this table.
  *
- * Firestore collection:  claim_allocations/{address}
+ * Table: claim_allocations (replaces Firestore claim_allocations/{address})
  *
  * Routes:
  *   GET    /api/v1/claim              list all allocations (admin only)
@@ -15,11 +15,10 @@
  */
 
 import { Router, Request, Response, NextFunction } from 'express';
-import { getFirestore, Timestamp } from 'firebase-admin/firestore';
 import { z } from 'zod';
+import { db } from '../lib/db';
 
 const router = Router();
-const COLLECTION = 'claim_allocations';
 
 // ── Auth middleware ────────────────────────────────────────────────────────────
 
@@ -70,18 +69,16 @@ function isValidAddress(addr: string): boolean {
 
 router.get('/', async (_req, res) => {
   try {
-    const snap = await getFirestore()
-      .collection(COLLECTION)
-      .orderBy('score', 'desc')
-      .get();
+    const { rows } = await db.query(
+      'SELECT address, votes, score, note, added_at, updated_at FROM claim_allocations ORDER BY score DESC',
+    );
 
-    const allocations = snap.docs.map(d => ({ address: d.id, ...d.data() }));
-    const totalScore = allocations.reduce((s: number, a: Record<string, unknown>) => s + (a.score as number), 0);
-    const totalVotes = allocations.reduce((s: number, a: Record<string, unknown>) => s + (a.votes as number), 0);
+    const totalScore = rows.reduce((s, r) => s + r.score, 0);
+    const totalVotes = rows.reduce((s, r) => s + r.votes, 0);
 
     res.json({
       success: true,
-      data: { allocations, summary: { count: allocations.length, totalScore, totalVotes } },
+      data: { allocations: rows, summary: { count: rows.length, totalScore, totalVotes } },
     });
   } catch (err) {
     console.error('[claim] GET /', err);
@@ -99,12 +96,16 @@ router.get('/:address', async (req, res) => {
   }
 
   try {
-    const doc = await getFirestore().collection(COLLECTION).doc(address).get();
-    if (!doc.exists) {
+    const { rows } = await db.query(
+      'SELECT address, votes, score, note, added_at, updated_at FROM claim_allocations WHERE address = $1',
+      [address],
+    );
+
+    if (rows.length === 0) {
       res.status(404).json({ success: false, error: 'Allocation not found.' });
       return;
     }
-    res.json({ success: true, data: { address, ...doc.data() } });
+    res.json({ success: true, data: rows[0] });
   } catch (err) {
     console.error('[claim] GET /:address', err);
     res.status(500).json({ success: false, error: 'Failed to fetch allocation.' });
@@ -126,20 +127,21 @@ router.put('/:address', async (req, res) => {
     return;
   }
 
+  const d = parsed.data;
+
   try {
-    const db   = getFirestore();
-    const ref  = db.collection(COLLECTION).doc(address);
-    const now  = Timestamp.now();
-    const existing = await ref.get();
+    await db.query(
+      `INSERT INTO claim_allocations (address, votes, score, note, added_at, updated_at)
+       VALUES ($1, $2, $3, $4, NOW(), NOW())
+       ON CONFLICT (address) DO UPDATE SET
+         votes      = $2,
+         score      = $3,
+         note       = $4,
+         updated_at = NOW()`,
+      [address, d.votes, d.score, d.note],
+    );
 
-    await ref.set({
-      ...parsed.data,
-      address,
-      addedAt:   existing.exists ? existing.data()!.addedAt : now,
-      updatedAt: now,
-    });
-
-    res.json({ success: true, data: { address, ...parsed.data } });
+    res.json({ success: true, data: { address, ...d } });
   } catch (err) {
     console.error('[claim] PUT /:address', err);
     res.status(500).json({ success: false, error: 'Failed to save allocation.' });
@@ -156,7 +158,7 @@ router.delete('/:address', async (req, res) => {
   }
 
   try {
-    await getFirestore().collection(COLLECTION).doc(address).delete();
+    await db.query('DELETE FROM claim_allocations WHERE address = $1', [address]);
     res.json({ success: true });
   } catch (err) {
     console.error('[claim] DELETE /:address', err);
