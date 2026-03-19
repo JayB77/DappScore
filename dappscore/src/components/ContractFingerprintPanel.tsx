@@ -48,7 +48,7 @@ function RugGenomeSection({ chain, address }: { chain: string; address: string }
     setGenome({ status: 'loading' });
 
     const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL ?? 'http://localhost:3001';
-    fetch(`${backendUrl}/api/scam-detection/fingerprint`, {
+    fetch(`${backendUrl}/api/v1/scam-detection/fingerprint`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ contractAddress: address, network: 'mainnet' }),
