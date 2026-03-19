@@ -19,7 +19,7 @@ import { mainnet, base, baseSepolia } from 'wagmi/chains';
 // src/config/chains.ts for project metadata display only.
 export const config = getDefaultConfig({
   appName: 'DappScore',
-  projectId: '621bdd56c6b4f8f819a93e0353018b98',
+  projectId: process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID ?? '',
   chains: [base, baseSepolia, mainnet],
   ssr: true,
 });

@@ -4,7 +4,7 @@ module.exports = {
       name: "dappscore-frontend",
       script: "node_modules/.bin/next",
       args: "start",
-      cwd: "/var/www/dappscore",
+      cwd: "/var/www/dappscore/dappscore",
       env: {
         NODE_ENV: "production",
         PORT: 3000,
@@ -18,7 +18,7 @@ module.exports = {
     {
       name: "dappscore-backend",
       script: "dist/index.js",
-      cwd: "/var/www/dappscore/backend",
+      cwd: "/var/www/dappscore/dappscore/backend",
       env: {
         NODE_ENV: "production",
         PORT: 3001,
