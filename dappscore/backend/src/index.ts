@@ -16,7 +16,6 @@ import { webhookRoutes } from './routes/webhooks';
 import apiKeyRoutes from './routes/api-keys';
 
 import whaleTrackingService from './services/whale-tracking';
-import { alertService } from './services/alerts';
 import { runAndAlert } from './services/event-monitor';
 import { logger } from './services/logger';
 
@@ -76,11 +75,6 @@ cron.schedule('0 * * * *', async () => {
 cron.schedule('0 0 * * *', async () => {
   logger.info('Updating whale wallet data...');
   // Whale tracking service runs on-demand via API
-});
-
-// Process pending alerts every 5 minutes
-cron.schedule('*/5 * * * *', async () => {
-  await alertService.processPendingAlerts();
 });
 
 app.listen(PORT, () => {
