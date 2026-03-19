@@ -259,7 +259,7 @@ function EventsSection({ contractAddresses }: { contractAddresses: { chain: stri
 
     Promise.allSettled(
       evmContracts.map(({ address }) =>
-        fetch(`${BACKEND}/api/scam-detection/events?address=${address}&lookback=50400`)
+        fetch(`${BACKEND}/api/v1/scam-detection/events?address=${address}&lookback=50400`)
           .then(r => r.json())
           .then(d => d.success ? (d.data as EventsResult) : null)
       )
