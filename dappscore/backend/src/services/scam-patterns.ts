@@ -229,14 +229,16 @@ const TIMELOCK_SELECTORS = {
   execute:  '134008d3',
 };
 
-interface ScamAnalysis {
+export interface ScamAnalysis {
   address: string;
   riskScore: number; // 0-100
-  riskLevel: 'low' | 'medium' | 'high' | 'critical';
+  riskLevel: 'low' | 'medium' | 'high' | 'critical' | 'unknown';
   flags: ScamFlag[];
-  similarContracts: SimilarContract[];
-  recommendation: string;
+  similarContracts?: SimilarContract[];
+  recommendation?: string;
   obfuscationScore?: number; // 0-100: how obfuscated/unusual the bytecode appears
+  details?: Record<string, any>;
+  analyzedAt?: Date;
 }
 
 export interface ContractFingerprint {
@@ -423,7 +425,7 @@ export class ScamPatternService {
         obfuscationScore: bytecode ? this.computeObfuscationScore(bytecode) : 0,
       };
     } catch (error) {
-      logger.error('Error analyzing contract:', error);
+      logger.error('Error analyzing contract:', error as Error);
       throw error;
     }
   }
@@ -467,7 +469,7 @@ export class ScamPatternService {
 
       return similar.sort((a, b) => b.similarity - a.similarity).slice(0, 5);
     } catch (error) {
-      logger.error('Error finding similar contracts:', error);
+      logger.error('Error finding similar contracts:', error as Error);
       return [];
     }
   }
@@ -588,7 +590,7 @@ export class ScamPatternService {
         analyzedAt: new Date(),
       };
     } catch (error) {
-      logger.error('[ScamPatterns] getFingerprint error:', error);
+      logger.error('[ScamPatterns] getFingerprint error:', error as Error);
       return {
         address,
         bytecodeHash: '0x',
@@ -846,7 +848,7 @@ export class ScamPatternService {
         }
       }
     } catch (error) {
-      logger.error('Error in owner analysis:', error);
+      logger.error('Error in owner analysis:', error as Error);
     }
 
     return { flags, riskIncrease };
@@ -1002,7 +1004,7 @@ export async function analyzeTokenomics(
       { headers: { Accept: 'application/json' } },
     );
     if (!res.ok) throw new Error(`GoPlus ${res.status}`);
-    const data = await res.json();
+    const data: any = await res.json();
     const token = Object.values(data?.result ?? {})[0] as Record<string, unknown> | undefined;
     if (!token) throw new Error('no data');
 
@@ -1087,7 +1089,7 @@ export async function analyzeTokenomics(
       analyzedAt: new Date(),
     };
   } catch (error) {
-    logger.error('[Tokenomics] analyzeTokenomics error:', error);
+    logger.error('[Tokenomics] analyzeTokenomics error:', error as Error);
     return {
       address: tokenAddress,
       riskScore: 0,

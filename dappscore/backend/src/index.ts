@@ -5,16 +5,15 @@ import morgan from 'morgan';
 import dotenv from 'dotenv';
 import cron from 'node-cron';
 
-import projectRoutes from './routes/projects';
-import userRoutes from './routes/users';
-import statsRoutes from './routes/stats';
+import { projectRoutes } from './routes/projects';
+import { userRoutes } from './routes/users';
+import { statsRoutes } from './routes/stats';
 import { alertRoutes } from './routes/alerts';
-import shareRoutes from './routes/share';
+import { shareRoutes } from './routes/share';
 import { scamDetectionRoutes } from './routes/scam-detection';
 import whaleRoutes from './routes/whales';
 import { webhookRoutes } from './routes/webhooks';
 
-import scamPatternService from './services/scam-patterns';
 import whaleTrackingService from './services/whale-tracking';
 import { alertService } from './services/alerts';
 import { runAndAlert } from './services/event-monitor';
