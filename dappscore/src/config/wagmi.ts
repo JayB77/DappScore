@@ -17,9 +17,12 @@ import { mainnet, base, baseSepolia } from 'wagmi/chains';
 // Wallet connection is Base + Ethereum only.
 // All other chains (Arbitrum, Solana, Polygon, etc.) are tracked in
 // src/config/chains.ts for project metadata display only.
+// Falls back to a placeholder so `next build` doesn't crash when the env var
+// isn't set. WalletConnect will be non-functional with the placeholder — set
+// NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID in .env.local for a working connection.
 export const config = getDefaultConfig({
   appName: 'DappScore',
-  projectId: process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID ?? '',
+  projectId: process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID || '00000000000000000000000000000000',
   chains: [base, baseSepolia, mainnet],
   ssr: true,
 });
