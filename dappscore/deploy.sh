@@ -18,15 +18,16 @@ if [[ "${1:-}" == "--pull" ]]; then
 fi
 
 # ── Backend build ─────────────────────────────────────────────────────────────
+# Full install required: @types/* packages are devDependencies but needed by tsc.
 echo "==> Building backend..."
 cd "$APP_DIR/backend"
-npm install --omit=dev --omit=optional 2>/dev/null || npm install
+npm install
 npm run build
 
 # ── Frontend build ────────────────────────────────────────────────────────────
 echo "==> Building frontend..."
 cd "$APP_DIR"
-npm install --omit=dev --omit=optional 2>/dev/null || npm install
+npm install
 npm run build
 
 # ── Restart PM2 ───────────────────────────────────────────────────────────────
