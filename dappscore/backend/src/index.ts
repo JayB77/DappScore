@@ -26,8 +26,18 @@ const PORT = process.env.PORT || 3001;
 
 // Middleware
 app.use(helmet());
+const ALLOWED_ORIGINS = new Set(
+  (process.env.FRONTEND_URL || 'http://localhost:3000')
+    .split(',')
+    .map(s => s.trim())
+    .filter(Boolean),
+);
 app.use(cors({
-  origin: process.env.FRONTEND_URL || 'http://localhost:3000',
+  origin: (origin, cb) => {
+    // Allow server-to-server calls (no Origin header) and listed origins
+    if (!origin || ALLOWED_ORIGINS.has(origin)) return cb(null, true);
+    cb(new Error(`CORS: origin ${origin} not allowed`));
+  },
   credentials: true,
 }));
 app.use(morgan('combined'));

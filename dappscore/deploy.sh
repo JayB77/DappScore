@@ -32,8 +32,18 @@ npm run build
 
 # ── Restart PM2 ───────────────────────────────────────────────────────────────
 echo "==> Restarting PM2 processes..."
-pm2 restart dappscore-backend  --update-env
-pm2 restart dappscore-frontend --update-env
+# `pm2 start` registers if not present; `pm2 restart` updates an existing process.
+if pm2 list | grep -q "dappscore-backend"; then
+  pm2 restart dappscore-backend  --update-env
+else
+  pm2 start "$APP_DIR/ecosystem.config.js" --only dappscore-backend
+fi
+if pm2 list | grep -q "dappscore-frontend"; then
+  pm2 restart dappscore-frontend --update-env
+else
+  pm2 start "$APP_DIR/ecosystem.config.js" --only dappscore-frontend
+fi
+pm2 save
 
 echo ""
 pm2 status
