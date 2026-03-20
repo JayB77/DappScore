@@ -30,22 +30,31 @@ cd "$APP_DIR"
 npm install
 npm run build
 
-# ── Restart PM2 ───────────────────────────────────────────────────────────────
-echo "==> Restarting PM2 processes..."
-# `pm2 start` registers if not present; `pm2 restart` updates an existing process.
-if pm2 list | grep -q "dappscore-backend"; then
-  pm2 restart dappscore-backend  --update-env
-else
-  pm2 start "$APP_DIR/ecosystem.config.js" --only dappscore-backend
-fi
-if pm2 list | grep -q "dappscore-frontend"; then
-  pm2 restart dappscore-frontend --update-env
-else
-  pm2 start "$APP_DIR/ecosystem.config.js" --only dappscore-frontend
-fi
+# ── Evict legacy PM2 process names ───────────────────────────────────────────
+# Old deploy scripts registered processes as 'dappscore' and 'dappscore-api'.
+# Remove them so they don't hold ports 3000/3001 alongside the current names.
+for legacy in dappscore dappscore-api; do
+  if pm2 list | grep -qw "$legacy"; then
+    echo "==> Removing legacy PM2 process: $legacy"
+    pm2 delete "$legacy"
+  fi
+done
+
+# ── Reload PM2 (zero-downtime) ────────────────────────────────────────────────
+# `pm2 reload` does a rolling restart — workers are replaced one at a time so
+# the app stays available.  Falls back to `pm2 start` on first deploy.
+echo "==> Reloading PM2 processes..."
+for app in dappscore-backend dappscore-frontend; do
+  if pm2 list | grep -qw "$app"; then
+    pm2 reload "$app" --update-env
+  else
+    pm2 start "$APP_DIR/ecosystem.config.js" --only "$app"
+  fi
+done
+
 pm2 save
 
 echo ""
-pm2 status
+pm2 list
 echo ""
 echo "==> Deploy complete."
