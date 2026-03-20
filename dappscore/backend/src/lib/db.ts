@@ -20,7 +20,7 @@ export const db = new Pool({
   max: 20,
   idleTimeoutMillis: 30_000,
   connectionTimeoutMillis: 5_000,
-  ssl: process.env.NODE_ENV === 'production' && !process.env.DATABASE_URL.includes('localhost')
+  ssl: process.env.NODE_ENV === 'production' && !(process.env.DATABASE_URL ?? '').includes('localhost')
     ? { rejectUnauthorized: false }
     : false,
 });
