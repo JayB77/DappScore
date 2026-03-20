@@ -258,7 +258,7 @@ export default function ProjectDetail() {
             <div className="bg-yellow-500 text-black text-sm font-bold text-center py-1 -mt-6 -mx-6 mb-6 rounded-t-xl flex items-center justify-center space-x-2">
               <Crown className="h-4 w-4" />
               <span>FEATURED PROJECT</span>
-              <span className="text-yellow-800">• {Math.ceil((project.premiumExpiresAt - Date.now() / 1000) / 86400)} days left</span>
+              <span suppressHydrationWarning className="text-yellow-800">• {Math.ceil((project.premiumExpiresAt - Date.now() / 1000) / 86400)} days left</span>
             </div>
           )}
 
@@ -512,7 +512,7 @@ export default function ProjectDetail() {
                               </span>
                             </div>
                             <span className="text-xs text-gray-500">
-                              {new Date(c.timestamp).toLocaleDateString()}
+                              {new Date(c.timestamp).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
                             </span>
                           </div>
                           <p className="text-gray-300">{c.content}</p>

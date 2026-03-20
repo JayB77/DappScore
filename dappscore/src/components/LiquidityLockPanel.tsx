@@ -99,7 +99,7 @@ function lockLabel(pct: number): { label: string; flag?: string } {
 }
 
 function fmtDate(ts: number): string {
-  return new Date(ts * 1000).toLocaleDateString(undefined, {
+  return new Date(ts * 1000).toLocaleDateString('en-US', {
     year: 'numeric', month: 'short', day: 'numeric',
   });
 }
@@ -289,7 +289,7 @@ function ContractRow({ chain, address, expanded = false }: ContractAddress & { e
 
             {/* Unlock date */}
             {earliestUnlock !== null && nonBurnedLocked > 0 && (
-              <div className={`flex items-center space-x-1.5 text-xs ${isExpired ? 'text-red-400' : 'text-gray-400'}`}>
+              <div suppressHydrationWarning className={`flex items-center space-x-1.5 text-xs ${isExpired ? 'text-red-400' : 'text-gray-400'}`}>
                 <Clock className="h-3 w-3 flex-shrink-0" />
                 {isExpired ? (
                   <span>Lock expired {fmtDate(earliestUnlock)} — <span className="font-medium text-red-400">LP may be withdrawable</span></span>

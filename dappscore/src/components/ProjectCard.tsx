@@ -107,9 +107,9 @@ function StatusBadge({ project }: { project: Project }) {
 
   // Token sale status takes priority when sale dates are set
   if (project.saleStartDate && project.saleEndDate) {
-    if (now < project.saleStartDate) return <span className="text-blue-400 text-xs font-medium">Sale Upcoming</span>;
-    if (now > project.saleEndDate)   return <span className="text-gray-400 text-xs font-medium">Sale Ended</span>;
-    return <span className="text-green-400 text-xs font-medium">Sale Live</span>;
+    if (now < project.saleStartDate) return <span suppressHydrationWarning className="text-blue-400 text-xs font-medium">Sale Upcoming</span>;
+    if (now > project.saleEndDate)   return <span suppressHydrationWarning className="text-gray-400 text-xs font-medium">Sale Ended</span>;
+    return <span suppressHydrationWarning className="text-green-400 text-xs font-medium">Sale Live</span>;
   }
 
   // Fall back to project stage
@@ -219,7 +219,7 @@ export function ProjectCard({ project }: { project: Project }) {
                 ? `${project.contractAddresses.length} contract${project.contractAddresses.length > 1 ? 's' : ''}`
                 : 'No token sale'}
             </span>
-            <span>{formatDistanceToNow(project.createdAt * 1000, { addSuffix: true })}</span>
+            <span suppressHydrationWarning>{formatDistanceToNow(project.createdAt * 1000, { addSuffix: true })}</span>
           </div>
         </div>
       </div>

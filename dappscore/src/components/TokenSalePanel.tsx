@@ -10,7 +10,7 @@ import type { SaleData } from '@/types/sale';
 function fmtCurrency(n: number, symbol: string): string {
   if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(2)}M ${symbol}`;
   if (n >= 1_000) return `${(n / 1_000).toFixed(1)}K ${symbol}`;
-  return `${n.toLocaleString()} ${symbol}`;
+  return `${n.toLocaleString('en-US')} ${symbol}`;
 }
 
 function getSaleStatus(data: SaleData): 'upcoming' | 'live' | 'ended' {
@@ -150,7 +150,7 @@ export default function TokenSalePanel({ projectId, mockData }: Props) {
       <div className="grid grid-cols-2 gap-3 mb-4">
         <div className="bg-gray-700/40 rounded-lg p-3">
           <p className="text-xs text-gray-400 mb-1">Token Price</p>
-          <p className="text-white font-medium">${data.tokenPrice.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 6 })}</p>
+          <p className="text-white font-medium">${data.tokenPrice.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 6 })}</p>
         </div>
         <div className="bg-gray-700/40 rounded-lg p-3">
           <p className="text-xs text-gray-400 mb-1 flex items-center gap-1">
