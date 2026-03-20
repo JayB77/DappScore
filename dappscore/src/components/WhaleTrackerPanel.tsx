@@ -146,7 +146,7 @@ function ChainRow({ chain, address }: ContractAddress) {
     if (!isSupported) { setState({ status: 'unsupported' }); return; }
     setState({ status: 'loading' });
 
-    fetchWhaleData(address, chainKey === 'ethereum' ? 'mainnet' : chainKey)
+    fetchWhaleData(address, 'testnet')
       .then(({ analysis, recentLarge }) => setState({ status: 'ok', analysis, recentLarge }))
       .catch(() => setState({ status: 'error' }));
   }, [address, chainKey, isSupported]);
