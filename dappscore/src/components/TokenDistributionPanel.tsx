@@ -361,7 +361,7 @@ function ContractRow({ chain, address }: ContractAddress) {
             {meta.holdersCount > 0 && (
               <div className="flex items-center space-x-1.5 text-xs text-gray-500">
                 <Users className="h-3 w-3" />
-                <span>{meta.holdersCount.toLocaleString()} total holders</span>
+                <span>{meta.holdersCount.toLocaleString('en-US')} total holders</span>
               </div>
             )}
 
