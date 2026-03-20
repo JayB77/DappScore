@@ -45,6 +45,20 @@ export class GraphQLService {
     return { data: res.projects ?? [], total: res.projectCount?.count ?? 0 };
   }
 
+  async getProjectByAddress(address: string): Promise<any | null> {
+    const q = gql`
+      query GetProjectByAddress($addr: String!) {
+        projects(where: { contractAddress: $addr }, first: 1) {
+          id name description category chain contractAddress
+          trustScore trustLevel status votesFor votesAgainst
+          createdAt updatedAt
+        }
+      }
+    `;
+    const res: any = await this.client.request(q, { addr: address.toLowerCase() });
+    return res.projects?.[0] ?? null;
+  }
+
   async getProject(id: string): Promise<any | null> {
     const q = gql`
       query GetProject($id: ID!) {

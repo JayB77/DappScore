@@ -1,0 +1,11 @@
+{
+  "name": "dappscore-extension",
+  "version": "1.0.0",
+  "description": "DappScore Chrome extension — trust scores as you browse",
+  "private": true,
+  "scripts": {
+    "icons": "node scripts/generate-icons.js",
+    "build": "npm run icons && node scripts/package.js",
+    "zip": "node scripts/package.js"
+  }
+}
