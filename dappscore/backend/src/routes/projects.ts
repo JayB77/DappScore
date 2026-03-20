@@ -51,6 +51,25 @@ router.get('/', async (req, res) => {
   }
 });
 
+// GET /api/projects/by-address/:address - Look up project by contract address
+// Must be declared before /:id to avoid route collision
+router.get('/by-address/:address', async (req, res) => {
+  const { address } = req.params;
+  if (!/^0x[a-fA-F0-9]{40}$/.test(address)) {
+    return res.status(400).json({ error: 'Invalid contract address' });
+  }
+  try {
+    const project = await graphql.getProjectByAddress(address);
+    if (!project) {
+      return res.status(404).json({ error: 'Project not found' });
+    }
+    res.json({ data: project });
+  } catch (error) {
+    console.error('Error fetching project by address:', error);
+    res.status(500).json({ error: 'Failed to fetch project' });
+  }
+});
+
 // GET /api/projects/:id - Get project details
 router.get('/:id', async (req, res) => {
   try {

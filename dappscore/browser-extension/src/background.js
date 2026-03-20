@@ -1,46 +1,41 @@
 // DappScore Browser Extension - Background Service Worker
 
-const API_URL = 'https://api.dappscore.io';
+const API_BASE = 'https://api.dappscore.io/api/v1';
 
-// Listen for messages from content scripts
-chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+const SUPPORTED_SITES = ['etherscan.io', 'basescan.org', 'dexscreener.com'];
+
+// ── Message handler ─────────────────────────────────────────────────────────
+
+chrome.runtime.onMessage.addListener((request, _sender, sendResponse) => {
   if (request.type === 'GET_TRUST_SCORE') {
-    fetchTrustScore(request.address)
+    fetchProjectByAddress(request.address)
       .then(sendResponse)
-      .catch(error => sendResponse({ error: error.message }));
-    return true; // Keep channel open for async response
+      .catch(err => sendResponse({ error: err.message }));
+    return true; // keep channel open for async response
   }
 
   if (request.type === 'OPEN_DAPPSCORE') {
-    chrome.tabs.create({ url: `https://dappscore.io/projects/${request.projectId}` });
+    chrome.tabs.create({ url: `https://app.dappscore.io/projects/${request.projectId}` });
   }
 });
 
-async function fetchTrustScore(address) {
-  try {
-    const response = await fetch(`${API_URL}/api/projects?address=${address}`);
-    return await response.json();
-  } catch (error) {
-    console.error('DappScore: API error', error);
-    throw error;
-  }
+async function fetchProjectByAddress(address) {
+  const res = await fetch(`${API_BASE}/projects/by-address/${address}`);
+  return res.json();
 }
 
-// Badge update based on current tab
-chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
-  if (changeInfo.status === 'complete' && tab.url) {
-    // Check if it's a supported site
-    const supportedSites = ['etherscan.io', 'basescan.org', 'dexscreener.com'];
-    const isSupportedSite = supportedSites.some(site => tab.url.includes(site));
+// ── Tab badge ───────────────────────────────────────────────────────────────
+// Show a green dot on the toolbar icon when the user is on a supported site.
 
-    if (isSupportedSite) {
-      // Set badge to indicate extension is active
-      chrome.action.setBadgeText({ tabId, text: '✓' });
-      chrome.action.setBadgeBackgroundColor({ tabId, color: '#10B981' });
-    } else {
-      chrome.action.setBadgeText({ tabId, text: '' });
-    }
+chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
+  if (changeInfo.status !== 'complete' || !tab.url) return;
+
+  const onSupportedSite = SUPPORTED_SITES.some(s => tab.url.includes(s));
+
+  if (onSupportedSite) {
+    chrome.action.setBadgeText({ tabId, text: '✓' });
+    chrome.action.setBadgeBackgroundColor({ tabId, color: '#10B981' });
+  } else {
+    chrome.action.setBadgeText({ tabId, text: '' });
   }
 });
-
-console.log('DappScore: Background service worker started');

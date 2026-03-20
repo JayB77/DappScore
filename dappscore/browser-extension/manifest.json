@@ -5,18 +5,22 @@
   "description": "See trust scores for crypto projects as you browse. Get warned before interacting with potential scams.",
   "permissions": [
     "storage",
-    "activeTab"
+    "activeTab",
+    "tabs"
   ],
   "host_permissions": [
     "https://*.dappscore.io/*",
+    "https://api.dappscore.io/*",
     "https://*.etherscan.io/*",
     "https://*.basescan.org/*",
     "https://*.dexscreener.com/*",
+    "https://api.dexscreener.com/*",
     "https://*.coingecko.com/*",
     "https://*.coinmarketcap.com/*"
   ],
   "action": {
     "default_popup": "popup.html",
+    "default_title": "DappScore Trust Checker",
     "default_icon": {
       "16": "icons/icon16.png",
       "32": "icons/icon32.png",
@@ -36,7 +40,8 @@
         "https://*.dexscreener.com/*"
       ],
       "js": ["src/content.js"],
-      "css": ["src/content.css"]
+      "css": ["src/content.css"],
+      "run_at": "document_idle"
     }
   ],
   "icons": {
