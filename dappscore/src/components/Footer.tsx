@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { Shield, Twitter, Github, MessageCircle } from 'lucide-react';
+import { Shield, Twitter, Github, MessageCircle, Chrome } from 'lucide-react';
 
 export function Footer() {
   return (
@@ -55,6 +55,12 @@ export function Footer() {
               <li>
                 <Link href="/dashboard" className="text-gray-400 hover:text-yellow-500 transition-colors">
                   Dashboard
+                </Link>
+              </li>
+              <li>
+                <Link href="/extension" className="text-gray-400 hover:text-yellow-500 transition-colors inline-flex items-center gap-1.5">
+                  <Chrome className="h-3.5 w-3.5" />
+                  Chrome Extension
                 </Link>
               </li>
             </ul>
