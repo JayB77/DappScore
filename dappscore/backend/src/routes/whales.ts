@@ -64,6 +64,9 @@ router.get('/:tokenAddress/transactions', async (req: Request, res: Response) =>
       },
     });
   } catch (error: any) {
+    if (error.message === 'Token not being tracked') {
+      return res.status(404).json({ success: false, error: 'Token not tracked' });
+    }
     console.error('[Whales API] Transactions error:', error);
     res.status(500).json({
       success: false,
@@ -94,6 +97,9 @@ router.get('/:tokenAddress/analysis', async (req: Request, res: Response) => {
       },
     });
   } catch (error: any) {
+    if (error.message === 'Token not being tracked') {
+      return res.status(404).json({ success: false, error: 'Token not tracked' });
+    }
     console.error('[Whales API] Analysis error:', error);
     res.status(500).json({
       success: false,
