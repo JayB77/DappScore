@@ -9,6 +9,7 @@
  * at 50) to limit Firebase read/write costs. That constraint no longer applies.
  */
 
+import { Resend } from 'resend';
 import { logger } from './logger';
 import { db } from '../lib/db';
 
@@ -343,9 +344,69 @@ export class AlertService {
     }
   }
 
-  private async sendEmail(_email: string, _alert: Alert): Promise<void> {
-    // TODO: integrate SendGrid / AWS SES
-    logger.info(`Email delivery not yet configured`, { alertId: _alert.id });
+  private async sendEmail(email: string, alert: Alert): Promise<void> {
+    const apiKey = process.env.RESEND_API_KEY;
+    if (!apiKey) {
+      logger.warn('RESEND_API_KEY not configured — skipping email delivery', { alertId: alert.id });
+      return;
+    }
+
+    const from = process.env.FROM_EMAIL ?? 'alerts@dappscore.io';
+    const resend = new Resend(apiKey);
+
+    const severityEmoji: Record<Alert['severity'], string> = {
+      low: '🟢', medium: '🟡', high: '🟠', critical: '🔴',
+    };
+    const typeLabel: Record<Alert['type'], string> = {
+      trust_change:      'Trust Level Change',
+      scam_flag:         'Scam Alert',
+      whale_activity:    'Whale Activity',
+      vote_threshold:    'Vote Milestone',
+      premium_expiry:    'Premium Expiry',
+      market_resolution: 'Market Resolved',
+      contract_event:    'Contract Event',
+    };
+
+    const subject = `${severityEmoji[alert.severity]} ${alert.title} — DappScore Alert`;
+    const projectLink = alert.projectId
+      ? `<p><a href="https://app.dappscore.io/projects/${alert.projectId}" style="color:#f59e0b">View project →</a></p>`
+      : '';
+
+    const html = `
+<!DOCTYPE html>
+<html>
+<body style="background:#111827;color:#f9fafb;font-family:sans-serif;padding:32px 0;margin:0">
+  <div style="max-width:520px;margin:0 auto;background:#1f2937;border-radius:12px;overflow:hidden">
+    <div style="background:#f59e0b;padding:12px 24px">
+      <span style="font-weight:700;font-size:16px;color:#000">DappScore</span>
+    </div>
+    <div style="padding:24px">
+      <p style="margin:0 0 4px;font-size:12px;color:#9ca3af;text-transform:uppercase;letter-spacing:.05em">
+        ${typeLabel[alert.type]} &nbsp;·&nbsp; ${severityEmoji[alert.severity]} ${alert.severity.toUpperCase()}
+      </p>
+      <h2 style="margin:4px 0 12px;font-size:20px;color:#f9fafb">${alert.title}</h2>
+      <p style="margin:0 0 16px;color:#d1d5db;line-height:1.5">${alert.message}</p>
+      ${projectLink}
+      <p style="font-size:11px;color:#6b7280;margin:24px 0 0">
+        ${new Date(alert.createdAt).toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short' })}
+        &nbsp;·&nbsp;
+        <a href="https://app.dappscore.io/dashboard?tab=notifications" style="color:#6b7280">Manage alerts</a>
+      </p>
+    </div>
+  </div>
+</body>
+</html>`;
+
+    try {
+      const { error } = await resend.emails.send({ from, to: email, subject, html });
+      if (error) {
+        logger.warn('Resend delivery failed', { error, alertId: alert.id });
+      } else {
+        logger.info(`Email alert sent to ${email}`, { alertId: alert.id });
+      }
+    } catch (err) {
+      logger.error('Failed to send email alert', err as Error);
+    }
   }
 
   // ── Convenience helpers ────────────────────────────────────────────────────

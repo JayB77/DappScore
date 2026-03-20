@@ -14,9 +14,11 @@ import { scamDetectionRoutes } from './routes/scam-detection';
 import whaleRoutes from './routes/whales';
 import { webhookRoutes } from './routes/webhooks';
 import apiKeyRoutes from './routes/api-keys';
+import { watchlistRoutes } from './routes/watchlist';
 
 import whaleTrackingService from './services/whale-tracking';
 import { runAndAlert } from './services/event-monitor';
+import { runWatchlistMonitor } from './services/watchlist-monitor';
 import { logger } from './services/logger';
 
 dotenv.config();
@@ -58,6 +60,7 @@ app.use('/api/v1/scam-detection', scamDetectionRoutes);
 app.use('/api/v1/whales', whaleRoutes);
 app.use('/api/v1/webhooks', webhookRoutes);
 app.use('/api/v1/api-keys', apiKeyRoutes);
+app.use('/api/v1/watchlist', watchlistRoutes);
 
 // Error handler
 app.use((err: Error, req: express.Request, res: express.Response, next: express.NextFunction) => {
@@ -72,8 +75,12 @@ app.use((err: Error, req: express.Request, res: express.Response, next: express.
 // address list should come from a DB/cache layer once that is in place;
 // for now the route GET /api/scam-detection/events handles on-demand checks.
 cron.schedule('0 * * * *', async () => {
-  logger.info('Hourly scam pattern + event monitor sweep ready');
-  // TODO: load watched contract addresses from DB, then:
+  logger.info('Hourly scam pattern + event monitor sweep');
+  // Run LP-drop checks for all watchlisted tokens
+  runWatchlistMonitor().catch(err =>
+    logger.error('Watchlist monitor error', err as Error),
+  );
+  // TODO: load watched contract addresses from DB for full event monitoring:
   //   const contracts = await db.getWatchedContracts();
   //   for (const c of contracts) {
   //     await runAndAlert(c.address, c.projectId, c.subscribedUserIds, c.pairAddress);

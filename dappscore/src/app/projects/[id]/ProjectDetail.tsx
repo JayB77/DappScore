@@ -41,6 +41,8 @@ import {
   Edit3,
   Loader2,
   Gift,
+  Bell,
+  BellOff,
 } from 'lucide-react';
 
 // Mock project data
@@ -186,6 +188,53 @@ export default function ProjectDetail() {
   const trustScore = Math.round((project.upvotes / (project.upvotes + project.downvotes)) * 100);
   const isOwner = address?.toLowerCase() === project.ownerAddress?.toLowerCase();
 
+  // Watchlist state
+  const [watching, setWatching]         = useState(false);
+  const [watchLoading, setWatchLoading] = useState(false);
+  const apiBase = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001';
+
+  useEffect(() => {
+    if (!address) return;
+    fetch(`${apiBase}/api/v1/watchlist`, { headers: { 'x-user-id': address } })
+      .then(r => r.json())
+      .then(json => {
+        if (json.success) {
+          const watched = (json.data as { project_id: string }[]).some(
+            w => w.project_id === String(project.id),
+          );
+          setWatching(watched);
+        }
+      })
+      .catch(() => {});
+  }, [address, project.id, apiBase]);
+
+  const toggleWatch = async () => {
+    if (!address || watchLoading) return;
+    setWatchLoading(true);
+    try {
+      if (watching) {
+        await fetch(`${apiBase}/api/v1/watchlist/${project.id}`, {
+          method: 'DELETE',
+          headers: { 'x-user-id': address },
+        });
+        setWatching(false);
+      } else {
+        await fetch(`${apiBase}/api/v1/watchlist`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'x-user-id': address },
+          body: JSON.stringify({
+            projectId:    String(project.id),
+            tokenAddress: project.contractAddresses?.[0] ?? null,
+            network:      project.chain?.toLowerCase().includes('base') ? 'base' : 'mainnet',
+          }),
+        });
+        setWatching(true);
+      }
+    } catch {/* ignore */} finally {
+      setWatchLoading(false);
+    }
+  };
+
   // Unified signal fetching — shared across all three signal panels
   const signals = useProjectSignals(
     project.websiteUrl,
@@ -307,6 +356,26 @@ export default function ProjectDetail() {
                 <FileText className="h-4 w-4" />
                 <span>Whitepaper</span>
               </a>
+              {isConnected && (
+                <button
+                  onClick={toggleWatch}
+                  disabled={watchLoading}
+                  className={`px-4 py-2 rounded-lg font-semibold transition-colors flex items-center space-x-2 ${
+                    watching
+                      ? 'bg-yellow-500/20 border border-yellow-500 text-yellow-400 hover:bg-yellow-500/30'
+                      : 'border border-gray-600 hover:border-yellow-500 transition-colors'
+                  }`}
+                >
+                  {watchLoading ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : watching ? (
+                    <BellOff className="h-4 w-4" />
+                  ) : (
+                    <Bell className="h-4 w-4" />
+                  )}
+                  <span>{watching ? 'Watching' : 'Watch'}</span>
+                </button>
+              )}
               {isOwner && (
                 <Link
                   href={`/projects/${project.id}/edit`}
