@@ -8,6 +8,7 @@ import {
   Zap,
   ArrowRight,
   Star,
+  Download,
 } from 'lucide-react';
 
 export const metadata = {
@@ -106,9 +107,19 @@ export default function ExtensionPage() {
             </Link>
           </div>
 
-          <p className="mt-4 text-xs text-gray-600">
-            No account required &nbsp;·&nbsp; No wallet connection needed &nbsp;·&nbsp; Open source
-          </p>
+          <div className="mt-4 flex flex-col items-center gap-2">
+            <a
+              href="/dappscore-extension-v1.0.0.crx"
+              download
+              className="inline-flex items-center gap-1.5 text-xs text-gray-500 hover:text-yellow-400 transition-colors"
+            >
+              <Download className="h-3 w-3" />
+              Download beta — drag to chrome://extensions to install
+            </a>
+            <p className="text-xs text-gray-600">
+              No account required &nbsp;·&nbsp; No wallet connection needed &nbsp;·&nbsp; Open source
+            </p>
+          </div>
         </div>
       </section>
 
@@ -253,7 +264,19 @@ export default function ExtensionPage() {
             <Chrome className="h-5 w-5" />
             Add to Chrome — free
           </a>
-          <p className="mt-6 text-sm text-gray-500">
+
+          <div className="mt-4">
+            <a
+              href="/dappscore-extension-v1.0.0.crx"
+              download
+              className="inline-flex items-center gap-1.5 text-xs text-gray-500 hover:text-yellow-400 transition-colors"
+            >
+              <Download className="h-3 w-3" />
+              Download beta — drag to chrome://extensions to install
+            </a>
+          </div>
+
+          <p className="mt-5 text-sm text-gray-500">
             Source code available on{' '}
             <a href="https://github.com/DappScore" target="_blank" rel="noopener noreferrer"
                className="text-gray-400 hover:text-yellow-500 underline underline-offset-2">
