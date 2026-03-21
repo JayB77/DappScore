@@ -10,6 +10,7 @@ import {
 } from 'lucide-react';
 
 import TokenSecurityPanel   from '@/components/TokenSecurityPanel';
+import ApprovalSecurityPanel from '@/components/ApprovalSecurityPanel';
 import HoneypotPanel        from '@/components/HoneypotPanel';
 import ContractFingerprintPanel from '@/components/ContractFingerprintPanel';
 import LiquidityLockPanel   from '@/components/LiquidityLockPanel';
@@ -441,6 +442,7 @@ export default function AnalysisPage() {
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 items-start">
             <div className="space-y-4">
               <TokenSecurityPanel contractAddresses={project.contractAddresses} />
+              <ApprovalSecurityPanel contractAddresses={project.contractAddresses} />
               <AuditBadgePanel audits={project.audits} />
             </div>
             <div className="space-y-4">

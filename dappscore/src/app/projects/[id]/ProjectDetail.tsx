@@ -20,6 +20,7 @@ import SocialProofPanel from '@/components/SocialProofPanel';
 import TokenSalePanel from '@/components/TokenSalePanel';
 import WhaleTrackerPanel from '@/components/WhaleTrackerPanel';
 import TokenSecurityPanel from '@/components/TokenSecurityPanel';
+import ApprovalSecurityPanel from '@/components/ApprovalSecurityPanel';
 import TonJettonPanel from '@/components/TonJettonPanel';
 import DisputePanel from '@/components/DisputePanel';
 import type { SaleData } from '@/types/sale';
@@ -789,6 +790,9 @@ export default function ProjectDetail() {
                 </Link>
               </div>
             </div>
+
+            {/* Approval Risk — wallet drainer / permit abuse / setApprovalForAll detection */}
+            <ApprovalSecurityPanel contractAddresses={project.contractAddresses} />
 
             {/* TON Jetton Analysis — admin address, mintability, verification */}
             <TonJettonPanel contractAddresses={project.contractAddresses} />
