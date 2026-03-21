@@ -61,7 +61,7 @@ function taxBadge(pct: number): string | null {
   return null;
 }
 
-async function fetchHoneypot(address: string, chainId: number): Promise<HoneypotData> {
+async function fetchHoneypot(address: string, chainId: string | number): Promise<HoneypotData> {
   const res = await fetch(
     `https://api.honeypot.is/v2/IsHoneypot?address=${address}&chainID=${chainId}`,
     { headers: { Accept: 'application/json' } },
@@ -74,7 +74,9 @@ async function fetchHoneypot(address: string, chainId: number): Promise<Honeypot
 
 function ContractRow({ chain, address }: ContractAddress) {
   const [state, setState] = useState<State>({ status: 'idle' });
-  const chainId = getChainConfig(chain)?.honeypotId;
+  const config   = getChainConfig(chain);
+  const isSolana = config?.family === 'solana';
+  const chainId  = isSolana ? 'solana' : config?.honeypotId;
 
   useEffect(() => {
     if (!chainId) { setState({ status: 'unsupported' }); return; }
@@ -217,7 +219,10 @@ export default function HoneypotPanel({ contractAddresses }: Props) {
   const enabled = useFeatureFlag('honeypotDetector', false);
   if (!enabled) return null;
 
-  const supported = contractAddresses.filter(({ chain }) => !!getChainConfig(chain)?.honeypotId);
+  const supported = contractAddresses.filter(({ chain }) => {
+    const cfg = getChainConfig(chain);
+    return cfg?.family === 'solana' || !!cfg?.honeypotId;
+  });
   if (supported.length === 0) return null;
 
   return (
