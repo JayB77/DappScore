@@ -4,7 +4,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import {
-  Shield, Droplets, Lock, Users, Code2, Activity, Zap,
+  Shield, Droplets, Lock, Users, Code2, Activity, Zap, Network,
   ChevronLeft, ExternalLink, Loader2, AlertTriangle, CheckCircle,
   Clock, TrendingDown, TrendingUp, ArrowUpRight, ArrowDownRight,
 } from 'lucide-react';
@@ -18,6 +18,7 @@ import TokenDistributionPanel from '@/components/TokenDistributionPanel';
 import DeployerHistoryPanel from '@/components/DeployerHistoryPanel';
 import WhaleTrackerPanel    from '@/components/WhaleTrackerPanel';
 import AuditBadgePanel      from '@/components/AuditBadgePanel';
+import WalletGraphPanel     from '@/components/WalletGraphPanel';
 
 // ── Shared mock project data (same source as ProjectDetail) ───────────────────
 // In production this would be fetched by ID from the API / subgraph.
@@ -39,6 +40,7 @@ const SECTIONS = [
   { id: 'locks',     label: 'LP Locks',    icon: Lock      },
   { id: 'holders',   label: 'Holders',     icon: Users     },
   { id: 'deployer',  label: 'Deployer',    icon: Code2     },
+  { id: 'graph',     label: 'Wallet Graph',icon: Network   },
   { id: 'whales',    label: 'Whales',      icon: Activity  },
   { id: 'events',    label: 'Events',      icon: Zap       },
 ] as const;
@@ -654,6 +656,16 @@ export default function AnalysisPage() {
               <ExternalLink className="h-3.5 w-3.5" />
             </Link>
           </div>
+        </section>
+
+        {/* ── Wallet Graph ──────────────────────────────────────────────── */}
+        <section id="graph" className="scroll-mt-28">
+          <SectionHeader
+            icon={Network}
+            title="Wallet Relationship Graph"
+            subtitle="Force-directed network of deployer → insider wallets → exchange flows, built from early on-chain transfers"
+          />
+          <WalletGraphPanel contractAddresses={project.contractAddresses} />
         </section>
 
         {/* ── Whales ────────────────────────────────────────────────────── */}
