@@ -20,6 +20,7 @@ import SocialProofPanel from '@/components/SocialProofPanel';
 import TokenSalePanel from '@/components/TokenSalePanel';
 import WhaleTrackerPanel from '@/components/WhaleTrackerPanel';
 import TokenSecurityPanel from '@/components/TokenSecurityPanel';
+import DisputePanel from '@/components/DisputePanel';
 import type { SaleData } from '@/types/sale';
 import { useProjectSignals } from '@/lib/useProjectSignals';
 import { useFeatureFlag } from '@/lib/featureFlags';
@@ -882,6 +883,12 @@ export default function ProjectDetail() {
                 </Link>
               </div>
             </div>
+
+            {/* Dispute & Appeals */}
+            <DisputePanel
+              projectId={String(project.id)}
+              trustLevel={project.trustLevel}
+            />
 
             {/* Report Button */}
             <button className="w-full py-3 border border-red-500/50 text-red-400 rounded-lg hover:bg-red-500/10 flex items-center justify-center space-x-2">
