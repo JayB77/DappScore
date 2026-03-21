@@ -3,9 +3,10 @@
 import { useEffect, useState } from 'react';
 import {
   Lock, Unlock, Clock, Loader2,
-  HelpCircle, Flame,
+  HelpCircle, Flame, AlertTriangle, ExternalLink, ShieldCheck,
 } from 'lucide-react';
 import { useFeatureFlag } from '@/lib/featureFlags';
+import { getExplorerUrl } from '@/lib/chainAdapters';
 
 // ── Chain ID map (GoPlus uses numeric EVM chain IDs) ─────────────────────────
 
@@ -38,6 +39,31 @@ const DEAD_ADDRESSES = new Set([
   '0x0000000000000000000000000000000000000000',
 ]);
 
+// Known locker platforms → homepage/locker page URL for one-click verification
+const PLATFORM_URLS: Record<string, string> = {
+  'pinklock':       'https://www.pinksale.finance/pinklock',
+  'pinksale':       'https://www.pinksale.finance/pinklock',
+  'pink':           'https://www.pinksale.finance/pinklock',
+  'uncx':           'https://app.uncx.network/',
+  'unicrypt':       'https://app.uncx.network/',
+  'univ3':          'https://app.uncx.network/',
+  'team.finance':   'https://team.finance/',
+  'teamfinance':    'https://team.finance/',
+  'team finance':   'https://team.finance/',
+  'mudra':          'https://mudra.website/',
+  'dxsale':         'https://www.dxsale.io/',
+  'dxlock':         'https://www.dxsale.io/',
+  'flokifi':        'https://locker.floki.com/',
+  'floki':          'https://locker.floki.com/',
+  'gempad':         'https://gempad.app/',
+  'covalent':       'https://www.covalenthq.com/',
+  'liquidity guard':'https://liquidityguard.io/',
+};
+
+function platformUrl(tag: string): string | null {
+  return PLATFORM_URLS[tag.toLowerCase()] ?? null;
+}
+
 // ── Types ─────────────────────────────────────────────────────────────────────
 
 interface LpHolder {
@@ -55,20 +81,45 @@ interface LpHolder {
 
 interface UnlockedHolder {
   address: string;
-  tag: string;        // GoPlus-provided label, if any
-  pct: number;        // 0–100: percentage of total LP supply held
+  tag: string;
+  pct: number;
   isContract: boolean;
 }
 
+export type ExpiryRisk =
+  | 'expired'    // end_time < now
+  | 'critical'   // ≤ 7 days
+  | 'warning'    // ≤ 30 days
+  | 'caution'    // ≤ 90 days
+  | 'safe'       // > 90 days
+  | 'burned'     // dead address
+  | 'unknown';   // no end_time
+
+interface SubLock {
+  amount: string;   // token amount (raw)
+  expiresAt: number; // unix seconds
+}
+
+interface LockEntry {
+  platform: string;         // e.g. "PinkLock"
+  address: string;          // locker contract address (for explorer link)
+  pct: number;              // % of LP in this entry
+  subLocks: SubLock[];      // individual lock instances from locked_detail
+  earliestExpiry: number | null;
+  expiryRisk: ExpiryRisk;
+  burned: boolean;
+}
+
 interface LockSummary {
-  lockedPct: number;       // 0–100
-  burnedPct: number;       // 0–100
-  platforms: string[];     // e.g. ["PinkLock", "Uncx"]
-  earliestUnlock: number | null;   // unix seconds; null = no dated locks
+  lockedPct: number;
+  burnedPct: number;
+  lockEntries: LockEntry[];
+  /** Sum of LP % held in expired or near-expiry (≤30d) locks — for the warning banner. */
+  nearExpiryPct: number;
+  /** Days until the soonest upcoming non-burned lock expiry (null = none). */
+  nearestExpiryDays: number | null;
   lpHolderCount: number;
-  /** Unlocked LP holders that each control >2% of LP supply. */
   unlockedHolders: UnlockedHolder[];
-  /** Uniswap V2/V3 pair addresses for the token (from GoPlus dex field). */
   pairAddresses: string[];
 }
 
@@ -82,6 +133,42 @@ type State =
 interface ContractAddress { chain: string; address: string }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
+
+function classifyExpiry(ts: number | null, burned: boolean): ExpiryRisk {
+  if (burned) return 'burned';
+  if (ts === null) return 'unknown';
+  const daysLeft = (ts * 1000 - Date.now()) / 86_400_000;
+  if (daysLeft <= 0)  return 'expired';
+  if (daysLeft <= 7)  return 'critical';
+  if (daysLeft <= 30) return 'warning';
+  if (daysLeft <= 90) return 'caution';
+  return 'safe';
+}
+
+const EXPIRY_RISK_STYLES: Record<ExpiryRisk, {
+  badge: string; text: string; icon: string;
+}> = {
+  expired:  { badge: 'bg-red-500/20 text-red-400',        text: 'text-red-400',     icon: 'text-red-400' },
+  critical: { badge: 'bg-red-500/20 text-red-400',        text: 'text-red-400',     icon: 'text-red-400' },
+  warning:  { badge: 'bg-orange-500/20 text-orange-400',  text: 'text-orange-400',  icon: 'text-orange-400' },
+  caution:  { badge: 'bg-yellow-500/20 text-yellow-400',  text: 'text-yellow-400',  icon: 'text-yellow-400' },
+  safe:     { badge: 'bg-green-500/20 text-green-400',    text: 'text-green-400',   icon: 'text-green-400' },
+  burned:   { badge: 'bg-orange-500/20 text-orange-400',  text: 'text-orange-400',  icon: 'text-orange-400' },
+  unknown:  { badge: 'bg-gray-700 text-gray-400',         text: 'text-gray-500',    icon: 'text-gray-500' },
+};
+
+function expiryBadgeLabel(risk: ExpiryRisk, ts: number | null): string {
+  if (risk === 'burned')  return 'PERMANENT';
+  if (risk === 'unknown') return 'NO EXPIRY';
+  if (risk === 'expired') return 'EXPIRED';
+  if (ts === null) return '?';
+  const daysLeft = Math.ceil((ts * 1000 - Date.now()) / 86_400_000);
+  if (daysLeft < 30)  return `${daysLeft}d`;
+  if (daysLeft < 365) return `${Math.floor(daysLeft / 30)}mo`;
+  const yrs = Math.floor(daysLeft / 365);
+  const mos = Math.floor((daysLeft % 365) / 30);
+  return mos > 0 ? `${yrs}yr ${mos}mo` : `${yrs}yr`;
+}
 
 function pctColor(pct: number): string {
   if (pct >= 80) return 'text-green-400';
@@ -102,16 +189,6 @@ function fmtDate(ts: number): string {
   return new Date(ts * 1000).toLocaleDateString('en-US', {
     year: 'numeric', month: 'short', day: 'numeric',
   });
-}
-
-function fmtUnlockCountdown(ts: number): string {
-  const daysLeft = Math.ceil((ts * 1000 - Date.now()) / 86_400_000);
-  if (daysLeft <= 0) return 'expired';
-  if (daysLeft < 30)  return `${daysLeft}d`;
-  if (daysLeft < 365) return `${Math.floor(daysLeft / 30)}mo`;
-  const yrs = Math.floor(daysLeft / 365);
-  const mos = Math.floor((daysLeft % 365) / 30);
-  return mos > 0 ? `${yrs}yr ${mos}mo` : `${yrs}yr`;
 }
 
 // ── Fetcher ───────────────────────────────────────────────────────────────────
@@ -136,8 +213,9 @@ async function fetchLockSummary(chainId: number, address: string): Promise<LockS
 
   let lockedPct = 0;
   let burnedPct = 0;
-  const platforms: string[] = [];
-  let earliestUnlock: number | null = null;
+  let nearExpiryPct = 0;
+  let nearestExpiryDays: number | null = null;
+  const lockEntries: LockEntry[] = [];
   const unlockedHolders: UnlockedHolder[] = [];
 
   for (const h of holders) {
@@ -146,20 +224,57 @@ async function fetchLockSummary(chainId: number, address: string): Promise<LockS
 
     if (isDead) {
       burnedPct += pct;
-      lockedPct += pct;   // burned = permanently locked
+      lockedPct += pct;
+      lockEntries.push({
+        platform:       'Burned',
+        address:        h.address,
+        pct,
+        subLocks:       [],
+        earliestExpiry: null,
+        expiryRisk:     'burned',
+        burned:         true,
+      });
     } else if (h.is_locked === 1) {
       lockedPct += pct;
-      if (h.tag && !platforms.includes(h.tag)) platforms.push(h.tag);
 
-      // Find earliest unlock date across all lock details
-      for (const detail of h.locked_detail ?? []) {
-        const endTs = parseInt(detail.end_time, 10);
-        if (endTs > 0 && (earliestUnlock === null || endTs < earliestUnlock)) {
-          earliestUnlock = endTs;
+      // Build sub-locks from locked_detail
+      const subLocks: SubLock[] = (h.locked_detail ?? [])
+        .map(d => ({ amount: d.amount, expiresAt: parseInt(d.end_time, 10) }))
+        .filter(s => s.expiresAt > 0);
+
+      // Earliest expiry for this locker entry
+      let earliestExpiry: number | null = null;
+      for (const s of subLocks) {
+        if (earliestExpiry === null || s.expiresAt < earliestExpiry) {
+          earliestExpiry = s.expiresAt;
         }
       }
+
+      const risk = classifyExpiry(earliestExpiry, false);
+
+      // Accumulate near-expiry stats (expired or ≤30d)
+      if (risk === 'expired' || risk === 'critical' || risk === 'warning') {
+        nearExpiryPct += pct;
+      }
+
+      // Track nearest upcoming expiry (future locks only)
+      if (earliestExpiry !== null && earliestExpiry * 1000 > Date.now()) {
+        const daysLeft = Math.ceil((earliestExpiry * 1000 - Date.now()) / 86_400_000);
+        if (nearestExpiryDays === null || daysLeft < nearestExpiryDays) {
+          nearestExpiryDays = daysLeft;
+        }
+      }
+
+      lockEntries.push({
+        platform:   h.tag || 'Unknown',
+        address:    h.address,
+        pct,
+        subLocks,
+        earliestExpiry,
+        expiryRisk: risk,
+        burned:     false,
+      });
     } else {
-      // Unlocked, non-dead holder — flag those with meaningful holdings (>2%)
       if (pct >= 2) {
         unlockedHolders.push({
           address:    h.address,
@@ -171,26 +286,142 @@ async function fetchLockSummary(chainId: number, address: string): Promise<LockS
     }
   }
 
-  // Sort unlocked holders by size descending
   unlockedHolders.sort((a, b) => b.pct - a.pct);
+
+  // Sort lock entries: worst risk first (expired → critical → warning → ...), then by pct
+  const riskOrder: Record<ExpiryRisk, number> = {
+    expired: 0, critical: 1, warning: 2, caution: 3, safe: 4, unknown: 5, burned: 6,
+  };
+  lockEntries.sort((a, b) => {
+    const rd = riskOrder[a.expiryRisk] - riskOrder[b.expiryRisk];
+    return rd !== 0 ? rd : b.pct - a.pct;
+  });
 
   // Extract pair addresses from GoPlus dex field
   const dexList = Array.isArray(token.dex)
-    ? (token.dex as Array<{ pair?: string; name?: string }>)
+    ? (token.dex as Array<{ pair?: string }>)
     : [];
-  const pairAddresses = dexList
-    .map(d => d.pair ?? '')
-    .filter(Boolean);
+  const pairAddresses = dexList.map(d => d.pair ?? '').filter(Boolean);
 
   return {
-    lockedPct:      Math.min(lockedPct, 100),
-    burnedPct:      Math.min(burnedPct, 100),
-    platforms,
-    earliestUnlock,
+    lockedPct:        Math.min(lockedPct, 100),
+    burnedPct:        Math.min(burnedPct, 100),
+    lockEntries,
+    nearExpiryPct:    Math.min(nearExpiryPct, 100),
+    nearestExpiryDays,
     lpHolderCount,
     unlockedHolders,
     pairAddresses,
   };
+}
+
+// ── Lock entry row ────────────────────────────────────────────────────────────
+
+function LockEntryRow({
+  entry,
+  chain,
+  expanded,
+}: {
+  entry: LockEntry;
+  chain: string;
+  expanded: boolean;
+}) {
+  const [showSubs, setShowSubs] = useState(false);
+  const s = EXPIRY_RISK_STYLES[entry.expiryRisk];
+  const badgeLabel = expiryBadgeLabel(entry.expiryRisk, entry.earliestExpiry);
+  const explorerUrl = getExplorerUrl(chain, entry.address);
+  const pUrl = entry.burned ? null : platformUrl(entry.platform);
+
+  // Sub-locks to show (skip if only one — the summary row already conveys it)
+  const hasMultiSubs = entry.subLocks.length > 1 && !entry.burned;
+
+  return (
+    <div>
+      <div className="flex items-center gap-2 py-1">
+        {/* Icon */}
+        {entry.burned
+          ? <Flame className="h-3.5 w-3.5 text-orange-400 flex-shrink-0" />
+          : entry.expiryRisk === 'expired' || entry.expiryRisk === 'critical'
+            ? <Unlock className="h-3.5 w-3.5 text-red-400 flex-shrink-0" />
+            : <Lock className={`h-3.5 w-3.5 flex-shrink-0 ${s.icon}`} />
+        }
+
+        {/* Platform name */}
+        <div className="flex items-center gap-1 flex-1 min-w-0">
+          {pUrl ? (
+            <a
+              href={pUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-sm text-gray-200 hover:text-white font-medium flex items-center gap-0.5 truncate transition-colors"
+            >
+              {entry.platform}
+              <ExternalLink className="h-2.5 w-2.5 opacity-50 flex-shrink-0" />
+            </a>
+          ) : (
+            <span className="text-sm text-gray-300 font-medium truncate">{entry.platform}</span>
+          )}
+          {explorerUrl && !entry.burned && (
+            <a
+              href={explorerUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-gray-600 hover:text-gray-400 transition-colors flex-shrink-0"
+              title="View locker contract on explorer"
+            >
+              <ExternalLink className="h-2.5 w-2.5" />
+            </a>
+          )}
+        </div>
+
+        {/* LP % */}
+        <span className={`text-sm font-semibold flex-shrink-0 ${s.text}`}>
+          {entry.pct.toFixed(1)}%
+        </span>
+
+        {/* Expiry badge */}
+        <span className={`text-xs px-1.5 py-0.5 rounded font-semibold flex-shrink-0 ${s.badge}`}>
+          {badgeLabel}
+        </span>
+
+        {/* Toggle sub-locks */}
+        {hasMultiSubs && (expanded || entry.expiryRisk !== 'safe') && (
+          <button
+            onClick={() => setShowSubs(v => !v)}
+            className="text-xs text-gray-600 hover:text-gray-400 flex-shrink-0"
+          >
+            {showSubs ? '▲' : `▼${entry.subLocks.length}`}
+          </button>
+        )}
+      </div>
+
+      {/* Sub-lock detail */}
+      {showSubs && hasMultiSubs && (
+        <div className="ml-5 mt-0.5 space-y-0.5 border-l border-gray-700 pl-2">
+          {entry.subLocks
+            .slice()
+            .sort((a, b) => a.expiresAt - b.expiresAt)
+            .map((s, i) => {
+              const sr = classifyExpiry(s.expiresAt, false);
+              const ss = EXPIRY_RISK_STYLES[sr];
+              return (
+                <div key={i} className="flex items-center justify-between gap-2 text-xs">
+                  <span className="text-gray-500">
+                    {s.expiresAt * 1000 < Date.now()
+                      ? 'Expired ' + fmtDate(s.expiresAt)
+                      : 'Unlocks ' + fmtDate(s.expiresAt)
+                    }
+                  </span>
+                  <span className={`px-1 py-0.5 rounded text-xs font-semibold ${ss.badge}`}>
+                    {expiryBadgeLabel(sr, s.expiresAt)}
+                  </span>
+                </div>
+              );
+            })}
+        </div>
+      )}
+    </div>
+  );
 }
 
 // ── Single contract row ───────────────────────────────────────────────────────
@@ -218,28 +449,59 @@ function ContractRow({ chain, address, expanded = false }: ContractAddress & { e
           <span>Checking LP locks…</span>
         </div>
       )}
-
       {state.status === 'unsupported' && (
         <div className="flex items-center space-x-1.5 text-gray-500 text-xs">
           <HelpCircle className="h-3.5 w-3.5" />
           <span>Chain not supported</span>
         </div>
       )}
-
       {state.status === 'error' && (
         <span className="text-xs text-gray-500">Lock data unavailable</span>
       )}
 
       {state.status === 'ok' && (() => {
         const { summary } = state;
-        const { lockedPct, burnedPct, platforms, earliestUnlock, lpHolderCount } = summary;
+        const {
+          lockedPct, burnedPct, lockEntries, nearExpiryPct,
+          nearestExpiryDays, lpHolderCount,
+        } = summary;
         const { label, flag } = lockLabel(lockedPct);
         const nonBurnedLocked = lockedPct - burnedPct;
-        const isExpired = earliestUnlock !== null && earliestUnlock * 1000 < Date.now();
+
+        // Effective locked% if we discount near-expiry locks (for context)
+        const effectivePct = Math.max(0, lockedPct - nearExpiryPct);
+
+        // Near-expiry warning: only show if nearExpiryPct is meaningful (>5%)
+        const showNearExpiryWarning = nearExpiryPct >= 5;
 
         return (
           <div className="space-y-2">
-            {/* Primary verdict */}
+            {/* ── Near-expiry warning banner ───────────────────────────── */}
+            {showNearExpiryWarning && (
+              <div className={`flex items-start gap-1.5 rounded px-2 py-1.5 text-xs border ${
+                nearestExpiryDays !== null && nearestExpiryDays <= 7
+                  ? 'bg-red-500/10 border-red-500/30 text-red-400'
+                  : 'bg-orange-500/10 border-orange-500/30 text-orange-400'
+              }`}>
+                <AlertTriangle className="h-3.5 w-3.5 flex-shrink-0 mt-0.5" />
+                <span>
+                  <strong>{nearExpiryPct.toFixed(1)}% of LP</strong>{' '}
+                  {nearestExpiryDays !== null && nearestExpiryDays <= 0
+                    ? 'lock has expired — LP may be withdrawable'
+                    : nearestExpiryDays !== null
+                      ? `unlocks in ${nearestExpiryDays}d — nearly as bad as no lock`
+                      : 'lock is expired or expiring soon'
+                  }
+                  {effectivePct < 50 && lockedPct >= 50 && (
+                    <span className="block mt-0.5 text-gray-400">
+                      Effective locked % after expiry: <strong className="text-orange-400">{effectivePct.toFixed(1)}%</strong>
+                    </span>
+                  )}
+                </span>
+              </div>
+            )}
+
+            {/* ── Primary verdict ──────────────────────────────────────── */}
             <div className="flex items-center justify-between">
               <div className="flex items-center space-x-2">
                 {lockedPct >= 50
@@ -261,53 +523,45 @@ function ContractRow({ chain, address, expanded = false }: ContractAddress & { e
               )}
             </div>
 
-            {/* Label */}
             <p className={`text-xs ${pctColor(lockedPct)}`}>{label}</p>
 
-            {/* Breakdown */}
-            {(burnedPct > 0 || nonBurnedLocked > 0) && (
-              <div className="space-y-1 pl-1 border-l border-gray-700">
-                {burnedPct > 0 && (
-                  <div className="flex items-center space-x-1.5 text-xs">
-                    <Flame className="h-3 w-3 text-orange-400 flex-shrink-0" />
-                    <span className="text-gray-300">{burnedPct.toFixed(1)}% burned (permanent)</span>
-                  </div>
-                )}
-                {nonBurnedLocked > 0 && (
-                  <div className="flex items-center space-x-1.5 text-xs">
-                    <Lock className="h-3 w-3 text-green-400 flex-shrink-0" />
-                    <span className="text-gray-300">
-                      {nonBurnedLocked.toFixed(1)}% in locker contract
-                      {platforms.length > 0 && (
-                        <span className="text-gray-500"> ({platforms.join(', ')})</span>
-                      )}
-                    </span>
+            {/* ── Per-lock breakdown ───────────────────────────────────── */}
+            {lockEntries.length === 0 ? (
+              nonBurnedLocked === 0 && burnedPct === 0 ? null : null
+            ) : (
+              <div className="mt-1 space-y-0">
+                <p className="text-xs text-gray-500 mb-1 uppercase tracking-wide font-semibold">
+                  Lock detail
+                </p>
+                <div className="border-l border-gray-700 pl-2 space-y-0.5">
+                  {lockEntries.map((entry, i) => (
+                    <LockEntryRow
+                      key={`${entry.address}-${i}`}
+                      entry={entry}
+                      chain={chain}
+                      expanded={expanded}
+                    />
+                  ))}
+                </div>
+
+                {/* Verification nudge for safe locks */}
+                {lockEntries.some(e => !e.burned && e.expiryRisk === 'safe') && (
+                  <div className="flex items-center gap-1 text-xs text-gray-600 mt-1">
+                    <ShieldCheck className="h-3 w-3" />
+                    <span>Click platform name to verify lock on-chain</span>
                   </div>
                 )}
               </div>
             )}
 
-            {/* Unlock date */}
-            {earliestUnlock !== null && nonBurnedLocked > 0 && (
-              <div suppressHydrationWarning className={`flex items-center space-x-1.5 text-xs ${isExpired ? 'text-red-400' : 'text-gray-400'}`}>
-                <Clock className="h-3 w-3 flex-shrink-0" />
-                {isExpired ? (
-                  <span>Lock expired {fmtDate(earliestUnlock)} — <span className="font-medium text-red-400">LP may be withdrawable</span></span>
-                ) : (
-                  <span>
-                    Unlocks {fmtDate(earliestUnlock)}
-                    <span className="text-gray-500 ml-1">({fmtUnlockCountdown(earliestUnlock)} remaining)</span>
-                  </span>
-                )}
-              </div>
-            )}
-
-            {/* LP holder count context */}
+            {/* ── LP holder count ──────────────────────────────────────── */}
             {lpHolderCount > 0 && (
-              <p className="text-xs text-gray-600">{lpHolderCount} LP holder{lpHolderCount !== 1 ? 's' : ''} total</p>
+              <p className="text-xs text-gray-600">
+                {lpHolderCount} LP holder{lpHolderCount !== 1 ? 's' : ''} total
+              </p>
             )}
 
-            {/* Unlocked LP holder risk — wallets holding >2% LP with no lock */}
+            {/* ── Unlocked LP holder risk ──────────────────────────────── */}
             {summary.unlockedHolders.length > 0 && (
               <div className="mt-1 space-y-1">
                 <div className="flex items-center space-x-1.5 text-xs font-semibold text-orange-400">
@@ -315,7 +569,10 @@ function ContractRow({ chain, address, expanded = false }: ContractAddress & { e
                   <span>Unlocked LP — rug-pull risk</span>
                 </div>
                 <div className="space-y-1 pl-1 border-l border-orange-500/30">
-                  {(expanded ? summary.unlockedHolders : summary.unlockedHolders.slice(0, 4)).map((h) => (
+                  {(expanded
+                    ? summary.unlockedHolders
+                    : summary.unlockedHolders.slice(0, 4)
+                  ).map((h) => (
                     <div key={h.address} className="flex items-center justify-between gap-2 text-xs">
                       <span className="font-mono text-gray-400 truncate">
                         {h.tag || `${h.address.slice(0, 6)}…${h.address.slice(-4)}`}
@@ -329,7 +586,9 @@ function ContractRow({ chain, address, expanded = false }: ContractAddress & { e
                     </div>
                   ))}
                   {!expanded && summary.unlockedHolders.length > 4 && (
-                    <p className="text-gray-600">+{summary.unlockedHolders.length - 4} more unlocked holders — see Full Analysis</p>
+                    <p className="text-gray-600">
+                      +{summary.unlockedHolders.length - 4} more unlocked holders — see Full Analysis
+                    </p>
                   )}
                 </div>
               </div>
@@ -345,7 +604,6 @@ function ContractRow({ chain, address, expanded = false }: ContractAddress & { e
 
 interface Props {
   contractAddresses: ContractAddress[];
-  /** When true, render all unlocked LP holders instead of top 4. Used by the analysis page. */
   expanded?: boolean;
 }
 
@@ -372,7 +630,7 @@ export default function LiquidityLockPanel({ contractAddresses, expanded = false
       </div>
 
       <p className="text-xs text-gray-600 mt-4">
-        LP lock data via GoPlus Security · No API key required
+        LP lock data via GoPlus Security · Verify locks on Unicrypt / PinkLock / Team.Finance directly
       </p>
     </div>
   );
