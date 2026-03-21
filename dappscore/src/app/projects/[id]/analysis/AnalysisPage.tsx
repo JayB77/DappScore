@@ -248,12 +248,27 @@ const EVENT_ICON: Record<string, React.ElementType> = {
   'liquidity-removed':     ArrowDownRight,
 };
 
+// ── Live proxy-upgrade event pushed over WebSocket ────────────────────────────
+
+interface LiveUpgradeEvent extends ContractEvent {
+  live: true;
+  detectedAt: string; // ISO timestamp
+}
+
+type WsStatus = 'connecting' | 'connected' | 'disconnected';
+
 function EventsSection({ contractAddresses }: { contractAddresses: { chain: string; address: string }[] }) {
-  const [results, setResults] = useState<EventsResult[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [results, setResults]         = useState<EventsResult[]>([]);
+  const [loading, setLoading]         = useState(true);
+  const [liveEvents, setLiveEvents]   = useState<LiveUpgradeEvent[]>([]);
+  const [wsStatus, setWsStatus]       = useState<WsStatus>('connecting');
+  const wsRef                         = useRef<WebSocket | null>(null);
+  const reconnectTimer                = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const BACKEND = process.env.NEXT_PUBLIC_BACKEND_URL ?? 'http://localhost:3001';
+  const BACKEND    = process.env.NEXT_PUBLIC_BACKEND_URL ?? 'http://localhost:3001';
+  const WS_BACKEND = BACKEND.replace(/^http/, 'ws');
 
+  // ── Historical fetch ──────────────────────────────────────────────────────
   useEffect(() => {
     const evmContracts = contractAddresses.filter(c => c.address.startsWith('0x'));
     if (evmContracts.length === 0) { setLoading(false); return; }
@@ -270,6 +285,84 @@ function EventsSection({ contractAddresses }: { contractAddresses: { chain: stri
     });
   }, [contractAddresses, BACKEND]);
 
+  // ── Real-time WebSocket subscription ─────────────────────────────────────
+  useEffect(() => {
+    const watchedAddresses = new Set(
+      contractAddresses.map(c => c.address.toLowerCase()),
+    );
+
+    let cancelled = false;
+
+    function connect() {
+      if (cancelled) return;
+      setWsStatus('connecting');
+      const ws = new WebSocket(`${WS_BACKEND}/ws`);
+      wsRef.current = ws;
+
+      ws.onopen = () => {
+        if (!cancelled) setWsStatus('connected');
+      };
+
+      ws.onmessage = (msg: MessageEvent<string>) => {
+        try {
+          const data = JSON.parse(msg.data) as {
+            type: string;
+            event?: {
+              contractAddress:   string;
+              newImplementation: string;
+              transactionHash:   string;
+              blockNumber:       string;
+              detectedAt:        string;
+            };
+          };
+
+          if (
+            data.type === 'proxy_upgrade' &&
+            data.event &&
+            watchedAddresses.has(data.event.contractAddress.toLowerCase())
+          ) {
+            const evt: LiveUpgradeEvent = {
+              live:            true,
+              type:            'proxy-upgraded',
+              severity:        'critical',
+              contractAddress: data.event.contractAddress,
+              transactionHash: data.event.transactionHash,
+              blockNumber:     data.event.blockNumber,
+              description:
+                `Contract upgraded to implementation ${data.event.newImplementation}` +
+                ` — all contract logic may have changed`,
+              detectedAt: data.event.detectedAt,
+            };
+            setLiveEvents(prev => [evt, ...prev]);
+          }
+        } catch {
+          // malformed message — ignore
+        }
+      };
+
+      ws.onclose = () => {
+        if (!cancelled) {
+          setWsStatus('disconnected');
+          // Reconnect after 5 s
+          reconnectTimer.current = setTimeout(connect, 5_000);
+        }
+      };
+
+      ws.onerror = () => {
+        ws.close(); // triggers onclose → reconnect
+      };
+    }
+
+    connect();
+
+    return () => {
+      cancelled = true;
+      if (reconnectTimer.current) clearTimeout(reconnectTimer.current);
+      wsRef.current?.close();
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [contractAddresses, WS_BACKEND]);
+
   if (loading) return (
     <div className="flex items-center space-x-2 text-gray-500 py-6">
       <Loader2 className="h-4 w-4 animate-spin" />
@@ -277,12 +370,12 @@ function EventsSection({ contractAddresses }: { contractAddresses: { chain: stri
     </div>
   );
 
-  const allEvents = results.flatMap(r => r.events);
-  const sorted = [...allEvents].sort((a, b) =>
+  const historicalEvents = results.flatMap(r => r.events);
+  const sorted = [...historicalEvents].sort((a, b) =>
     BigInt(b.blockNumber) > BigInt(a.blockNumber) ? 1 : -1
   );
 
-  if (sorted.length === 0) return (
+  if (sorted.length === 0 && liveEvents.length === 0) return (
     <div className="bg-gray-800 rounded-xl p-6 text-center">
       <CheckCircle className="h-8 w-8 text-green-400 mx-auto mb-2" />
       <p className="text-sm text-gray-400">No significant contract events in the last 7 days</p>
@@ -302,8 +395,47 @@ function EventsSection({ contractAddresses }: { contractAddresses: { chain: stri
         </div>
       ))}
 
-      {/* Event timeline */}
+      {/* Event timeline — live events pinned at top, then historical */}
       <div className="space-y-2">
+        {/* Live proxy upgrade events from WebSocket */}
+        {liveEvents.map((e, i) => {
+          const colors = SEVERITY_COLOR.critical;
+          const explorerTx = `https://basescan.org/tx/${e.transactionHash}`;
+          return (
+            <div key={`live-${e.transactionHash}-${i}`}
+              className={`rounded-xl border p-4 ${colors} ring-1 ring-red-500/40`}>
+              <div className="flex items-start gap-3">
+                <AlertTriangle className="h-4 w-4 flex-shrink-0 mt-0.5 animate-pulse" />
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center justify-between gap-2 flex-wrap">
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm font-semibold">Proxy Upgraded</span>
+                      <span className="flex items-center gap-1 text-xs px-1.5 py-0.5 bg-red-500/30 text-red-300 rounded-full font-bold">
+                        <span className="h-1.5 w-1.5 rounded-full bg-red-400 animate-pulse inline-block" />
+                        LIVE
+                      </span>
+                    </div>
+                    <span className={`text-xs px-2 py-0.5 rounded-full font-medium uppercase border ${colors}`}>
+                      critical
+                    </span>
+                  </div>
+                  <p className="text-xs opacity-80 mt-1">{e.description}</p>
+                  <div className="flex items-center gap-3 mt-2 text-xs opacity-60">
+                    <span>Detected just now</span>
+                    {e.transactionHash && (
+                      <a href={explorerTx} target="_blank" rel="noopener noreferrer"
+                        className="flex items-center gap-0.5 hover:opacity-100 transition-opacity">
+                        {e.transactionHash.slice(0, 10)}… <ExternalLink className="h-2.5 w-2.5" />
+                      </a>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+          );
+        })}
+
+        {/* Historical events */}
         {sorted.map((e, i) => {
           const Icon = EVENT_ICON[e.type] ?? Clock;
           const colors = SEVERITY_COLOR[e.severity] ?? SEVERITY_COLOR.info;
@@ -337,9 +469,25 @@ function EventsSection({ contractAddresses }: { contractAddresses: { chain: stri
           );
         })}
       </div>
-      <p className="text-xs text-gray-600 pt-1">
-        Monitoring: OwnershipTransferred · Upgraded (EIP-1967) · Uniswap V2 Mint/Burn · last ~7 days (~50 400 blocks)
-      </p>
+
+      {/* Footer: monitoring scope + live connection status */}
+      <div className="flex items-center justify-between pt-1">
+        <p className="text-xs text-gray-600">
+          Monitoring: OwnershipTransferred · Upgraded (EIP-1967) · Uniswap V2 Mint/Burn · last ~7 days (~50 400 blocks)
+        </p>
+        <div className="flex items-center gap-1.5 shrink-0">
+          <span className={`h-1.5 w-1.5 rounded-full ${
+            wsStatus === 'connected'    ? 'bg-green-400 animate-pulse' :
+            wsStatus === 'connecting'   ? 'bg-yellow-400 animate-pulse' :
+                                          'bg-gray-600'
+          }`} />
+          <span className="text-xs text-gray-600">
+            {wsStatus === 'connected'  ? 'Live'         :
+             wsStatus === 'connecting' ? 'Connecting…'  :
+                                         'Reconnecting…'}
+          </span>
+        </div>
+      </div>
     </div>
   );
 }
