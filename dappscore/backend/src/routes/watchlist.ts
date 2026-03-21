@@ -10,6 +10,7 @@
 import { Router, Request, Response } from 'express';
 import { db } from '../lib/db';
 import { logger } from '../services/logger';
+import { proxyUpgradeWatcher } from '../services/proxy-upgrade-watcher';
 
 const router = Router();
 
@@ -71,6 +72,14 @@ router.post('/', async (req: Request, res: Response) => {
       [userId, projectId, tokenAddress ?? null, network],
     );
 
+    // Start real-time proxy upgrade monitoring for this contract if an address was given
+    if (tokenAddress) {
+      proxyUpgradeWatcher.watch(
+        tokenAddress,
+        (network === 'testnet' ? 'testnet' : 'mainnet') as 'mainnet' | 'testnet',
+      );
+    }
+
     logger.info(`User ${userId} watching project ${projectId}`);
     res.status(201).json({ success: true, data: rows[0] });
   } catch (err: any) {
@@ -87,6 +96,12 @@ router.delete('/:projectId', async (req: Request, res: Response) => {
   const { projectId } = req.params;
 
   try {
+    // Fetch token address + network before deleting so we can unwatch if needed
+    const { rows: beforeRows } = await db.query<{ token_address: string | null; network: string }>(
+      `SELECT token_address, network FROM user_watchlist WHERE user_id = $1 AND project_id = $2`,
+      [userId, projectId],
+    );
+
     const { rowCount } = await db.query(
       `DELETE FROM user_watchlist WHERE user_id = $1 AND project_id = $2`,
       [userId, projectId],
@@ -94,6 +109,19 @@ router.delete('/:projectId', async (req: Request, res: Response) => {
 
     if ((rowCount ?? 0) === 0) {
       return res.status(404).json({ success: false, error: 'Not in watchlist' });
+    }
+
+    // Stop real-time proxy upgrade monitoring if no other users watch this address
+    const tokenAddress = beforeRows[0]?.token_address;
+    if (tokenAddress) {
+      const { rows: remaining } = await db.query<{ count: string }>(
+        `SELECT COUNT(*) AS count FROM user_watchlist WHERE token_address ILIKE $1`,
+        [tokenAddress],
+      );
+      if (parseInt(remaining[0]?.count ?? '0', 10) === 0) {
+        const network = (beforeRows[0]?.network === 'testnet' ? 'testnet' : 'mainnet') as 'mainnet' | 'testnet';
+        proxyUpgradeWatcher.unwatch(tokenAddress, network);
+      }
     }
 
     logger.info(`User ${userId} unwatched project ${projectId}`);

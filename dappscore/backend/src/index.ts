@@ -23,6 +23,9 @@ import whaleTrackingService from './services/whale-tracking';
 import { runAndAlert } from './services/event-monitor';
 import { runWatchlistMonitor } from './services/watchlist-monitor';
 import { rugDetectorEvents, runAndBroadcast } from './services/rug-detector';
+import { proxyUpgradeWatcher, proxyUpgradeEvents, type ProxyUpgradeEvent } from './services/proxy-upgrade-watcher';
+import { alertService } from './services/alerts';
+import { db } from './lib/db';
 import { logger } from './services/logger';
 
 dotenv.config();
@@ -49,6 +52,57 @@ rugDetectorEvents.on('rug_alert', (signal) => {
     if (client.readyState === WebSocket.OPEN) {
       client.send(payload);
     }
+  }
+});
+
+// ── Real-time proxy upgrade alerts ────────────────────────────────────────────
+proxyUpgradeEvents.on('upgrade', async (evt: ProxyUpgradeEvent) => {
+  // 1. Broadcast to all connected WS clients immediately
+  const wsPayload = JSON.stringify({ type: 'proxy_upgrade', event: {
+    ...evt,
+    blockNumber: evt.blockNumber.toString(), // bigint → string for JSON
+  }});
+  for (const client of wss.clients) {
+    if (client.readyState === WebSocket.OPEN) client.send(wsPayload);
+  }
+
+  // 2. Persist + deliver alert to every user who is watching this contract
+  try {
+    const { rows } = await db.query<{ user_id: string; project_id: string }>(
+      `SELECT DISTINCT user_id, project_id
+       FROM user_watchlist
+       WHERE token_address ILIKE $1`,
+      [evt.contractAddress],
+    );
+
+    for (const row of rows) {
+      await alertService.createAlert({
+        userId:    row.user_id,
+        type:      'contract_event',
+        projectId: row.project_id,
+        title:     'Proxy upgrade detected',
+        message:
+          `Contract ${evt.contractAddress} implementation upgraded to ` +
+          `${evt.newImplementation} — all contract logic may have changed.`,
+        severity: 'critical',
+        metadata: {
+          eventType:         'proxy-upgraded',
+          contractAddress:   evt.contractAddress,
+          newImplementation: evt.newImplementation,
+          transactionHash:   evt.transactionHash,
+          blockNumber:       evt.blockNumber.toString(),
+          network:           evt.network,
+        },
+      });
+    }
+
+    if (rows.length > 0) {
+      logger.warn(
+        `[ProxyUpgrade] Alerted ${rows.length} user(s) for upgrade on ${evt.contractAddress}`,
+      );
+    }
+  } catch (err) {
+    logger.error('[ProxyUpgrade] Alert delivery error', err as Error);
   }
 });
 
@@ -107,7 +161,9 @@ cron.schedule('0 * * * *', async () => {
   runWatchlistMonitor().catch(err =>
     logger.error('Watchlist monitor error', err as Error),
   );
-  // TODO: load watched contract addresses from DB for full event monitoring:
+  // Proxy Upgraded events are now handled in real-time by proxyUpgradeWatcher.
+  // The cron here handles other event types (ownership transfers, LP events).
+  // TODO: load watched contract addresses from DB for ownership/LP event monitoring:
   //   const contracts = await db.getWatchedContracts();
   //   for (const c of contracts) {
   //     await runAndAlert(c.address, c.projectId, c.subscribedUserIds, c.pairAddress);
@@ -140,9 +196,36 @@ cron.schedule('*/5 * * * *', async () => {
   void runAndBroadcast; // imported — linter suppression until DB integration
 });
 
+// ── Startup: subscribe to proxy upgrades for all currently-watched contracts ──
+async function initProxyUpgradeWatcher(): Promise<void> {
+  try {
+    const { rows } = await db.query<{ token_address: string; network: string }>(
+      `SELECT DISTINCT token_address, network
+       FROM user_watchlist
+       WHERE token_address IS NOT NULL`,
+    );
+    proxyUpgradeWatcher.watchMany(
+      rows.map(r => ({
+        address: r.token_address,
+        network: (r.network === 'testnet' ? 'testnet' : 'mainnet') as 'mainnet' | 'testnet',
+      })),
+    );
+    logger.info(
+      `[ProxyUpgrade] Real-time watcher started — ` +
+      `${proxyUpgradeWatcher.watchedCount} contract(s) subscribed`,
+    );
+  } catch (err) {
+    logger.error('[ProxyUpgrade] Failed to load watched contracts from DB', err as Error);
+  }
+}
+
 httpServer.listen(PORT, () => {
   logger.info(`DappScore Backend running on port ${PORT}`);
   logger.info(`WebSocket server listening at ws://localhost:${PORT}/ws`);
+  // Start real-time proxy upgrade subscriptions after the event loop is ready
+  initProxyUpgradeWatcher().catch(err =>
+    logger.error('[ProxyUpgrade] Init error', err as Error),
+  );
 });
 
 export default app;

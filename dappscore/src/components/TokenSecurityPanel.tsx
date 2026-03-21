@@ -670,7 +670,7 @@ function parseSuiTokenSecurity(raw: GoPlusSuiRaw): TokenSecurity {
       key:      'upgradeable-package',
       label:    'Upgradeable Package',
       active:   flagSet.has('proxy-contract'),
-      severity: 'low',
+      severity: 'medium',
       detail:   flagSet.has('proxy-contract') ? 'Package can be upgraded by owner' : 'Package is immutable',
       why:      FLAG_DEFS['proxy-contract'].why,
     },
