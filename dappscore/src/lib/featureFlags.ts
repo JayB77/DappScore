@@ -106,6 +106,15 @@ export const FEATURE_CONFIGS: FeatureConfig[] = [
     defaultEnabled: false,
   },
   {
+    id: 'approvalSecurity',
+    label: 'Approval Risk Scanner',
+    description:
+      'Detects wallet drainer patterns: GoPlus blacklist / doubt list, permit() abuse, ' +
+      'setApprovalForAll(), and other approval-exploit functions. No API key required.',
+    category: 'market',
+    defaultEnabled: false,
+  },
+  {
     id: 'dexLiquidity',
     label: 'DEX Liquidity Snapshot',
     description: 'Price, liquidity, volume, and buy/sell pressure via DexScreener — no API key required',
