@@ -7,6 +7,7 @@ import {
 } from 'lucide-react';
 import { useFeatureFlag } from '@/lib/featureFlags';
 import { getChainConfig, getExplorerUrl } from '@/lib/chainAdapters';
+import type { DeployerRisk, KnownProject } from './SerialRuggerBanner';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? '/api';
 
@@ -17,6 +18,7 @@ interface ContractAddress { chain: string; address: string }
 interface DappScoreMatch {
   id: string;
   name: string;
+  contractAddress?: string;
   trustLevel: number;
   status: number;
 }
@@ -206,7 +208,12 @@ async function fetchDeployerInfo(
 
 // ── Single contract row ───────────────────────────────────────────────────────
 
-function ContractRow({ chain, address, expanded = false }: ContractAddress & { expanded?: boolean }) {
+function ContractRow({
+  chain,
+  address,
+  expanded = false,
+  onRisk,
+}: ContractAddress & { expanded?: boolean; onRisk?: (risk: DeployerRisk) => void }) {
   const [state, setState] = useState<State>({ status: 'idle' });
 
   useEffect(() => {
@@ -217,12 +224,33 @@ function ContractRow({ chain, address, expanded = false }: ContractAddress & { e
     }
     setState({ status: 'loading' });
     fetchDeployerInfo(config.apiBase, address)
-      .then((info) => setState({ status: 'ok', info }))
+      .then((info) => {
+        setState({ status: 'ok', info });
+
+        // Surface risk to parent (for top-of-fold banner) once DB matches are resolved
+        if (onRisk && info.deployedContracts.length > 0) {
+          const matched = info.deployedContracts
+            .filter(c => c.dappScore)
+            .map(c => c.dappScore as DappScoreMatch);
+
+          const scamCount       = matched.filter(p => p.trustLevel >= 4 || p.status >= 3).length;
+          const suspiciousCount = matched.filter(p => (p.trustLevel === 3 || p.status === 2) && !(p.trustLevel >= 4 || p.status >= 3)).length;
+
+          if (scamCount > 0 || suspiciousCount > 0) {
+            onRisk({
+              deployerAddress:  info.deployer,
+              scamCount,
+              suspiciousCount,
+              knownProjects:    matched as KnownProject[],
+            });
+          }
+        }
+      })
       .catch((e: Error) => {
         if (e.message === 'no-creator') setState({ status: 'no-creator' });
         else setState({ status: 'error' });
       });
-  }, [address, chain]);
+  }, [address, chain, onRisk]);
 
   const explorerBase = getExplorerUrl(chain, address)?.replace(`/address/${address}`, '') ?? '';
 
@@ -360,9 +388,14 @@ interface Props {
   contractAddresses: ContractAddress[];
   /** When true, render all deployed contracts instead of top 5. Used by the analysis page. */
   expanded?: boolean;
+  /**
+   * Called once per deployer address when cross-referencing completes.
+   * Used by ProjectDetail to render the top-of-fold SerialRuggerBanner.
+   */
+  onRisk?: (risk: DeployerRisk) => void;
 }
 
-export default function DeployerHistoryPanel({ contractAddresses, expanded = false }: Props) {
+export default function DeployerHistoryPanel({ contractAddresses, expanded = false, onRisk }: Props) {
   const enabled = useFeatureFlag('deployerHistory', false);
   if (!enabled) return null;
 
@@ -382,7 +415,7 @@ export default function DeployerHistoryPanel({ contractAddresses, expanded = fal
 
       <div className="space-y-3">
         {supported.map(({ chain, address }) => (
-          <ContractRow key={`${chain}:${address}`} chain={chain} address={address} expanded={expanded} />
+          <ContractRow key={`${chain}:${address}`} chain={chain} address={address} expanded={expanded} onRisk={onRisk} />
         ))}
       </div>
 
