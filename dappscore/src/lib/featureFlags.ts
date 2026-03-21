@@ -147,6 +147,13 @@ export const FEATURE_CONFIGS: FeatureConfig[] = [
     category: 'market',
     defaultEnabled: false,
   },
+  {
+    id: 'disputePanel',
+    label: 'Dispute & Appeals',
+    description: 'Let project owners and community members formally dispute incorrect flags or trust scores. Community votes on disputes; admin makes the final call.',
+    category: 'core',
+    defaultEnabled: true,
+  },
 ];
 
 // ── Storage helpers ───────────────────────────────────────────────────────────
