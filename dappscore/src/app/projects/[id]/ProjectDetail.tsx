@@ -12,6 +12,8 @@ import HoneypotPanel from '@/components/HoneypotPanel';
 import DexLiquidityPanel from '@/components/DexLiquidityPanel';
 import TokenDistributionPanel from '@/components/TokenDistributionPanel';
 import DeployerHistoryPanel from '@/components/DeployerHistoryPanel';
+import { SerialRuggerBanner } from '@/components/SerialRuggerBanner';
+import type { DeployerRisk } from '@/components/SerialRuggerBanner';
 import LiquidityLockPanel from '@/components/LiquidityLockPanel';
 import AuditBadgePanel from '@/components/AuditBadgePanel';
 import SocialProofPanel from '@/components/SocialProofPanel';
@@ -246,6 +248,9 @@ export default function ProjectDetail() {
   const showDappScore  = useFeatureFlag('dappScore', true);
   const showContracts  = useFeatureFlag('contractFingerprint', true);
 
+  // Deployer risk — set by DeployerHistoryPanel once DB cross-reference resolves
+  const [deployerRisk, setDeployerRisk] = useState<DeployerRisk | null>(null);
+
   // On-chain voting + SCORE rewards
   const {
     existingVote,
@@ -300,6 +305,11 @@ export default function ProjectDetail() {
   return (
     <div className="min-h-screen py-8">
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+        {/* Serial rugger banner — shown before everything else when deployer is known bad actor */}
+        {deployerRisk && (
+          <SerialRuggerBanner risk={deployerRisk} />
+        )}
+
         {/* Header */}
         <div className="bg-gray-800 rounded-xl p-6 mb-8">
           {/* Premium Badge */}
@@ -839,7 +849,13 @@ export default function ProjectDetail() {
 
             {/* Deployer Wallet History */}
             <div>
-              <DeployerHistoryPanel contractAddresses={project.contractAddresses} />
+              <DeployerHistoryPanel
+                  contractAddresses={project.contractAddresses}
+                  onRisk={risk => setDeployerRisk(prev =>
+                    // Merge risks from multiple chains — take the worst
+                    prev && prev.scamCount >= risk.scamCount ? prev : risk
+                  )}
+                />
               <div className="flex justify-end mt-2">
                 <Link href={`/projects/${id}/analysis#deployer`} className="text-xs text-yellow-500/70 hover:text-yellow-400 transition-colors">
                   Full Analysis →

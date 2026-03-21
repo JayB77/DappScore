@@ -59,6 +59,25 @@ export class GraphQLService {
     return res.projects?.[0] ?? null;
   }
 
+  /**
+   * Batch-lookup up to 50 contract addresses at once.
+   * Returns an array of matched projects (subset of input addresses may match).
+   */
+  async getProjectsByAddresses(addresses: string[]): Promise<any[]> {
+    if (addresses.length === 0) return [];
+    const q = gql`
+      query GetProjectsByAddresses($addrs: [String!]!) {
+        projects(where: { contractAddress_in: $addrs }, first: 50) {
+          id name contractAddress trustScore trustLevel status
+        }
+      }
+    `;
+    const res: any = await this.client.request(q, {
+      addrs: addresses.map(a => a.toLowerCase()),
+    });
+    return res.projects ?? [];
+  }
+
   async getProject(id: string): Promise<any | null> {
     const q = gql`
       query GetProject($id: ID!) {
