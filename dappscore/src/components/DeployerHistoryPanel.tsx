@@ -44,19 +44,55 @@ interface DeployerInfo {
  * Chosen for: high scam frequency + reliable free Etherscan-compatible APIs.
  */
 const CROSS_CHAIN_TARGETS = [
-  { chain: 'Ethereum',  apiBase: 'https://api.etherscan.io/api',            explorerBase: 'https://etherscan.io'            },
-  { chain: 'BNB Chain', apiBase: 'https://api.bscscan.com/api',             explorerBase: 'https://bscscan.com'             },
-  { chain: 'Polygon',   apiBase: 'https://api.polygonscan.com/api',         explorerBase: 'https://polygonscan.com'         },
-  { chain: 'Arbitrum',  apiBase: 'https://api.arbiscan.io/api',             explorerBase: 'https://arbiscan.io'             },
-  { chain: 'Optimism',  apiBase: 'https://api-optimistic.etherscan.io/api', explorerBase: 'https://optimistic.etherscan.io' },
-  { chain: 'Base',      apiBase: 'https://api.basescan.org/api',            explorerBase: 'https://basescan.org'            },
-  { chain: 'Avalanche', apiBase: 'https://api.snowtrace.io/api',            explorerBase: 'https://snowtrace.io'            },
-  { chain: 'Fantom',    apiBase: 'https://api.ftmscan.com/api',             explorerBase: 'https://ftmscan.com'             },
-  { chain: 'Cronos',    apiBase: 'https://api.cronoscan.com/api',           explorerBase: 'https://cronoscan.com'           },
-  { chain: 'Sonic',     apiBase: 'https://api.sonicscan.org/api',           explorerBase: 'https://sonicscan.org'           },
-  { chain: 'Linea',     apiBase: 'https://api.lineascan.build/api',         explorerBase: 'https://lineascan.build'         },
-  { chain: 'Blast',     apiBase: 'https://api.blastscan.io/api',            explorerBase: 'https://blastscan.io'            },
+  // ── Highest scam-frequency chains ──────────────────────────────────────────
+  { chain: 'Ethereum',      apiBase: 'https://api.etherscan.io/api',                  explorerBase: 'https://etherscan.io'              },
+  { chain: 'BNB Chain',     apiBase: 'https://api.bscscan.com/api',                   explorerBase: 'https://bscscan.com'               },
+  { chain: 'Polygon',       apiBase: 'https://api.polygonscan.com/api',               explorerBase: 'https://polygonscan.com'           },
+  { chain: 'Arbitrum',      apiBase: 'https://api.arbiscan.io/api',                   explorerBase: 'https://arbiscan.io'               },
+  { chain: 'Optimism',      apiBase: 'https://api-optimistic.etherscan.io/api',       explorerBase: 'https://optimistic.etherscan.io'   },
+  { chain: 'Base',          apiBase: 'https://api.basescan.org/api',                  explorerBase: 'https://basescan.org'              },
+  { chain: 'Blast',         apiBase: 'https://api.blastscan.io/api',                  explorerBase: 'https://blastscan.io'              },
+  { chain: 'Avalanche',     apiBase: 'https://api.snowtrace.io/api',                  explorerBase: 'https://snowtrace.io'              },
+  { chain: 'Fantom',        apiBase: 'https://api.ftmscan.com/api',                   explorerBase: 'https://ftmscan.com'               },
+  { chain: 'Sonic',         apiBase: 'https://api.sonicscan.org/api',                 explorerBase: 'https://sonicscan.org'             },
+  { chain: 'Cronos',        apiBase: 'https://api.cronoscan.com/api',                 explorerBase: 'https://cronoscan.com'             },
+  { chain: 'Linea',         apiBase: 'https://api.lineascan.build/api',               explorerBase: 'https://lineascan.build'           },
+  // ── Popular L2s ────────────────────────────────────────────────────────────
+  { chain: 'zkSync Era',    apiBase: 'https://api-era.zksync.network/api',            explorerBase: 'https://era.zksync.network'        },
+  { chain: 'Scroll',        apiBase: 'https://api.scrollscan.com/api',                explorerBase: 'https://scrollscan.com'            },
+  { chain: 'Mantle',        apiBase: 'https://api.mantlescan.xyz/api',                explorerBase: 'https://mantlescan.xyz'            },
+  { chain: 'Mode',          apiBase: 'https://api.modescan.io/api',                   explorerBase: 'https://modescan.io'               },
+  { chain: 'Taiko',         apiBase: 'https://api.taikoscan.io/api',                  explorerBase: 'https://taikoscan.io'              },
+  { chain: 'Fraxtal',       apiBase: 'https://api.fraxscan.com/api',                  explorerBase: 'https://fraxscan.com'              },
+  { chain: 'opBNB',         apiBase: 'https://api-opbnb.bscscan.com/api',             explorerBase: 'https://opbnb.bscscan.com'         },
+  { chain: 'Polygon zkEVM', apiBase: 'https://api-zkevm.polygonscan.com/api',         explorerBase: 'https://zkevm.polygonscan.com'     },
+  // ── Sidechains / L1 alts ───────────────────────────────────────────────────
+  { chain: 'Celo',          apiBase: 'https://api.celoscan.io/api',                   explorerBase: 'https://celoscan.io'               },
+  { chain: 'Gnosis',        apiBase: 'https://api.gnosisscan.io/api',                 explorerBase: 'https://gnosisscan.io'             },
+  { chain: 'Moonbeam',      apiBase: 'https://api.moonscan.io/api',                   explorerBase: 'https://moonscan.io'               },
+  { chain: 'Moonriver',     apiBase: 'https://api-moonriver.moonscan.io/api',         explorerBase: 'https://moonriver.moonscan.io'     },
+  { chain: 'Kaia',          apiBase: 'https://api-cypress.klaytnscope.com/api',       explorerBase: 'https://kaiascan.io'               },
+  { chain: 'Core',          apiBase: 'https://openapi.coredao.org/api',               explorerBase: 'https://scan.coredao.org'          },
+  { chain: 'Kava',          apiBase: 'https://kavascan.com/api',                      explorerBase: 'https://kavascan.com'              },
+  { chain: 'SEI',           apiBase: 'https://seitrace.com/api',                      explorerBase: 'https://seitrace.com'              },
+  { chain: 'Merlin',        apiBase: 'https://scan.merlinchain.io/api',               explorerBase: 'https://scan.merlinchain.io'       },
+  { chain: 'Ronin',         apiBase: 'https://app.roninchain.com/api',                explorerBase: 'https://app.roninchain.com'        },
 ] as const;
+
+/**
+ * Chains using BlockScout v2 REST API (different response format from Etherscan).
+ * These are scanned separately and merged with the main results.
+ */
+const CROSS_CHAIN_BLOCKSCOUT_TARGETS = [
+  { chain: 'ZetaChain',     apiBase: 'https://zetachain.blockscout.com/api/v2',          explorerBase: 'https://zetachain.blockscout.com'       },
+  { chain: 'Zora',          apiBase: 'https://explorer.zora.energy/api/v2',              explorerBase: 'https://explorer.zora.energy'           },
+  { chain: 'Soneium',       apiBase: 'https://soneium.blockscout.com/api/v2',            explorerBase: 'https://soneium.blockscout.com'         },
+  { chain: 'Bob',           apiBase: 'https://explorer.gobob.xyz/api/v2',                explorerBase: 'https://explorer.gobob.xyz'             },
+  { chain: 'Rootstock',     apiBase: 'https://rootstock.blockscout.com/api/v2',          explorerBase: 'https://rootstock.blockscout.com'       },
+  { chain: 'Manta Pacific', apiBase: 'https://pacific-explorer.manta.network/api/v2',    explorerBase: 'https://pacific-explorer.manta.network' },
+] as const;
+
+const TOTAL_CHAINS_SCANNED = CROSS_CHAIN_TARGETS.length + CROSS_CHAIN_BLOCKSCOUT_TARGETS.length;
 
 interface CrossChainDeployment {
   address:    string;
@@ -96,6 +132,38 @@ async function scanChainForDeployer(
     .map(tx => ({ address: tx.contractAddress, txHash: tx.hash, timestamp: parseInt(tx.timeStamp, 10) }));
 }
 
+/** BlockScout v2 REST API — different response shape from Etherscan. */
+async function scanBlockscoutChainForDeployer(
+  apiBase: string,
+  deployerAddress: string,
+  excludeAddresses: Set<string>,
+): Promise<Omit<CrossChainDeployment, 'dappScore'>[]> {
+  const res = await fetch(
+    `${apiBase}/addresses/${deployerAddress}/transactions?filter=to%20%7C%20from`,
+    { signal: AbortSignal.timeout(8_000) },
+  );
+  const data = await res.json();
+  const items: Array<{
+    to: { hash: string } | null;
+    created_contract: { hash: string } | null;
+    hash: string;
+    timestamp: string; // ISO-8601
+  }> = Array.isArray(data?.items) ? data.items : [];
+
+  return items
+    .filter(tx =>
+      tx.to === null &&
+      tx.created_contract?.hash &&
+      !excludeAddresses.has(tx.created_contract.hash.toLowerCase()),
+    )
+    .slice(0, 5)
+    .map(tx => ({
+      address:   tx.created_contract!.hash,
+      txHash:    tx.hash,
+      timestamp: Math.floor(new Date(tx.timestamp).getTime() / 1000),
+    }));
+}
+
 // ── Cross-chain section component ─────────────────────────────────────────────
 
 function CrossChainSection({
@@ -110,24 +178,33 @@ function CrossChainSection({
   const [state, setState] = useState<CrossChainState>({ status: 'idle' });
 
   useEffect(() => {
-    const excluded = new Set(excludeAddresses.map(a => a.toLowerCase()));
-    const targets  = CROSS_CHAIN_TARGETS.filter(t => t.chain.toLowerCase() !== currentChain.toLowerCase());
+    const excluded  = new Set(excludeAddresses.map(a => a.toLowerCase()));
+    const targets   = CROSS_CHAIN_TARGETS.filter(t => t.chain.toLowerCase() !== currentChain.toLowerCase());
+    const bsTargets = CROSS_CHAIN_BLOCKSCOUT_TARGETS.filter(t => t.chain.toLowerCase() !== currentChain.toLowerCase());
+    const allTargets = [...targets, ...bsTargets];
 
     setState({ status: 'scanning' });
 
-    Promise.allSettled(
-      targets.map(target =>
+    Promise.allSettled([
+      ...targets.map(target =>
         scanChainForDeployer(target.apiBase, deployerAddress, excluded).then(deployments => ({
           chain: target.chain, explorerBase: target.explorerBase,
           deployments: deployments as CrossChainDeployment[],
           error: false,
         })),
       ),
-    ).then(async (settled) => {
+      ...bsTargets.map(target =>
+        scanBlockscoutChainForDeployer(target.apiBase, deployerAddress, excluded).then(deployments => ({
+          chain: target.chain, explorerBase: target.explorerBase,
+          deployments: deployments as CrossChainDeployment[],
+          error: false,
+        })),
+      ),
+    ]).then(async (settled) => {
       const results: CrossChainResult[] = settled.map((r, i) =>
         r.status === 'fulfilled'
           ? r.value
-          : { chain: targets[i].chain, explorerBase: targets[i].explorerBase, deployments: [], error: true },
+          : { chain: allTargets[i].chain, explorerBase: allTargets[i].explorerBase, deployments: [], error: true },
       );
 
       const found = results.filter(r => r.deployments.length > 0);
@@ -164,7 +241,7 @@ function CrossChainSection({
     return (
       <div className="flex items-center space-x-1.5 text-gray-600 text-xs pt-2 border-t border-gray-700/60">
         <Globe className="h-3.5 w-3.5 animate-pulse" />
-        <span>Scanning {CROSS_CHAIN_TARGETS.length} chains for cross-chain activity…</span>
+        <span>Scanning {TOTAL_CHAINS_SCANNED} chains for cross-chain activity…</span>
       </div>
     );
   }
@@ -173,7 +250,7 @@ function CrossChainSection({
     return (
       <div className="flex items-center space-x-1.5 text-gray-700 text-xs pt-2 border-t border-gray-700/60">
         <Globe className="h-3.5 w-3.5" />
-        <span>No cross-chain deployments found on {CROSS_CHAIN_TARGETS.length} chains</span>
+        <span>No cross-chain deployments found on {TOTAL_CHAINS_SCANNED} chains</span>
       </div>
     );
   }
@@ -272,7 +349,7 @@ function CrossChainSection({
       </div>
 
       <p className="text-xs text-gray-700">
-        Same wallet address · {CROSS_CHAIN_TARGETS.length} chains scanned · cross-chain rug pattern detection
+        Same wallet address · {TOTAL_CHAINS_SCANNED} EVM chains scanned · Solana & TON use different key systems
       </p>
     </div>
   );
@@ -672,7 +749,7 @@ export default function DeployerHistoryPanel({ contractAddresses, expanded = fal
       </div>
 
       <p className="text-xs text-gray-600 mt-4">
-        Deployer history via block explorer APIs · Cross-chain scan: {CROSS_CHAIN_TARGETS.length} major EVM chains · Same wallet address = same deployer
+        Cross-chain deployer scan: {TOTAL_CHAINS_SCANNED} EVM chains (Etherscan + BlockScout) · Solana &amp; TON use different cryptographic key systems
       </p>
     </div>
   );
