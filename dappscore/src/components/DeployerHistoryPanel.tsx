@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import {
   User, Clock, AlertTriangle, ExternalLink, Loader2,
-  Box, HelpCircle, CheckCircle, Shield,
+  Box, HelpCircle, CheckCircle, Shield, Globe,
 } from 'lucide-react';
 import { useFeatureFlag } from '@/lib/featureFlags';
 import { getChainConfig, getExplorerUrl } from '@/lib/chainAdapters';
@@ -35,6 +35,247 @@ interface DeployerInfo {
   firstTxTimestamp: number | null;        // unix seconds; null = no txs found
   contractCreationTimestamp: number | null; // unix seconds; when THIS contract was deployed
   deployedContracts: DeployedContract[];  // other contracts from this wallet
+}
+
+// ── Cross-chain scan ──────────────────────────────────────────────────────────
+
+/**
+ * Major EVM chains scanned for cross-chain deployer history.
+ * Chosen for: high scam frequency + reliable free Etherscan-compatible APIs.
+ */
+const CROSS_CHAIN_TARGETS = [
+  { chain: 'Ethereum',  apiBase: 'https://api.etherscan.io/api',            explorerBase: 'https://etherscan.io'            },
+  { chain: 'BNB Chain', apiBase: 'https://api.bscscan.com/api',             explorerBase: 'https://bscscan.com'             },
+  { chain: 'Polygon',   apiBase: 'https://api.polygonscan.com/api',         explorerBase: 'https://polygonscan.com'         },
+  { chain: 'Arbitrum',  apiBase: 'https://api.arbiscan.io/api',             explorerBase: 'https://arbiscan.io'             },
+  { chain: 'Optimism',  apiBase: 'https://api-optimistic.etherscan.io/api', explorerBase: 'https://optimistic.etherscan.io' },
+  { chain: 'Base',      apiBase: 'https://api.basescan.org/api',            explorerBase: 'https://basescan.org'            },
+  { chain: 'Avalanche', apiBase: 'https://api.snowtrace.io/api',            explorerBase: 'https://snowtrace.io'            },
+  { chain: 'Fantom',    apiBase: 'https://api.ftmscan.com/api',             explorerBase: 'https://ftmscan.com'             },
+  { chain: 'Cronos',    apiBase: 'https://api.cronoscan.com/api',           explorerBase: 'https://cronoscan.com'           },
+  { chain: 'Sonic',     apiBase: 'https://api.sonicscan.org/api',           explorerBase: 'https://sonicscan.org'           },
+  { chain: 'Linea',     apiBase: 'https://api.lineascan.build/api',         explorerBase: 'https://lineascan.build'         },
+  { chain: 'Blast',     apiBase: 'https://api.blastscan.io/api',            explorerBase: 'https://blastscan.io'            },
+] as const;
+
+interface CrossChainDeployment {
+  address:    string;
+  txHash:     string;
+  timestamp:  number;
+  dappScore?: DappScoreMatch;
+}
+
+interface CrossChainResult {
+  chain:        string;
+  explorerBase: string;
+  deployments:  CrossChainDeployment[];
+  error:        boolean;
+}
+
+type CrossChainState =
+  | { status: 'idle' }
+  | { status: 'scanning' }
+  | { status: 'done'; results: CrossChainResult[] };
+
+async function scanChainForDeployer(
+  apiBase: string,
+  deployerAddress: string,
+  excludeAddresses: Set<string>,
+): Promise<Omit<CrossChainDeployment, 'dappScore'>[]> {
+  const res = await fetch(
+    `${apiBase}?module=account&action=txlist&address=${deployerAddress}&sort=desc&page=1&offset=50`,
+    { signal: AbortSignal.timeout(8_000) },
+  );
+  const data = await res.json();
+  const txs: Array<{ to: string; contractAddress: string; hash: string; timeStamp: string }> =
+    Array.isArray(data?.result) ? data.result : [];
+
+  return txs
+    .filter(tx => tx.to === '' && tx.contractAddress && !excludeAddresses.has(tx.contractAddress.toLowerCase()))
+    .slice(0, 5)
+    .map(tx => ({ address: tx.contractAddress, txHash: tx.hash, timestamp: parseInt(tx.timeStamp, 10) }));
+}
+
+// ── Cross-chain section component ─────────────────────────────────────────────
+
+function CrossChainSection({
+  deployerAddress,
+  currentChain,
+  excludeAddresses,
+}: {
+  deployerAddress:  string;
+  currentChain:     string;
+  excludeAddresses: string[];
+}) {
+  const [state, setState] = useState<CrossChainState>({ status: 'idle' });
+
+  useEffect(() => {
+    const excluded = new Set(excludeAddresses.map(a => a.toLowerCase()));
+    const targets  = CROSS_CHAIN_TARGETS.filter(t => t.chain.toLowerCase() !== currentChain.toLowerCase());
+
+    setState({ status: 'scanning' });
+
+    Promise.allSettled(
+      targets.map(target =>
+        scanChainForDeployer(target.apiBase, deployerAddress, excluded).then(deployments => ({
+          chain: target.chain, explorerBase: target.explorerBase,
+          deployments: deployments as CrossChainDeployment[],
+          error: false,
+        })),
+      ),
+    ).then(async (settled) => {
+      const results: CrossChainResult[] = settled.map((r, i) =>
+        r.status === 'fulfilled'
+          ? r.value
+          : { chain: targets[i].chain, explorerBase: targets[i].explorerBase, deployments: [], error: true },
+      );
+
+      const found = results.filter(r => r.deployments.length > 0);
+
+      // Enrich with DappScore DB matches
+      const allAddresses = found.flatMap(r => r.deployments.map(d => d.address));
+      if (allAddresses.length > 0) {
+        try {
+          const r = await fetch(`${API_BASE}/v1/projects/by-addresses`, {
+            method:  'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body:    JSON.stringify({ addresses: allAddresses }),
+          });
+          if (r.ok) {
+            const json = await r.json() as { data: Record<string, DappScoreMatch> };
+            for (const result of found) {
+              for (const d of result.deployments) {
+                const match = json.data[d.address.toLowerCase()];
+                if (match) d.dappScore = match;
+              }
+            }
+          }
+        } catch { /* non-critical */ }
+      }
+
+      setState({ status: 'done', results: found });
+    }).catch(() => setState({ status: 'done', results: [] }));
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [deployerAddress, currentChain]);
+
+  if (state.status === 'idle') return null;
+
+  if (state.status === 'scanning') {
+    return (
+      <div className="flex items-center space-x-1.5 text-gray-600 text-xs pt-2 border-t border-gray-700/60">
+        <Globe className="h-3.5 w-3.5 animate-pulse" />
+        <span>Scanning {CROSS_CHAIN_TARGETS.length} chains for cross-chain activity…</span>
+      </div>
+    );
+  }
+
+  if (state.results.length === 0) {
+    return (
+      <div className="flex items-center space-x-1.5 text-gray-700 text-xs pt-2 border-t border-gray-700/60">
+        <Globe className="h-3.5 w-3.5" />
+        <span>No cross-chain deployments found on {CROSS_CHAIN_TARGETS.length} chains</span>
+      </div>
+    );
+  }
+
+  const totalDeployments = state.results.reduce((s, r) => s + r.deployments.length, 0);
+  const hasScams = state.results.some(r =>
+    r.deployments.some(d => d.dappScore && (d.dappScore.trustLevel >= 4 || d.dappScore.status >= 3)),
+  );
+  const hasSuspicious = !hasScams && state.results.some(r =>
+    r.deployments.some(d => d.dappScore && (d.dappScore.trustLevel >= 3 || d.dappScore.status >= 2)),
+  );
+
+  return (
+    <div className="pt-2 border-t border-gray-700/60 space-y-2">
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center space-x-1.5">
+          <Globe className={`h-3.5 w-3.5 ${hasScams ? 'text-red-400' : hasSuspicious ? 'text-orange-400' : 'text-gray-400'}`} />
+          <span className={`text-xs font-semibold uppercase tracking-wide ${hasScams ? 'text-red-400' : hasSuspicious ? 'text-orange-400' : 'text-gray-400'}`}>
+            Cross-chain — {totalDeployments} deployment{totalDeployments !== 1 ? 's' : ''} on {state.results.length} chain{state.results.length !== 1 ? 's' : ''}
+          </span>
+        </div>
+        {(hasScams || hasSuspicious) && (
+          <span className={`text-xs px-1.5 py-0.5 rounded font-bold ${hasScams ? 'bg-red-500/20 text-red-400' : 'bg-orange-500/20 text-orange-400'}`}>
+            {hasScams ? 'SERIAL RUGGER' : 'SUSPICIOUS'}
+          </span>
+        )}
+      </div>
+
+      {/* Per-chain breakdown */}
+      <div className="space-y-1.5">
+        {state.results.map(result => {
+          const chainScams = result.deployments.filter(
+            d => d.dappScore && (d.dappScore.trustLevel >= 4 || d.dappScore.status >= 3),
+          ).length;
+          const chainSuspicious = result.deployments.filter(
+            d => d.dappScore && (d.dappScore.trustLevel >= 3 || d.dappScore.status >= 2) && !(d.dappScore.trustLevel >= 4 || d.dappScore.status >= 3),
+          ).length;
+
+          return (
+            <div
+              key={result.chain}
+              className={`rounded-lg border p-2 space-y-1 ${
+                chainScams > 0
+                  ? 'border-red-500/30 bg-red-500/5'
+                  : chainSuspicious > 0
+                    ? 'border-orange-500/30 bg-orange-500/5'
+                    : 'border-gray-700/60'
+              }`}
+            >
+              <div className="flex items-center justify-between">
+                <span className={`text-xs font-semibold ${chainScams > 0 ? 'text-red-400' : chainSuspicious > 0 ? 'text-orange-400' : 'text-gray-400'}`}>
+                  {result.chain}
+                </span>
+                <div className="flex items-center gap-1.5">
+                  <span className="text-xs text-gray-500">
+                    {result.deployments.length} contract{result.deployments.length !== 1 ? 's' : ''}
+                  </span>
+                  {chainScams > 0 && (
+                    <span className="px-1 py-0.5 bg-red-500/20 text-red-400 rounded text-xs font-semibold">SCAM PATTERN</span>
+                  )}
+                  {chainSuspicious > 0 && chainScams === 0 && (
+                    <span className="px-1 py-0.5 bg-orange-500/20 text-orange-400 rounded text-xs font-semibold">SUSPICIOUS</span>
+                  )}
+                </div>
+              </div>
+
+              <div className="space-y-0.5 pl-1 border-l border-gray-700">
+                {result.deployments.map(d => {
+                  const daysAgo = Math.floor((Date.now() / 1000 - d.timestamp) / 86_400);
+                  const url = `${result.explorerBase}/address/${d.address}`;
+                  return (
+                    <div key={d.address} className="flex items-center justify-between gap-2">
+                      <div className="flex items-center gap-1.5 min-w-0">
+                        <a
+                          href={url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="flex items-center space-x-1 text-xs text-blue-400 hover:text-blue-300 font-mono transition-colors"
+                        >
+                          {truncate(d.address)}
+                          <ExternalLink className="h-2.5 w-2.5 ml-0.5" />
+                        </a>
+                        {d.dappScore && <TrustBadge match={d.dappScore} />}
+                      </div>
+                      <span className="text-xs text-gray-600 shrink-0">
+                        {daysAgo === 0 ? 'today' : `${daysAgo}d ago`}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      <p className="text-xs text-gray-700">
+        Same wallet address · {CROSS_CHAIN_TARGETS.length} chains scanned · cross-chain rug pattern detection
+      </p>
+    </div>
+  );
 }
 
 type State =
@@ -214,7 +455,8 @@ function ContractRow({
   expanded = false,
   onRisk,
 }: ContractAddress & { expanded?: boolean; onRisk?: (risk: DeployerRisk) => void }) {
-  const [state, setState] = useState<State>({ status: 'idle' });
+  const [state, setState]     = useState<State>({ status: 'idle' });
+  const [deployer, setDeployer] = useState<string | null>(null);
 
   useEffect(() => {
     const config = getChainConfig(chain);
@@ -226,6 +468,7 @@ function ContractRow({
     fetchDeployerInfo(config.apiBase, address)
       .then((info) => {
         setState({ status: 'ok', info });
+        setDeployer(info.deployer);
 
         // Surface risk to parent (for top-of-fold banner) once DB matches are resolved
         if (onRisk && info.deployedContracts.length > 0) {
@@ -275,6 +518,15 @@ function ContractRow({
 
       {(state.status === 'no-creator' || state.status === 'error') && (
         <span className="text-xs text-gray-500">Deployer data unavailable</span>
+      )}
+
+      {/* Cross-chain scan — starts as soon as the deployer address is known */}
+      {deployer && (
+        <CrossChainSection
+          deployerAddress={deployer}
+          currentChain={chain}
+          excludeAddresses={[address]}
+        />
       )}
 
       {state.status === 'ok' && (() => {
@@ -420,7 +672,7 @@ export default function DeployerHistoryPanel({ contractAddresses, expanded = fal
       </div>
 
       <p className="text-xs text-gray-600 mt-4">
-        Contract age, wallet age &amp; deployment history via block explorer APIs · EVM chains only
+        Deployer history via block explorer APIs · Cross-chain scan: {CROSS_CHAIN_TARGETS.length} major EVM chains · Same wallet address = same deployer
       </p>
     </div>
   );

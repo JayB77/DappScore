@@ -6,42 +6,7 @@ import {
   HelpCircle, Info,
 } from 'lucide-react';
 import { useFeatureFlag } from '@/lib/featureFlags';
-
-// ── Chain ID map (GoPlus uses numeric EVM chain IDs) ─────────────────────────
-
-const GOPLUS_CHAIN_IDS: Record<string, number> = {
-  ethereum: 1,        eth: 1,
-  bsc: 56,            bnb: 56,            'bnb smart chain': 56,  opbnb: 204,
-  polygon: 137,       matic: 137,         'polygon zkevm': 1101,
-  arbitrum: 42161,    'arbitrum one': 42161,
-  optimism: 10,       'op mainnet': 10,
-  base: 8453,
-  blast: 81457,
-  linea: 59144,
-  scroll: 534352,
-  'zksync era': 324,  zksync: 324,
-  mantle: 5000,
-  mode: 34443,
-  taiko: 167000,
-  fraxtal: 252,
-  avalanche: 43114,   avax: 43114,
-  fantom: 250,        ftm: 250,
-  sonic: 146,
-  cronos: 25,         cro: 25,
-  gnosis: 100,        xdai: 100,
-  celo: 42220,
-  moonbeam: 1284,     glmr: 1284,
-  moonriver: 1285,    movr: 1285,
-  kava: 2222,
-  aurora: 1313161554,
-  core: 1116,         'core dao': 1116,
-  kaia: 8217,         klaytn: 8217,
-  ronin: 2020,
-  sei: 1329,
-  berachain: 80094,
-  monad: 41454,
-  hyperevm: 998,
-};
+import { getChainConfig } from '@/lib/chainAdapters';
 
 // ── Flag catalogue — every possible flag + why it matters ────────────────────
 
@@ -151,6 +116,27 @@ const FLAG_DEFS: Record<string, FlagDef> = {
     label: 'Cooldown',
     why: 'A delay is enforced between consecutive trades from the same wallet.',
   },
+  // ── Solana-specific flags ─────────────────────────────────────────────────
+  'mint-authority-active': {
+    id: 'mint-authority-active', name: 'Mint Authority Active', severity: 'critical',
+    label: 'Mint Active',
+    why: 'The mint authority can create unlimited new tokens at any time, instantly diluting all holders to near-zero.',
+  },
+  'freeze-authority-active': {
+    id: 'freeze-authority-active', name: 'Freeze Authority Active', severity: 'high',
+    label: 'Freeze Risk',
+    why: 'The freeze authority can lock any token account without the holder\'s consent, permanently blocking transfers.',
+  },
+  'mutable-metadata': {
+    id: 'mutable-metadata', name: 'Mutable Token Metadata', severity: 'medium',
+    label: 'Mutable Meta',
+    why: 'The token name, symbol, and image URI can be changed by the authority at any time — common in post-pump rug pulls.',
+  },
+  'closeable-mint': {
+    id: 'closeable-mint', name: 'Mint Account Closeable', severity: 'high',
+    label: 'Closeable Mint',
+    why: 'The mint account can be destroyed by the authority, effectively wiping the token supply.',
+  },
 };
 
 // ── GoPlus raw response (subset needed here) ──────────────────────────────────
@@ -236,6 +222,9 @@ const WEIGHTS: Record<string, number> = {
   'unverified-contract': 20, 'proxy-contract': 5,
   'whale-concentration': 20, 'lp-not-locked': 25, 'lp-lock-unknown': 10,
   'trading-cooldown': 5,
+  // Solana
+  'mint-authority-active': 50, 'freeze-authority-active': 25,
+  'mutable-metadata': 10, 'closeable-mint': 20,
 };
 
 function parseTokenSecurity(raw: GoPlusTokenRaw): TokenSecurity {
@@ -353,6 +342,90 @@ function parseTokenSecurity(raw: GoPlusTokenRaw): TokenSecurity {
     symbol:   raw.token_symbol ?? null,
     allClear: flags.length === 0,
   };
+}
+
+// ── Solana GoPlus ─────────────────────────────────────────────────────────────
+
+interface GoPlusSolanaRaw {
+  mint_authority?:     string | null;
+  freeze_authority?:   string | null;
+  is_mintable?:        '0' | '1';
+  can_freeze_account?: '0' | '1';
+  is_closable?:        '0' | '1';
+  metadata_mutable?:   '0' | '1';
+  token_name?:         string;
+  token_symbol?:       string;
+}
+
+function parseSolanaTokenSecurity(raw: GoPlusSolanaRaw): TokenSecurity {
+  const flagIds: string[] = [];
+
+  const hasMintAuth = raw.mint_authority && raw.mint_authority !== '' && raw.mint_authority !== '0x0000000000000000000000000000000000000000';
+  const hasFreezeAuth = raw.freeze_authority && raw.freeze_authority !== '' && raw.freeze_authority !== '0x0000000000000000000000000000000000000000';
+
+  if (hasMintAuth || f1(raw.is_mintable)) flagIds.push('mint-authority-active');
+  if (hasFreezeAuth || f1(raw.can_freeze_account)) flagIds.push('freeze-authority-active');
+  if (f1(raw.metadata_mutable)) flagIds.push('mutable-metadata');
+  if (f1(raw.is_closable)) flagIds.push('closeable-mint');
+
+  const flags = flagIds.map(id => resolveFlag(id));
+  const riskScore = Math.min(flags.reduce((s, f) => s + (WEIGHTS[f.id] ?? 0), 0), 100);
+  const flagSet = new Set(flagIds);
+
+  const heuristics: Heuristic[] = [
+    {
+      key:      'mint-authority',
+      label:    'Mint Authority',
+      active:   flagSet.has('mint-authority-active'),
+      severity: 'critical',
+      detail:   flagSet.has('mint-authority-active') ? 'Mint authority is active' : 'Mint authority revoked',
+      why:      FLAG_DEFS['mint-authority-active'].why,
+    },
+    {
+      key:      'freeze-authority',
+      label:    'Freeze Authority',
+      active:   flagSet.has('freeze-authority-active'),
+      severity: 'high',
+      detail:   flagSet.has('freeze-authority-active') ? 'Can freeze accounts' : 'No freeze authority',
+      why:      FLAG_DEFS['freeze-authority-active'].why,
+    },
+    {
+      key:      'mutable-metadata',
+      label:    'Mutable Metadata',
+      active:   flagSet.has('mutable-metadata'),
+      severity: 'medium',
+      detail:   flagSet.has('mutable-metadata') ? 'Metadata can be changed' : 'Metadata is immutable',
+      why:      FLAG_DEFS['mutable-metadata'].why,
+    },
+    {
+      key:      'closeable-mint',
+      label:    'Closeable Mint',
+      active:   flagSet.has('closeable-mint'),
+      severity: 'high',
+      detail:   flagSet.has('closeable-mint') ? 'Mint account closeable' : 'Mint account permanent',
+      why:      FLAG_DEFS['closeable-mint'].why,
+    },
+  ];
+
+  return {
+    flags, heuristics, riskScore,
+    name:     raw.token_name   ?? null,
+    symbol:   raw.token_symbol ?? null,
+    allClear: flags.length === 0,
+  };
+}
+
+async function fetchSolanaTokenSecurity(address: string): Promise<TokenSecurity> {
+  const res = await fetch(
+    `https://api.gopluslabs.io/api/v1/solana/token_security?contract_addresses=${address}`,
+    { headers: { Accept: 'application/json' }, signal: AbortSignal.timeout(15_000) },
+  );
+  if (!res.ok) throw new Error(`GoPlus ${res.status}`);
+  const json = await res.json() as { code: number; result: Record<string, GoPlusSolanaRaw> };
+  if (json.code !== 1) throw new Error(`GoPlus code ${json.code}`);
+  const raw = json.result[address] ?? json.result[address.toLowerCase()];
+  if (!raw) throw new Error('no data');
+  return parseSolanaTokenSecurity(raw);
 }
 
 // ── Fetch ────────────────────────────────────────────────────────────────────
@@ -574,15 +647,17 @@ interface ContractAddress { chain: string; address: string }
 function ContractRow({ chain, address }: ContractAddress) {
   const [state, setState] = useState<State>({ status: 'idle' });
   const [openTip, setOpenTip] = useState<string | null>(null);
-  const chainId = GOPLUS_CHAIN_IDS[chain.toLowerCase()];
+  const config   = getChainConfig(chain);
+  const isSolana = config?.family === 'solana';
+  const chainId  = config?.goplusId;
 
   useEffect(() => {
-    if (!chainId) { setState({ status: 'unsupported' }); return; }
+    if (!config || (!isSolana && !chainId)) { setState({ status: 'unsupported' }); return; }
     setState({ status: 'loading' });
-    fetchTokenSecurity(chainId, address)
+    (isSolana ? fetchSolanaTokenSecurity(address) : fetchTokenSecurity(chainId!, address))
       .then(data => setState({ status: 'ok', data }))
       .catch(() => setState({ status: 'error' }));
-  }, [address, chainId]);
+  }, [address, chainId, isSolana, config]);
 
   const toggleTip = (id: string) =>
     setOpenTip(prev => (prev === id ? null : id));
@@ -667,9 +742,10 @@ export default function TokenSecurityPanel({ contractAddresses }: Props) {
   const enabled = useFeatureFlag('tokenSecurity', true);
   if (!enabled) return null;
 
-  const supported = contractAddresses.filter(
-    ({ chain }) => !!GOPLUS_CHAIN_IDS[chain.toLowerCase()],
-  );
+  const supported = contractAddresses.filter(({ chain }) => {
+    const cfg = getChainConfig(chain);
+    return cfg?.family === 'solana' || !!cfg?.goplusId;
+  });
   if (supported.length === 0) return null;
 
   return (

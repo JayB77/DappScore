@@ -3,38 +3,7 @@
 import { useEffect, useState } from 'react';
 import { AlertTriangle, CheckCircle, Loader2, XCircle, ShieldAlert, ExternalLink } from 'lucide-react';
 import { useFeatureFlag } from '@/lib/featureFlags';
-
-// ── Chain ID map ──────────────────────────────────────────────────────────────
-// honeypot.is uses numeric EVM chain IDs
-
-const HONEYPOT_CHAIN_IDS: Record<string, number> = {
-  ethereum: 1,        eth: 1,
-  bsc: 56,            bnb: 56,            'bnb smart chain': 56,  opbnb: 204,
-  polygon: 137,       matic: 137,         'polygon zkevm': 1101,
-  arbitrum: 42161,    'arbitrum one': 42161,  'arbitrum nova': 42170,
-  optimism: 10,       'op mainnet': 10,
-  base: 8453,
-  blast: 81457,
-  linea: 59144,
-  scroll: 534352,
-  'zksync era': 324,  zksync: 324,
-  mantle: 5000,
-  mode: 34443,
-  taiko: 167000,
-  fraxtal: 252,
-  avalanche: 43114,   avax: 43114,
-  fantom: 250,        ftm: 250,
-  sonic: 146,
-  cronos: 25,         cro: 25,
-  gnosis: 100,        xdai: 100,
-  celo: 42220,
-  moonbeam: 1284,     glmr: 1284,
-  moonriver: 1285,    movr: 1285,
-  kava: 2222,
-  aurora: 1313161554,
-  core: 1116,         'core dao': 1116,
-  kaia: 8217,         klaytn: 8217,
-};
+import { getChainConfig } from '@/lib/chainAdapters';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -105,7 +74,7 @@ async function fetchHoneypot(address: string, chainId: number): Promise<Honeypot
 
 function ContractRow({ chain, address }: ContractAddress) {
   const [state, setState] = useState<State>({ status: 'idle' });
-  const chainId = HONEYPOT_CHAIN_IDS[chain.toLowerCase()];
+  const chainId = getChainConfig(chain)?.honeypotId;
 
   useEffect(() => {
     if (!chainId) { setState({ status: 'unsupported' }); return; }
@@ -248,9 +217,7 @@ export default function HoneypotPanel({ contractAddresses }: Props) {
   const enabled = useFeatureFlag('honeypotDetector', false);
   if (!enabled) return null;
 
-  const supported = contractAddresses.filter(
-    ({ chain }) => !!HONEYPOT_CHAIN_IDS[chain.toLowerCase()],
-  );
+  const supported = contractAddresses.filter(({ chain }) => !!getChainConfig(chain)?.honeypotId);
   if (supported.length === 0) return null;
 
   return (

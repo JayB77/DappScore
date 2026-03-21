@@ -6,33 +6,7 @@ import {
   HelpCircle, Flame, AlertTriangle, ExternalLink, ShieldCheck,
 } from 'lucide-react';
 import { useFeatureFlag } from '@/lib/featureFlags';
-import { getExplorerUrl } from '@/lib/chainAdapters';
-
-// ── Chain ID map (GoPlus uses numeric EVM chain IDs) ─────────────────────────
-
-const GOPLUS_CHAIN_IDS: Record<string, number> = {
-  ethereum: 1,        eth: 1,
-  bsc: 56,            bnb: 56,            'bnb smart chain': 56,  opbnb: 204,
-  polygon: 137,       matic: 137,         'polygon zkevm': 1101,
-  arbitrum: 42161,    'arbitrum one': 42161,  'arbitrum nova': 42170,
-  optimism: 10,       'op mainnet': 10,
-  base: 8453,
-  blast: 81457,
-  linea: 59144,
-  scroll: 534352,
-  'zksync era': 324,  zksync: 324,
-  mantle: 5000,
-  avalanche: 43114,   avax: 43114,
-  fantom: 250,        ftm: 250,           sonic: 146,
-  cronos: 25,         cro: 25,
-  gnosis: 100,        xdai: 100,
-  celo: 42220,
-  moonbeam: 1284,     glmr: 1284,
-  moonriver: 1285,    movr: 1285,
-  kava: 2222,
-  aurora: 1313161554,
-  core: 1116,         'core dao': 1116,
-};
+import { getChainConfig, getExplorerUrl } from '@/lib/chainAdapters';
 
 const DEAD_ADDRESSES = new Set([
   '0x000000000000000000000000000000000000dead',
@@ -428,7 +402,7 @@ function LockEntryRow({
 
 function ContractRow({ chain, address, expanded = false }: ContractAddress & { expanded?: boolean }) {
   const [state, setState] = useState<State>({ status: 'idle' });
-  const chainId = GOPLUS_CHAIN_IDS[chain.toLowerCase()];
+  const chainId = getChainConfig(chain)?.goplusId;
 
   useEffect(() => {
     if (!chainId) { setState({ status: 'unsupported' }); return; }
@@ -611,9 +585,7 @@ export default function LiquidityLockPanel({ contractAddresses, expanded = false
   const enabled = useFeatureFlag('liquidityLock', false);
   if (!enabled) return null;
 
-  const supported = contractAddresses.filter(
-    ({ chain }) => !!GOPLUS_CHAIN_IDS[chain.toLowerCase()],
-  );
+  const supported = contractAddresses.filter(({ chain }) => !!getChainConfig(chain)?.goplusId);
   if (supported.length === 0) return null;
 
   return (

@@ -16,4 +16,20 @@ export interface ChainConfig {
   /** Human-facing explorer URL root */
   explorerBase: string;
   family: ChainFamily;
+  /**
+   * GoPlus Security numeric chain ID.
+   * EVM chains only. Solana is handled via a separate endpoint
+   * (check family === 'solana' in panel code).
+   */
+  goplusId?: number;
+  /**
+   * DexScreener chain slug (e.g. 'ethereum', 'bsc', 'solana').
+   * Present on all chains where DexScreener indexes pairs.
+   */
+  dexscreenerId?: string;
+  /**
+   * Honeypot.is numeric chain ID.
+   * Matches the EVM chainId for supported chains.
+   */
+  honeypotId?: number;
 }
