@@ -109,12 +109,12 @@ export default function ExtensionPage() {
 
           <div className="mt-4 flex flex-col items-center gap-2">
             <a
-              href="/dappscore-extension-v1.0.0.zip"
+              href="/dappscore-extension-v1.0.0.crx"
               download
               className="inline-flex items-center gap-1.5 text-xs text-gray-500 hover:text-yellow-400 transition-colors"
             >
               <Download className="h-3 w-3" />
-              Download beta (.zip) — install manually via chrome://extensions
+              Download beta — drag to chrome://extensions to install
             </a>
             <p className="text-xs text-gray-600">
               No account required &nbsp;·&nbsp; No wallet connection needed &nbsp;·&nbsp; Open source
@@ -267,12 +267,12 @@ export default function ExtensionPage() {
 
           <div className="mt-4">
             <a
-              href="/dappscore-extension-v1.0.0.zip"
+              href="/dappscore-extension-v1.0.0.crx"
               download
               className="inline-flex items-center gap-1.5 text-xs text-gray-500 hover:text-yellow-400 transition-colors"
             >
               <Download className="h-3 w-3" />
-              Download beta (.zip) — install manually via chrome://extensions
+              Download beta — drag to chrome://extensions to install
             </a>
           </div>
 
