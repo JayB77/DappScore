@@ -1,4 +1,4 @@
-export type ChainFamily = 'evm' | 'solana' | 'tron' | 'ton';
+export type ChainFamily = 'evm' | 'solana' | 'tron' | 'ton' | 'sui';
 
 export interface ContractInfo {
   /** Source verified on-chain (EVM: Etherscan; Solana: Anchor IDL present) */

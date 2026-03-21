@@ -524,6 +524,199 @@ async function fetchDeployerInfo(
   return { deployer, firstTxTimestamp, contractCreationTimestamp, deployedContracts };
 }
 
+// ── Solana deployer via SolScan ───────────────────────────────────────────────
+
+const SOLANA_BPF_LOADERS = new Set([
+  'BPFLoaderUpgradeab1e11111111111111111111111',
+  'BPFLoader2111111111111111111111111111111111',
+]);
+
+interface SolScanTx {
+  txHash:    string;
+  blockTime: number;
+  parsedInstruction?: Array<{ programId: string; type?: string }>;
+}
+
+interface SolanaDeployerInfo {
+  upgradeAuthority: string | null;
+  programDeployments: Array<{ txHash: string; timestamp: number }>;
+  oldestSeenTs: number | null;
+}
+
+async function fetchSolanaDeployerInfo(programAddress: string): Promise<SolanaDeployerInfo> {
+  // Step 1: get upgrade authority from SolScan account endpoint
+  const accountRes = await fetch(
+    `https://public-api.solscan.io/account/${programAddress}`,
+    { headers: { Accept: 'application/json' }, signal: AbortSignal.timeout(10_000) },
+  );
+  if (!accountRes.ok) throw new Error(`SolScan account ${accountRes.status}`);
+  const accountData = await accountRes.json() as {
+    data?: { programInfo?: { upgradeAuthority?: string } };
+  };
+  const upgradeAuthority = accountData?.data?.programInfo?.upgradeAuthority ?? null;
+
+  if (!upgradeAuthority) {
+    return { upgradeAuthority: null, programDeployments: [], oldestSeenTs: null };
+  }
+
+  // Step 2: get recent transactions for the upgrade authority
+  const txRes = await fetch(
+    `https://public-api.solscan.io/account/transactions?account=${upgradeAuthority}&limit=50`,
+    { headers: { Accept: 'application/json' }, signal: AbortSignal.timeout(10_000) },
+  );
+  if (!txRes.ok) {
+    return { upgradeAuthority, programDeployments: [], oldestSeenTs: null };
+  }
+  const txs = await txRes.json() as SolScanTx[];
+  if (!Array.isArray(txs)) {
+    return { upgradeAuthority, programDeployments: [], oldestSeenTs: null };
+  }
+
+  // Filter for program deployment transactions
+  const programDeployments = txs
+    .filter(tx => tx.parsedInstruction?.some(i => SOLANA_BPF_LOADERS.has(i.programId)))
+    .slice(0, 10)
+    .map(tx => ({ txHash: tx.txHash, timestamp: tx.blockTime }));
+
+  const oldestSeenTs = txs.length > 0
+    ? Math.min(...txs.map(tx => tx.blockTime))
+    : null;
+
+  return { upgradeAuthority, programDeployments, oldestSeenTs };
+}
+
+type SolanaState =
+  | { status: 'idle' }
+  | { status: 'loading' }
+  | { status: 'ok'; info: SolanaDeployerInfo }
+  | { status: 'error' };
+
+function SolanaDeployerRow({ address }: { address: string }) {
+  const [state, setState] = useState<SolanaState>({ status: 'idle' });
+
+  useEffect(() => {
+    setState({ status: 'loading' });
+    fetchSolanaDeployerInfo(address)
+      .then(info => setState({ status: 'ok', info }))
+      .catch(() => setState({ status: 'error' }));
+  }, [address]);
+
+  const solscanBase = 'https://solscan.io';
+
+  return (
+    <div className="border border-gray-700 rounded-lg p-3 space-y-2">
+      <span className="text-xs font-semibold text-gray-400 uppercase tracking-wide">Solana</span>
+
+      {state.status === 'loading' && (
+        <div className="flex items-center space-x-1.5 text-gray-500 text-sm">
+          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+          <span>Fetching upgrade authority…</span>
+        </div>
+      )}
+
+      {state.status === 'error' && (
+        <span className="text-xs text-gray-500">SolScan lookup unavailable</span>
+      )}
+
+      {state.status === 'ok' && (() => {
+        const { info } = state;
+
+        if (!info.upgradeAuthority) {
+          return (
+            <div className="flex items-center space-x-1.5">
+              <CheckCircle className="h-3.5 w-3.5 text-green-400 flex-shrink-0" />
+              <span className="text-sm text-green-400">No upgrade authority — program is immutable</span>
+            </div>
+          );
+        }
+
+        const authorityUrl = `${solscanBase}/account/${info.upgradeAuthority}`;
+        const daysOldMin = info.oldestSeenTs
+          ? Math.floor((Date.now() / 1000 - info.oldestSeenTs) / 86_400)
+          : null;
+        const deployCount = info.programDeployments.length;
+        const countRisk = deploymentCountRisk(deployCount);
+
+        return (
+          <div className="space-y-2">
+            {/* Upgrade authority */}
+            <div className="flex items-center space-x-1.5">
+              <User className="h-3.5 w-3.5 text-gray-500 flex-shrink-0" />
+              <span className="text-xs text-gray-500">Upgrade authority</span>
+              <a
+                href={authorityUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center space-x-1 text-xs text-blue-400 hover:text-blue-300 font-mono transition-colors"
+              >
+                {truncate(info.upgradeAuthority)}
+                <ExternalLink className="h-3 w-3 ml-0.5" />
+              </a>
+            </div>
+
+            {/* Wallet activity age (lower bound) */}
+            {daysOldMin !== null && (
+              <div className="flex items-center space-x-1.5">
+                <Clock className="h-3.5 w-3.5 text-gray-500 flex-shrink-0" />
+                <span className="text-sm text-gray-300">
+                  Active ≥ {daysOldMin}d (based on last 50 txs)
+                </span>
+              </div>
+            )}
+
+            {/* Program deployments by this authority */}
+            {deployCount === 0 ? (
+              <div className="flex items-center space-x-1.5">
+                <CheckCircle className="h-3.5 w-3.5 text-green-400 flex-shrink-0" />
+                <span className="text-sm text-gray-400">No recent program deployments detected</span>
+              </div>
+            ) : (
+              <div className="flex items-center space-x-1.5">
+                <Box className={`h-3.5 w-3.5 flex-shrink-0 ${countRisk === 'warn' ? 'text-orange-400' : 'text-gray-400'}`} />
+                <span className={`text-sm ${countRisk === 'warn' ? 'text-orange-400' : 'text-gray-300'}`}>
+                  {deployCount} program deployment{deployCount !== 1 ? 's' : ''} in last 50 txs
+                </span>
+                {countRisk === 'warn' && (
+                  <span className="text-xs px-1.5 py-0.5 bg-orange-500/20 text-orange-400 rounded">PATTERN</span>
+                )}
+              </div>
+            )}
+
+            {deployCount > 0 && (
+              <div className="space-y-1 pl-1 border-l border-gray-700">
+                {info.programDeployments.map(d => {
+                  const daysAgo = Math.floor((Date.now() / 1000 - d.timestamp) / 86_400);
+                  const url = `${solscanBase}/tx/${d.txHash}`;
+                  return (
+                    <div key={d.txHash} className="flex items-center justify-between gap-2">
+                      <a
+                        href={url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex items-center space-x-1 text-xs text-blue-400 hover:text-blue-300 font-mono transition-colors"
+                      >
+                        {truncate(d.txHash, 4)}
+                        <ExternalLink className="h-2.5 w-2.5 ml-0.5" />
+                      </a>
+                      <span className="text-xs text-gray-600 shrink-0">
+                        {daysAgo === 0 ? 'today' : `${daysAgo}d ago`}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+
+            <p className="text-xs text-gray-600 pt-1">
+              Solana upgrade authority · EVM cross-chain scan not applicable (different key system)
+            </p>
+          </div>
+        );
+      })()}
+    </div>
+  );
+}
+
 // ── Single contract row ───────────────────────────────────────────────────────
 
 function ContractRow({
@@ -728,12 +921,16 @@ export default function DeployerHistoryPanel({ contractAddresses, expanded = fal
   const enabled = useFeatureFlag('deployerHistory', false);
   if (!enabled) return null;
 
-  // Only show for EVM contracts with apiBase
-  const supported = contractAddresses.filter(({ chain }) => {
+  const evmSupported = contractAddresses.filter(({ chain }) => {
     const config = getChainConfig(chain);
     return config?.family === 'evm' && !!config.apiBase;
   });
-  if (supported.length === 0) return null;
+  const solanaAddresses = contractAddresses.filter(({ chain }) => {
+    const config = getChainConfig(chain);
+    return config?.family === 'solana';
+  });
+
+  if (evmSupported.length === 0 && solanaAddresses.length === 0) return null;
 
   return (
     <div className="bg-gray-800 rounded-xl p-6">
@@ -743,13 +940,20 @@ export default function DeployerHistoryPanel({ contractAddresses, expanded = fal
       </div>
 
       <div className="space-y-3">
-        {supported.map(({ chain, address }) => (
+        {evmSupported.map(({ chain, address }) => (
           <ContractRow key={`${chain}:${address}`} chain={chain} address={address} expanded={expanded} onRisk={onRisk} />
+        ))}
+        {solanaAddresses.map(({ address }) => (
+          <SolanaDeployerRow key={`solana:${address}`} address={address} />
         ))}
       </div>
 
       <p className="text-xs text-gray-600 mt-4">
-        Cross-chain deployer scan: {TOTAL_CHAINS_SCANNED} EVM chains (Etherscan + BlockScout) · Solana &amp; TON use different cryptographic key systems
+        {evmSupported.length > 0
+          ? `Cross-chain deployer scan: ${TOTAL_CHAINS_SCANNED} EVM chains (Etherscan + BlockScout)`
+          : 'Solana upgrade authority via SolScan'}
+        {evmSupported.length > 0 && solanaAddresses.length > 0 && ' · Solana: upgrade authority via SolScan'}
+        {' '}· TON uses a different cryptographic key system
       </p>
     </div>
   );

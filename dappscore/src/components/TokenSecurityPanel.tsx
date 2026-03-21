@@ -626,6 +626,85 @@ async function fetchTonTokenSecurity(address: string): Promise<TokenSecurity> {
   return parseTonTokenSecurity(raw);
 }
 
+// ── SUI GoPlus ────────────────────────────────────────────────────────────────
+
+interface GoPlusSuiRaw {
+  is_mintable?:       '0' | '1';
+  metadata_mutable?:  '0' | '1';
+  mint_authority?:    string | null;
+  upgradeable?:       '0' | '1';
+  token_name?:        string;
+  token_symbol?:      string;
+}
+
+function parseSuiTokenSecurity(raw: GoPlusSuiRaw): TokenSecurity {
+  const flagIds: string[] = [];
+
+  const hasMintAuth = raw.mint_authority && raw.mint_authority !== '' && raw.mint_authority !== 'null';
+  if (hasMintAuth || f1(raw.is_mintable)) flagIds.push('mint-authority-active');
+  if (f1(raw.metadata_mutable))           flagIds.push('mutable-metadata');
+  if (f1(raw.upgradeable))                flagIds.push('proxy-contract');
+
+  const flags = flagIds.map(id => resolveFlag(id));
+  const riskScore = Math.min(flags.reduce((s, f) => s + (WEIGHTS[f.id] ?? 0), 0), 100);
+  const flagSet = new Set(flagIds);
+
+  const heuristics: Heuristic[] = [
+    {
+      key:      'mint-authority',
+      label:    'Mint Authority',
+      active:   flagSet.has('mint-authority-active'),
+      severity: 'critical',
+      detail:   flagSet.has('mint-authority-active') ? 'Mint authority is active' : 'Mint authority revoked',
+      why:      FLAG_DEFS['mint-authority-active'].why,
+    },
+    {
+      key:      'mutable-metadata',
+      label:    'Mutable Metadata',
+      active:   flagSet.has('mutable-metadata'),
+      severity: 'medium',
+      detail:   flagSet.has('mutable-metadata') ? 'Metadata can be changed' : 'Metadata is immutable',
+      why:      FLAG_DEFS['mutable-metadata'].why,
+    },
+    {
+      key:      'upgradeable-package',
+      label:    'Upgradeable Package',
+      active:   flagSet.has('proxy-contract'),
+      severity: 'low',
+      detail:   flagSet.has('proxy-contract') ? 'Package can be upgraded by owner' : 'Package is immutable',
+      why:      FLAG_DEFS['proxy-contract'].why,
+    },
+    {
+      key:      'supply-safe',
+      label:    'Fixed Supply',
+      active:   false,
+      severity: 'medium',
+      detail:   flagSet.has('mint-authority-active') ? 'Supply not fixed' : 'Supply is fixed',
+      why:      'A fixed supply with no mint authority means the token supply cannot be inflated.',
+    },
+  ];
+
+  return {
+    flags, heuristics, riskScore,
+    name:     raw.token_name   ?? null,
+    symbol:   raw.token_symbol ?? null,
+    allClear: flags.length === 0,
+  };
+}
+
+async function fetchSuiTokenSecurity(address: string): Promise<TokenSecurity> {
+  const res = await fetch(
+    `https://api.gopluslabs.io/api/v1/sui/token_security?contract_addresses=${address}`,
+    { headers: { Accept: 'application/json' }, signal: AbortSignal.timeout(15_000) },
+  );
+  if (!res.ok) throw new Error(`GoPlus ${res.status}`);
+  const json = await res.json() as { code: number; result: Record<string, GoPlusSuiRaw> };
+  if (json.code !== 1) throw new Error(`GoPlus code ${json.code}`);
+  const raw = json.result[address] ?? json.result[address.toLowerCase()];
+  if (!raw) throw new Error('no data');
+  return parseSuiTokenSecurity(raw);
+}
+
 // ── Fetch ────────────────────────────────────────────────────────────────────
 
 async function fetchTokenSecurity(chainId: number, address: string): Promise<TokenSecurity> {
@@ -851,7 +930,7 @@ function ContractRow({ chain, address }: ContractAddress) {
 
   useEffect(() => {
     if (!config) { setState({ status: 'unsupported' }); return; }
-    if (family !== 'solana' && family !== 'tron' && family !== 'ton' && !chainId) {
+    if (family !== 'solana' && family !== 'tron' && family !== 'ton' && family !== 'sui' && !chainId) {
       setState({ status: 'unsupported' }); return;
     }
     setState({ status: 'loading' });
@@ -862,6 +941,8 @@ function ContractRow({ chain, address }: ContractAddress) {
       fetchPromise = fetchTronTokenSecurity(address);
     } else if (family === 'ton') {
       fetchPromise = fetchTonTokenSecurity(address);
+    } else if (family === 'sui') {
+      fetchPromise = fetchSuiTokenSecurity(address);
     } else {
       fetchPromise = fetchTokenSecurity(chainId!, address);
     }
@@ -959,6 +1040,7 @@ export default function TokenSecurityPanel({ contractAddresses }: Props) {
       cfg?.family === 'solana' ||
       cfg?.family === 'tron' ||
       cfg?.family === 'ton' ||
+      cfg?.family === 'sui' ||
       !!cfg?.goplusId
     );
   });

@@ -207,8 +207,10 @@ export const CHAINS: Record<string, ChainConfig> = {
   starknet:           {                                                            explorerBase: 'https://voyager.online',             family: 'evm'                                                                                  },
   stark:              {                                                            explorerBase: 'https://voyager.online',             family: 'evm'                                                                                  },
 
+  // ── SUI ───────────────────────────────────────────────────────────────────
+  sui:                {                                                            explorerBase: 'https://suiscan.xyz',                family: 'sui',    dexscreenerId: 'sui'                                                       },
+
   // ── Non-EVM (explorer links only) ─────────────────────────────────────────
-  sui:                {                                                            explorerBase: 'https://suiscan.xyz',                family: 'evm'                                                                                  },
   near:               {                                                            explorerBase: 'https://nearblocks.io',              family: 'evm'                                                                                  },
   aptos:              {                                                            explorerBase: 'https://aptoscan.com',               family: 'evm'                                                                                  },
   cardano:            {                                                            explorerBase: 'https://cardanoscan.io',             family: 'evm'                                                                                  },
