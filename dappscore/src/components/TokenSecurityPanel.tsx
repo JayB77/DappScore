@@ -116,6 +116,18 @@ const FLAG_DEFS: Record<string, FlagDef> = {
     label: 'Cooldown',
     why: 'A delay is enforced between consecutive trades from the same wallet.',
   },
+  // ── Tron-specific flags ───────────────────────────────────────────────────
+  'tron-can-take-back-ownership': {
+    id: 'tron-can-take-back-ownership', name: 'Can Reclaim Ownership', severity: 'critical',
+    label: 'Ownership Reclaimable',
+    why: 'Even if ownership looks renounced, the contract has a function that lets the original deployer silently reclaim full admin control.',
+  },
+  // ── TON-specific flags ────────────────────────────────────────────────────
+  'ton-admin-active': {
+    id: 'ton-admin-active', name: 'Jetton Admin Active', severity: 'critical',
+    label: 'Admin Active',
+    why: 'The jetton admin address retains full control: they can mint unlimited supply, change metadata, or upgrade the contract at any time.',
+  },
   // ── Solana-specific flags ─────────────────────────────────────────────────
   'mint-authority-active': {
     id: 'mint-authority-active', name: 'Mint Authority Active', severity: 'critical',
@@ -222,6 +234,10 @@ const WEIGHTS: Record<string, number> = {
   'unverified-contract': 20, 'proxy-contract': 5,
   'whale-concentration': 20, 'lp-not-locked': 25, 'lp-lock-unknown': 10,
   'trading-cooldown': 5,
+  // Tron
+  'tron-can-take-back-ownership': 40,
+  // TON
+  'ton-admin-active': 50,
   // Solana
   'mint-authority-active': 50, 'freeze-authority-active': 25,
   'mutable-metadata': 10, 'closeable-mint': 20,
@@ -426,6 +442,188 @@ async function fetchSolanaTokenSecurity(address: string): Promise<TokenSecurity>
   const raw = json.result[address] ?? json.result[address.toLowerCase()];
   if (!raw) throw new Error('no data');
   return parseSolanaTokenSecurity(raw);
+}
+
+// ── Tron GoPlus ───────────────────────────────────────────────────────────────
+
+interface GoPlusTronRaw {
+  is_honeypot?:              '0' | '1';
+  is_mintable?:              '0' | '1';
+  hidden_owner?:             '0' | '1';
+  can_take_back_ownership?:  '0' | '1';
+  is_blacklisted?:           '0' | '1';
+  transfer_pausable?:        '0' | '1';
+  is_open_source?:           '0' | '1';
+  is_proxy?:                 '0' | '1';
+  owner_address?:            string;
+  is_contract_renounced?:    '0' | '1';
+  token_name?:               string;
+  token_symbol?:             string;
+}
+
+function parseTronTokenSecurity(raw: GoPlusTronRaw): TokenSecurity {
+  const flagIds: string[] = [];
+
+  if (f1(raw.is_honeypot))             flagIds.push('honeypot');
+  if (f1(raw.is_mintable))             flagIds.push('mintable');
+  if (f1(raw.hidden_owner))            flagIds.push('hidden-owner');
+  if (f1(raw.can_take_back_ownership)) flagIds.push('tron-can-take-back-ownership');
+  if (f1(raw.is_blacklisted))          flagIds.push('blacklist-function');
+  if (f1(raw.transfer_pausable))       flagIds.push('transfer-pausable');
+  if (!f1(raw.is_open_source))         flagIds.push('unverified-contract');
+  if (f1(raw.is_proxy))                flagIds.push('proxy-contract');
+
+  if (
+    !f1(raw.is_contract_renounced) &&
+    raw.owner_address &&
+    raw.owner_address !== ''
+  ) {
+    flagIds.push('ownership-not-renounced');
+  }
+
+  const flags = flagIds.map(id => resolveFlag(id));
+  const riskScore = Math.min(flags.reduce((s, f) => s + (WEIGHTS[f.id] ?? 0), 0), 100);
+  const flagSet = new Set(flagIds);
+
+  const heuristics: Heuristic[] = [
+    {
+      key:      'honeypot',
+      label:    'Honeypot',
+      active:   flagSet.has('honeypot'),
+      severity: 'critical',
+      detail:   flagSet.has('honeypot') ? 'Honeypot detected — cannot sell' : 'No honeypot detected',
+      why:      FLAG_DEFS['honeypot'].why,
+    },
+    {
+      key:      'unlimited-minting',
+      label:    'Unlimited Minting',
+      active:   flagSet.has('mintable'),
+      severity: 'high',
+      detail:   flagSet.has('mintable') ? 'Mint function detected' : 'No mint function detected',
+      why:      FLAG_DEFS['mintable'].why,
+    },
+    {
+      key:      'trading-lock',
+      label:    'Trading Lock',
+      active:   flagSet.has('transfer-pausable'),
+      severity: 'high',
+      detail:   flagSet.has('transfer-pausable') ? 'pause() present — can be disabled' : 'No trading lock detected',
+      why:      FLAG_DEFS['transfer-pausable'].why,
+    },
+    {
+      key:      'hidden-owner',
+      label:    'Hidden / Reclaimable Owner',
+      active:   flagSet.has('hidden-owner') || flagSet.has('tron-can-take-back-ownership'),
+      severity: 'critical',
+      detail:   flagSet.has('hidden-owner')
+        ? 'Hidden owner address detected'
+        : flagSet.has('tron-can-take-back-ownership')
+          ? 'Ownership can be silently reclaimed'
+          : 'No hidden owner',
+      why:      FLAG_DEFS['hidden-owner'].why,
+    },
+  ];
+
+  return {
+    flags, heuristics, riskScore,
+    name:     raw.token_name   ?? null,
+    symbol:   raw.token_symbol ?? null,
+    allClear: flags.length === 0,
+  };
+}
+
+async function fetchTronTokenSecurity(address: string): Promise<TokenSecurity> {
+  const res = await fetch(
+    `https://api.gopluslabs.io/api/v1/token_security/tron?contract_addresses=${address}`,
+    { headers: { Accept: 'application/json' }, signal: AbortSignal.timeout(15_000) },
+  );
+  if (!res.ok) throw new Error(`GoPlus ${res.status}`);
+  const json = await res.json() as { code: number; result: Record<string, GoPlusTronRaw> };
+  if (json.code !== 1) throw new Error(`GoPlus code ${json.code}`);
+  const raw = json.result[address] ?? json.result[address.toLowerCase()];
+  if (!raw) throw new Error('no data');
+  return parseTronTokenSecurity(raw);
+}
+
+// ── TON GoPlus ────────────────────────────────────────────────────────────────
+
+interface GoPlusTonRaw {
+  is_mintable?:       '0' | '1';
+  metadata_mutable?:  '0' | '1';
+  admin_address?:     string;
+  is_transferable?:   '0' | '1';
+  token_name?:        string;
+  token_symbol?:      string;
+}
+
+function parseTonTokenSecurity(raw: GoPlusTonRaw): TokenSecurity {
+  const flagIds: string[] = [];
+
+  const hasAdmin = raw.admin_address && raw.admin_address.trim() !== '';
+  if (hasAdmin)                flagIds.push('ton-admin-active');
+  if (f1(raw.is_mintable))     flagIds.push('mintable');
+  if (f1(raw.metadata_mutable))flagIds.push('mutable-metadata');
+
+  const flags = flagIds.map(id => resolveFlag(id));
+  const riskScore = Math.min(flags.reduce((s, f) => s + (WEIGHTS[f.id] ?? 0), 0), 100);
+  const flagSet = new Set(flagIds);
+
+  const heuristics: Heuristic[] = [
+    {
+      key:      'ton-admin',
+      label:    'Jetton Admin',
+      active:   flagSet.has('ton-admin-active'),
+      severity: 'critical',
+      detail:   flagSet.has('ton-admin-active')
+        ? `Admin: ${raw.admin_address!.slice(0, 8)}…`
+        : 'Admin address not set',
+      why:      FLAG_DEFS['ton-admin-active'].why,
+    },
+    {
+      key:      'unlimited-minting',
+      label:    'Unlimited Minting',
+      active:   flagSet.has('mintable'),
+      severity: 'high',
+      detail:   flagSet.has('mintable') ? 'Jetton is mintable' : 'Supply is fixed',
+      why:      FLAG_DEFS['mintable'].why,
+    },
+    {
+      key:      'mutable-metadata',
+      label:    'Mutable Metadata',
+      active:   flagSet.has('mutable-metadata'),
+      severity: 'medium',
+      detail:   flagSet.has('mutable-metadata') ? 'Metadata can be changed' : 'Metadata is immutable',
+      why:      FLAG_DEFS['mutable-metadata'].why,
+    },
+    {
+      key:      'transferable',
+      label:    'Transferable',
+      active:   raw.is_transferable === '0',
+      severity: 'high',
+      detail:   raw.is_transferable === '0' ? 'Transfers disabled' : 'Transfers enabled',
+      why:      'Non-transferable tokens cannot be sold or moved from your wallet.',
+    },
+  ];
+
+  return {
+    flags, heuristics, riskScore,
+    name:     raw.token_name   ?? null,
+    symbol:   raw.token_symbol ?? null,
+    allClear: flags.length === 0,
+  };
+}
+
+async function fetchTonTokenSecurity(address: string): Promise<TokenSecurity> {
+  const res = await fetch(
+    `https://api.gopluslabs.io/api/v1/token_security/ton?contract_addresses=${address}`,
+    { headers: { Accept: 'application/json' }, signal: AbortSignal.timeout(15_000) },
+  );
+  if (!res.ok) throw new Error(`GoPlus ${res.status}`);
+  const json = await res.json() as { code: number; result: Record<string, GoPlusTonRaw> };
+  if (json.code !== 1) throw new Error(`GoPlus code ${json.code}`);
+  const raw = json.result[address] ?? json.result[address.toLowerCase()];
+  if (!raw) throw new Error('no data');
+  return parseTonTokenSecurity(raw);
 }
 
 // ── Fetch ────────────────────────────────────────────────────────────────────
@@ -648,16 +846,29 @@ function ContractRow({ chain, address }: ContractAddress) {
   const [state, setState] = useState<State>({ status: 'idle' });
   const [openTip, setOpenTip] = useState<string | null>(null);
   const config   = getChainConfig(chain);
-  const isSolana = config?.family === 'solana';
+  const family   = config?.family;
   const chainId  = config?.goplusId;
 
   useEffect(() => {
-    if (!config || (!isSolana && !chainId)) { setState({ status: 'unsupported' }); return; }
+    if (!config) { setState({ status: 'unsupported' }); return; }
+    if (family !== 'solana' && family !== 'tron' && family !== 'ton' && !chainId) {
+      setState({ status: 'unsupported' }); return;
+    }
     setState({ status: 'loading' });
-    (isSolana ? fetchSolanaTokenSecurity(address) : fetchTokenSecurity(chainId!, address))
+    let fetchPromise: Promise<TokenSecurity>;
+    if (family === 'solana') {
+      fetchPromise = fetchSolanaTokenSecurity(address);
+    } else if (family === 'tron') {
+      fetchPromise = fetchTronTokenSecurity(address);
+    } else if (family === 'ton') {
+      fetchPromise = fetchTonTokenSecurity(address);
+    } else {
+      fetchPromise = fetchTokenSecurity(chainId!, address);
+    }
+    fetchPromise
       .then(data => setState({ status: 'ok', data }))
       .catch(() => setState({ status: 'error' }));
-  }, [address, chainId, isSolana, config]);
+  }, [address, chainId, family, config]);
 
   const toggleTip = (id: string) =>
     setOpenTip(prev => (prev === id ? null : id));
@@ -744,7 +955,12 @@ export default function TokenSecurityPanel({ contractAddresses }: Props) {
 
   const supported = contractAddresses.filter(({ chain }) => {
     const cfg = getChainConfig(chain);
-    return cfg?.family === 'solana' || !!cfg?.goplusId;
+    return (
+      cfg?.family === 'solana' ||
+      cfg?.family === 'tron' ||
+      cfg?.family === 'ton' ||
+      !!cfg?.goplusId
+    );
   });
   if (supported.length === 0) return null;
 
