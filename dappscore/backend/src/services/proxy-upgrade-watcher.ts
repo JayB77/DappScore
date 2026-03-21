@@ -19,7 +19,7 @@
 import EventEmitter from 'events';
 import {
   createPublicClient, http, webSocket, parseAbiItem,
-  type PublicClient, type Address,
+  type Address,
 } from 'viem';
 import { base, baseSepolia } from 'viem/chains';
 import { logger } from './logger';
@@ -59,12 +59,16 @@ class ProxyUpgradeWatcher {
   // Map key: "mainnet:0xabc..." → unsubscribe function
   private readonly subs = new Map<string, () => void>();
 
-  // Lazily-created viem clients (one per network)
-  private clients: Partial<Record<Network, PublicClient>> = {};
+  // Lazily-created viem clients (one per network).
+  // Typed as `any` because Base/BaseSepolia include OP Stack "deposit" tx types
+  // that are incompatible with viem's generic Chain type parameter.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  private clients: Partial<Record<Network, any>> = {};
 
   // ── Client factory ──────────────────────────────────────────────────────────
 
-  private getClient(network: Network): PublicClient {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  private getClient(network: Network): any {
     if (this.clients[network]) return this.clients[network]!;
 
     const wsUrl  = network === 'mainnet'
@@ -105,14 +109,17 @@ class ProxyUpgradeWatcher {
     const client = this.getClient(network);
 
     const unwatch = client.watchContractEvent({
-      address: address as Address,
-      event:   EV_UPGRADED,
+      address:   address as Address,
+      abi:       [EV_UPGRADED],
+      eventName: 'Upgraded',
 
-      onLogs: (logs) => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      onLogs: (logs: any[]) => {
         for (const log of logs) {
+          const args = (log as unknown as { args: { implementation?: string } }).args;
           const evt: ProxyUpgradeEvent = {
             contractAddress:   address.toLowerCase(),
-            newImplementation: (log.args.implementation ?? '') as string,
+            newImplementation: (args.implementation ?? '') as string,
             transactionHash:   log.transactionHash ?? '',
             blockNumber:       log.blockNumber ?? 0n,
             network,
@@ -128,7 +135,7 @@ class ProxyUpgradeWatcher {
         }
       },
 
-      onError: (error) => {
+      onError: (error: unknown) => {
         logger.warn('[ProxyUpgrade] Subscription error — will re-subscribe in 30 s', {
           address, network, error,
         });
