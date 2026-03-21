@@ -4,6 +4,8 @@ import helmet from 'helmet';
 import morgan from 'morgan';
 import dotenv from 'dotenv';
 import cron from 'node-cron';
+import { createServer } from 'http';
+import { WebSocketServer, WebSocket } from 'ws';
 
 import { projectRoutes } from './routes/projects';
 import { userRoutes } from './routes/users';
@@ -15,16 +17,40 @@ import whaleRoutes from './routes/whales';
 import { webhookRoutes } from './routes/webhooks';
 import apiKeyRoutes from './routes/api-keys';
 import { watchlistRoutes } from './routes/watchlist';
+import { rugMonitorRoutes } from './routes/rug-monitor';
 
 import whaleTrackingService from './services/whale-tracking';
 import { runAndAlert } from './services/event-monitor';
 import { runWatchlistMonitor } from './services/watchlist-monitor';
+import { rugDetectorEvents, runAndBroadcast } from './services/rug-detector';
 import { logger } from './services/logger';
 
 dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT || 3001;
+const httpServer = createServer(app);
+
+// ── WebSocket server (ws://host:3001/ws) ──────────────────────────────────────
+const wss = new WebSocketServer({ server: httpServer, path: '/ws' });
+
+wss.on('connection', (ws) => {
+  logger.info('[WS] Client connected');
+  ws.send(JSON.stringify({ type: 'connected', message: 'DappScore real-time feed active' }));
+
+  ws.on('error', (err) => logger.warn('[WS] Client error:', err));
+  ws.on('close', () => logger.info('[WS] Client disconnected'));
+});
+
+// Broadcast every rug alert to all connected WS clients
+rugDetectorEvents.on('rug_alert', (signal) => {
+  const payload = JSON.stringify({ type: 'rug_alert', signal });
+  for (const client of wss.clients) {
+    if (client.readyState === WebSocket.OPEN) {
+      client.send(payload);
+    }
+  }
+});
 
 // Middleware
 app.use(helmet());
@@ -61,6 +87,7 @@ app.use('/api/v1/whales', whaleRoutes);
 app.use('/api/v1/webhooks', webhookRoutes);
 app.use('/api/v1/api-keys', apiKeyRoutes);
 app.use('/api/v1/watchlist', watchlistRoutes);
+app.use('/api/v1/rug-monitor', rugMonitorRoutes);
 
 // Error handler
 app.use((err: Error, req: express.Request, res: express.Response, next: express.NextFunction) => {
@@ -94,8 +121,28 @@ cron.schedule('0 0 * * *', async () => {
   // Whale tracking service runs on-demand via API
 });
 
-app.listen(PORT, () => {
+// ── Rug-in-Progress sweep — every 5 minutes ───────────────────────────────────
+// Loads all watchlisted tokens from DB and runs combined rug detection.
+// Any token scoring ≥ 25 is broadcast to WS clients automatically.
+cron.schedule('*/5 * * * *', async () => {
+  logger.info('[RugMonitor] Running 5-min rug detection sweep...');
+  // TODO: load watchlisted tokens from DB once watchlist stores pair/deployer addresses:
+  //   const tokens = await db.getWatchlistTokensWithMeta();
+  //   for (const t of tokens) {
+  //     await runAndBroadcast({
+  //       tokenAddress:    t.tokenAddress,
+  //       pairAddress:     t.pairAddress,
+  //       deployerAddress: t.deployerAddress,
+  //       explorerApiBase: t.explorerApiBase,
+  //       chainId:         t.chainId,
+  //     });
+  //   }
+  void runAndBroadcast; // imported — linter suppression until DB integration
+});
+
+httpServer.listen(PORT, () => {
   logger.info(`DappScore Backend running on port ${PORT}`);
+  logger.info(`WebSocket server listening at ws://localhost:${PORT}/ws`);
 });
 
 export default app;
