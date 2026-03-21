@@ -20,6 +20,7 @@ import SocialProofPanel from '@/components/SocialProofPanel';
 import TokenSalePanel from '@/components/TokenSalePanel';
 import WhaleTrackerPanel from '@/components/WhaleTrackerPanel';
 import TokenSecurityPanel from '@/components/TokenSecurityPanel';
+import TonJettonPanel from '@/components/TonJettonPanel';
 import DisputePanel from '@/components/DisputePanel';
 import type { SaleData } from '@/types/sale';
 import { useProjectSignals } from '@/lib/useProjectSignals';
@@ -788,6 +789,9 @@ export default function ProjectDetail() {
                 </Link>
               </div>
             </div>
+
+            {/* TON Jetton Analysis — admin address, mintability, verification */}
+            <TonJettonPanel contractAddresses={project.contractAddresses} />
 
             {/* External Signals */}
             <ExternalSignalsPanel
