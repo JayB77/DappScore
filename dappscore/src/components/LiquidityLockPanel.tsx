@@ -5,6 +5,7 @@ import {
   Lock, Unlock, Clock, Loader2,
   HelpCircle, Flame, AlertTriangle, ExternalLink, ShieldCheck,
 } from 'lucide-react';
+import SectionInsight, { type Insight } from '@/components/SectionInsight';
 import { useFeatureFlag } from '@/lib/featureFlags';
 import { getChainConfig, getExplorerUrl } from '@/lib/chainAdapters';
 
@@ -567,6 +568,34 @@ function ContractRow({ chain, address, expanded = false }: ContractAddress & { e
                 </div>
               </div>
             )}
+
+            {/* ── Plain English insight ─────────────────────────────────── */}
+            {(() => {
+              const list: Insight[] = [];
+
+              if (lockedPct === 0) {
+                list.push({ level: 'critical', text: 'No liquidity is locked. The team can remove all trading liquidity at any moment, instantly making your tokens worthless and unsellable (rug pull).' });
+              } else if (lockedPct < 50) {
+                list.push({ level: 'warning', text: `Only ${lockedPct.toFixed(1)}% of liquidity is locked — the remaining ${(100 - lockedPct).toFixed(1)}% can be removed by the team at any time, collapsing the ability to trade.` });
+              } else if (lockedPct < 80) {
+                list.push({ level: 'caution', text: `${lockedPct.toFixed(1)}% of liquidity is locked. The unlocked ${(100 - lockedPct).toFixed(1)}% remains withdrawable by the team.` });
+              } else {
+                list.push({ level: 'safe', text: `${lockedPct.toFixed(1)}% of liquidity is locked, providing strong protection against a sudden liquidity removal.` });
+              }
+
+              if (nearestExpiryDays !== null && nearestExpiryDays > 0 && nearestExpiryDays <= 30) {
+                const lvl = nearestExpiryDays <= 7 ? 'critical' as const : 'warning' as const;
+                list.push({ level: lvl, text: `The earliest lock expires in ${nearestExpiryDays} day${nearestExpiryDays !== 1 ? 's' : ''}. After expiry the team can withdraw that portion of liquidity, making selling difficult or impossible.` });
+              } else if (nearestExpiryDays !== null && nearestExpiryDays <= 0) {
+                list.push({ level: 'critical', text: 'A liquidity lock has already expired. The team can withdraw that portion right now.' });
+              }
+
+              if (burnedPct > 0) {
+                list.push({ level: 'safe', text: `${burnedPct.toFixed(1)}% of LP tokens have been permanently burned — that portion of liquidity can never be removed, even by the team.` });
+              }
+
+              return <SectionInsight insights={list} className="mt-2" />;
+            })()}
           </div>
         );
       })()}
