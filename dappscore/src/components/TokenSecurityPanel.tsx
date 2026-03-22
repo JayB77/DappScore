@@ -1025,39 +1025,50 @@ function ContractRow({ chain, address }: ContractAddress) {
             const { flags, allClear, heuristics } = state.data;
             const list: Insight[] = [];
 
-            if (allClear) {
-              list.push({ level: 'safe', text: 'No security flags found. This contract passed all automated checks for common rug-pull tactics and malicious functions.' });
-            } else {
-              // Lead with the most severe flags (up to 3)
-              const topFlags = flags
-                .filter(f => f.severity === 'critical' || f.severity === 'high')
-                .slice(0, 3);
+            // Extract real tax %s from heuristic detail: "Currently 5.0% buy / 10.0% sell"
+            const taxH   = heuristics.find(h => h.key === 'adjustable-taxes');
+            const taxMatch = taxH?.detail?.match(/(\d+\.?\d*)%.*?(\d+\.?\d*)%/);
+            const bTax   = taxMatch ? parseFloat(taxMatch[1]) : null;
+            const sTax   = taxMatch ? parseFloat(taxMatch[2]) : null;
 
-              for (const flag of topFlags) {
-                const lvl: InsightLevel = flag.severity === 'critical' ? 'critical' : 'warning';
-                list.push({ level: lvl, text: flag.why });
+            // Enrich flag text with real values when available
+            const enrichFlagText = (flag: ParsedFlag): string => {
+              if (flag.id === 'tax-over-20' && sTax !== null && bTax !== null) {
+                const worst = Math.max(bTax, sTax);
+                return `Current taxes are ${bTax.toFixed(1)}% buy / ${sTax.toFixed(1)}% sell — you'd lose $${(worst / 100 * 1000).toFixed(0)} on every $1,000 traded. You need the price to rise more than ${worst.toFixed(0)}% just to break even after a round-trip buy and sell.`;
               }
+              if (flag.id === 'slippage-modifiable' && sTax !== null && bTax !== null && (sTax > 0 || bTax > 0)) {
+                return `The owner can raise taxes to any value at any time (currently ${bTax.toFixed(1)}% buy / ${sTax.toFixed(1)}% sell). If taxes are set to 100%, you receive nothing when you sell — this has been used to trap investors.`;
+              }
+              return flag.why;
+            };
 
-              // Fall back to medium flags if no critical/high
-              if (topFlags.length === 0) {
-                for (const flag of flags.filter(f => f.severity === 'medium').slice(0, 2)) {
-                  list.push({ level: 'caution', text: flag.why });
-                }
+            if (allClear) {
+              list.push({ level: 'safe', text: 'No security flags found. This contract passed all automated checks for honeypot behaviour, hidden ownership, unlimited minting, trading locks, blacklists, and other common rug-pull tactics.' });
+            } else {
+              // Every critical flag
+              for (const flag of flags.filter(f => f.severity === 'critical')) {
+                list.push({ level: 'critical', text: enrichFlagText(flag) });
+              }
+              // Every high flag
+              for (const flag of flags.filter(f => f.severity === 'high')) {
+                list.push({ level: 'warning', text: enrichFlagText(flag) });
+              }
+              // Every medium flag
+              for (const flag of flags.filter(f => f.severity === 'medium')) {
+                list.push({ level: 'caution', text: enrichFlagText(flag) });
+              }
+              // Low flags
+              for (const flag of flags.filter(f => f.severity === 'low')) {
+                list.push({ level: 'caution', text: enrichFlagText(flag) });
               }
             }
 
-            // Tax insight from heuristic detail string (e.g. "Currently 5.0% buy / 10.0% sell")
-            const taxH = heuristics.find(h => h.key === 'adjustable-taxes');
-            if (taxH?.active && taxH.detail) {
-              const m = taxH.detail.match(/(\d+\.?\d*)%.*?(\d+\.?\d*)%/);
-              if (m) {
-                const bTax = parseFloat(m[1]);
-                const sTax = parseFloat(m[2]);
-                if (sTax > 5 || bTax > 5) {
-                  const lvl: InsightLevel = sTax > 20 || bTax > 20 ? 'critical' : sTax > 10 || bTax > 10 ? 'warning' : 'caution';
-                  list.push({ level: lvl, text: `Taxes are currently ${bTax.toFixed(1)}% buy / ${sTax.toFixed(1)}% sell. On a $1,000 sell you'd pay $${(sTax / 100 * 1000).toFixed(0)} in fees.` });
-                }
-              }
+            // If taxes are known but below the "over 20%" threshold, still show a dollar callout
+            const hasTaxFlag = flags.some(f => f.id === 'tax-over-20' || f.id === 'slippage-modifiable');
+            if (!hasTaxFlag && sTax !== null && bTax !== null && (sTax > 5 || bTax > 5)) {
+              const lvl = sTax > 10 || bTax > 10 ? 'warning' as const : 'caution' as const;
+              list.push({ level: lvl, text: `Taxes are currently ${bTax.toFixed(1)}% buy / ${sTax.toFixed(1)}% sell. On a $1,000 sell you'd pay $${(sTax / 100 * 1000).toFixed(0)} in fees — factor this into your exit strategy.` });
             }
 
             return list.length > 0 ? <SectionInsight insights={list} className="mt-1" /> : null;

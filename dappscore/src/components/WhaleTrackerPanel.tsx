@@ -265,22 +265,49 @@ function ChainRow({ chain, address }: ContractAddress) {
               const list: Insight[] = [];
               const { transferCount, totalVolume, avgTransferSize } = analysis.last24h;
 
-              if (analysis.trend === 'high_activity') {
-                list.push({ level: 'warning', text: `${transferCount} large transfers totalling ${fmtAmount(totalVolume)} tokens in the last 24 hours. High whale activity can signal an incoming price move — often downward if insiders are exiting.` });
+              // ── Overall activity level ─────────────────────────────────
+              if (transferCount === 0) {
+                list.push({ level: 'safe', text: 'No large transfers detected in the last 24 hours. Whale wallets appear inactive — no unusual distribution signals at this time.' });
+              } else if (analysis.trend === 'high_activity') {
+                list.push({ level: 'warning', text: `High whale activity: ${transferCount} large transfer${transferCount !== 1 ? 's' : ''} totalling ${fmtAmount(totalVolume)} tokens in the last 24 hours (average ${fmtAmount(avgTransferSize)} per transfer). Elevated whale movement often precedes significant price action — watch closely.` });
               } else if (analysis.trend === 'moderate') {
-                list.push({ level: 'caution', text: `Moderate whale activity — ${transferCount} notable transfers averaging ${fmtAmount(avgTransferSize)} tokens each over the last 24 hours. Worth monitoring.` });
+                list.push({ level: 'caution', text: `Moderate whale activity: ${transferCount} notable transfer${transferCount !== 1 ? 's' : ''} averaging ${fmtAmount(avgTransferSize)} tokens each in the last 24 hours. Total moved: ${fmtAmount(totalVolume)} tokens. Worth monitoring for further escalation.` });
               } else {
-                list.push({ level: 'safe', text: `Low whale activity in the last 24 hours (${transferCount} large transfers). No unusual distribution patterns detected.` });
+                list.push({ level: 'safe', text: `Low whale activity: ${transferCount} large transfer${transferCount !== 1 ? 's' : ''} totalling ${fmtAmount(totalVolume)} tokens in the last 24 hours. No unusual distribution patterns detected.` });
               }
 
+              // ── Individual transfer pattern analysis ───────────────────
               if (recentLarge.length > 0) {
-                const largest = recentLarge[0];
-                if (largest.value && largest.value > 0) {
-                  const burnTo = largest.to && isBurnAddress(largest.to);
-                  if (burnTo) {
-                    list.push({ level: 'safe', text: `The largest single transfer (${fmtAmount(largest.value)} tokens) was sent to a burn address — this reduces supply and is generally positive.` });
-                  } else {
-                    list.push({ level: 'caution', text: `The largest single transfer was ${fmtAmount(largest.value)} tokens. Large moves between wallets can precede exchange deposits and selling pressure.` });
+                // Classify transfers
+                const burnTransfers  = recentLarge.filter(t => t.to && isBurnAddress(t.to));
+                const nonBurnBig     = recentLarge.filter(t => t.to && !isBurnAddress(t.to));
+
+                if (burnTransfers.length > 0) {
+                  const burnVol = burnTransfers.reduce((s, t) => s + (t.value ?? 0), 0);
+                  list.push({ level: 'safe', text: `${burnTransfers.length} transfer${burnTransfers.length !== 1 ? 's' : ''} (${fmtAmount(burnVol)} tokens) were sent to burn addresses — this permanently removes that supply, which is a bullish signal.` });
+                }
+
+                // Highlight the largest non-burn transfer
+                const largest = nonBurnBig[0];
+                if (largest?.value && largest.value > 0) {
+                  const fromTrunc = largest.from ? `${truncate(largest.from)}` : 'unknown';
+                  const toTrunc   = largest.to   ? `${truncate(largest.to)}`   : 'unknown';
+                  list.push({ level: analysis.trend === 'high_activity' ? 'warning' as const : 'caution' as const, text: `Largest single transfer: ${fmtAmount(largest.value)} tokens from ${fromTrunc} → ${toTrunc}. Large wallet-to-wallet moves can signal preparation for an exchange deposit and sell.` });
+                }
+
+                // Detect if many transfers go to the same destination (potential insider coordination)
+                const destCounts: Record<string, { count: number; volume: number }> = {};
+                for (const t of nonBurnBig) {
+                  const dest = t.to ?? 'unknown';
+                  if (!destCounts[dest]) destCounts[dest] = { count: 0, volume: 0 };
+                  destCounts[dest].count++;
+                  destCounts[dest].volume += t.value ?? 0;
+                }
+                for (const [dest, { count, volume }] of Object.entries(destCounts)) {
+                  if (count >= 3) {
+                    const destLabel = `${dest.slice(0, 6)}…${dest.slice(-4)}`;
+                    list.push({ level: 'warning', text: `${count} separate transfers totalling ${fmtAmount(volume)} tokens all went to the same wallet (${destLabel}). This concentration pattern can indicate coordinated insider activity or an exchange deposit build-up.` });
+                    break; // one callout is enough
                   }
                 }
               }

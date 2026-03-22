@@ -422,25 +422,47 @@ function ContractRow({ chain, address }: ContractAddress) {
             {/* ── Plain English insight ─────────────────────────────────── */}
             {(() => {
               const list: Insight[] = [];
+              const addrLabel = (h: { address: string }) => {
+                const known = KNOWN[h.address.toLowerCase()] ?? KNOWN[h.address];
+                return known ?? `${h.address.slice(0, 6)}…${h.address.slice(-4)}`;
+              };
               const top1  = holders[0]?.share ?? 0;
               const top3  = holders.slice(0, 3).reduce((s, h) => s + h.share, 0);
+              const top5  = holders.slice(0, 5).reduce((s, h) => s + h.share, 0);
               const top10 = holders.reduce((s, h) => s + h.share, 0);
 
+              // ── Overall concentration verdict ──────────────────────────
               if (top1 > 50) {
-                list.push({ level: 'critical', text: `A single wallet controls ${top1.toFixed(1)}% of the total supply. If this holder sells, the price would collapse almost immediately.` });
+                const w = holders[0];
+                list.push({ level: 'critical', text: `${addrLabel(w)} controls ${top1.toFixed(1)}% of the total supply. A single sell order from this wallet would cause a catastrophic price crash — there is no realistic way for anyone else to absorb that volume.` });
               } else if (top3 > 60) {
-                list.push({ level: 'critical', text: `The top 3 wallets hold ${top3.toFixed(1)}% of the supply. Coordinated selling by these wallets could wipe out the price.` });
+                const names = holders.slice(0, 3).map(h => `${addrLabel(h)} (${h.share.toFixed(1)}%)`).join(', ');
+                list.push({ level: 'critical', text: `The top 3 wallets (${names}) collectively hold ${top3.toFixed(1)}% of supply. Coordinated or simultaneous selling by these wallets would devastate the price with no recovery.` });
+              } else if (top5 > 70) {
+                list.push({ level: 'critical', text: `The top 5 wallets hold ${top5.toFixed(1)}% of supply — extremely concentrated. Any coordinated exit by a few of these wallets would wipe out most of the token's value.` });
               } else if (top10 > 80) {
-                list.push({ level: 'warning', text: `The top 10 wallets hold ${top10.toFixed(1)}% of the supply — heavily concentrated. A few large sells could move the price dramatically.` });
-              } else if (top10 > 50) {
-                list.push({ level: 'caution', text: `The top 10 wallets hold ${top10.toFixed(1)}% of supply. Moderate concentration — large holders selling could have noticeable price impact.` });
+                list.push({ level: 'warning', text: `The top 10 wallets hold ${top10.toFixed(1)}% of supply — very heavily concentrated. Large sell orders from any of these wallets would move the price dramatically and you may not be able to sell at a reasonable price.` });
+              } else if (top10 > 60) {
+                list.push({ level: 'warning', text: `Top 10 wallets hold ${top10.toFixed(1)}% of supply. Elevated concentration — significant selling from top holders could cause sharp price drops.` });
+              } else if (top10 > 40) {
+                list.push({ level: 'caution', text: `Top 10 wallets hold ${top10.toFixed(1)}% of supply. Moderate concentration — sells from larger holders can still have noticeable impact on price.` });
               } else {
-                list.push({ level: 'safe', text: `Top 10 wallets hold ${top10.toFixed(1)}% of supply — reasonably distributed. No single wallet dominates the supply.` });
+                list.push({ level: 'safe', text: `Supply appears well-distributed: top 10 wallets hold ${top10.toFixed(1)}%. No single entity dominates enough to cause a price crash on its own.` });
               }
 
-              if (fakeBurns.length > 0) {
-                const fakePct = fakeBurns.reduce((s, h) => s + h.share, 0).toFixed(1);
-                list.push({ level: 'warning', text: `${fakeBurns.length} wallet${fakeBurns.length > 1 ? 's resemble' : ' resembles'} a burn address but ${fakeBurns.length > 1 ? 'are' : 'is'} not provably unspendable. The ${fakePct}% of supply held there may still be accessible to the team.` });
+              // ── Per-whale callouts for any wallet > 10% (excluding top1 already covered) ──
+              for (let i = top1 > 50 ? 1 : 0; i < holders.length; i++) {
+                const h = holders[i];
+                if (h.share < 10) break;
+                const known = KNOWN[h.address.toLowerCase()] ?? KNOWN[h.address];
+                if (known) continue; // skip burn / system addresses
+                const lvl = h.share > 30 ? 'critical' as const : h.share > 20 ? 'warning' as const : 'caution' as const;
+                list.push({ level: lvl, text: `Wallet ${addrLabel(h)} holds ${h.share.toFixed(1)}% of supply. A sell from this wallet alone would cause significant downward price pressure.` });
+              }
+
+              // ── Fake burn wallets ──────────────────────────────────────
+              for (const fb of fakeBurns) {
+                list.push({ level: 'warning', text: `Wallet ${addrLabel(fb)} holds ${fb.share.toFixed(1)}% and looks like a burn address, but is NOT a verified dead address. The team may still control these tokens and could sell them at any time.` });
               }
 
               return <SectionInsight insights={list} className="mt-3" />;
