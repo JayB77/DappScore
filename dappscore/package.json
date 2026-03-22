@@ -7,8 +7,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "deploy": "npm run build && firebase deploy --only hosting",
-    "deploy:preview": "npm run build && firebase hosting:channel:deploy preview"
+    "deploy": "npm run build && rsync -a --delete out/ /var/www/dappscore/out/",
+    "deploy:preview": "npm run build"
   },
   "dependencies": {
     "@rainbow-me/rainbowkit": "^2.2.10",
