@@ -7,7 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "deploy": "npm run build && pm2 restart dappscore-frontend",
+    "deploy": "npm run build && pm2 reload dappscore-frontend",
     "deploy:preview": "npm run build"
   },
   "dependencies": {
