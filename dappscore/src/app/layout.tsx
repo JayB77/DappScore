@@ -18,7 +18,12 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className="dark">
-      <head>
+      <body className="font-sans bg-gray-950 text-white min-h-screen flex flex-col">
+        <Web3Provider>
+          <Header />
+          <main className="flex-grow">{children}</main>
+          <Footer />
+        </Web3Provider>
         <Script
           src="https://www.googletagmanager.com/gtag/js?id=G-DYGF6T8VE3"
           strategy="afterInteractive"
@@ -31,13 +36,6 @@ export default function RootLayout({
             gtag('config', 'G-DYGF6T8VE3');
           `}
         </Script>
-      </head>
-      <body className="font-sans bg-gray-950 text-white min-h-screen flex flex-col">
-        <Web3Provider>
-          <Header />
-          <main className="flex-grow">{children}</main>
-          <Footer />
-        </Web3Provider>
       </body>
     </html>
   );
