@@ -572,26 +572,67 @@ function ContractRow({ chain, address, expanded = false }: ContractAddress & { e
             {/* ── Plain English insight ─────────────────────────────────── */}
             {(() => {
               const list: Insight[] = [];
+              const unlockedPct = Math.max(0, 100 - lockedPct);
 
+              // ── 1. Overall lock status ──────────────────────────────────
               if (lockedPct === 0) {
-                list.push({ level: 'critical', text: 'No liquidity is locked. The team can remove all trading liquidity at any moment, instantly making your tokens worthless and unsellable (rug pull).' });
+                list.push({ level: 'critical', text: 'No liquidity is locked. The team can remove 100% of trading liquidity at any moment — this is the highest risk scenario and makes a complete rug pull trivially easy.' });
+              } else if (lockedPct < 20) {
+                list.push({ level: 'critical', text: `Only ${lockedPct.toFixed(1)}% of liquidity is locked — effectively unprotected. The team can pull the remaining ${unlockedPct.toFixed(1)}% at any time, which would make the token virtually untradeable.` });
               } else if (lockedPct < 50) {
-                list.push({ level: 'warning', text: `Only ${lockedPct.toFixed(1)}% of liquidity is locked — the remaining ${(100 - lockedPct).toFixed(1)}% can be removed by the team at any time, collapsing the ability to trade.` });
+                list.push({ level: 'warning', text: `Only ${lockedPct.toFixed(1)}% of liquidity is locked. The unlocked ${unlockedPct.toFixed(1)}% can be removed by the team at any time, significantly impacting trading and price.` });
               } else if (lockedPct < 80) {
-                list.push({ level: 'caution', text: `${lockedPct.toFixed(1)}% of liquidity is locked. The unlocked ${(100 - lockedPct).toFixed(1)}% remains withdrawable by the team.` });
+                list.push({ level: 'caution', text: `${lockedPct.toFixed(1)}% of liquidity is locked. The remaining ${unlockedPct.toFixed(1)}% is withdrawable at any time — a partial rug remains possible.` });
+              } else if (lockedPct < 100) {
+                list.push({ level: 'safe', text: `${lockedPct.toFixed(1)}% of liquidity is locked, providing strong protection. The small unlocked ${unlockedPct.toFixed(1)}% poses minimal risk.` });
               } else {
-                list.push({ level: 'safe', text: `${lockedPct.toFixed(1)}% of liquidity is locked, providing strong protection against a sudden liquidity removal.` });
+                list.push({ level: 'safe', text: '100% of liquidity is locked or permanently burned — the team cannot remove any trading liquidity.' });
               }
 
-              if (nearestExpiryDays !== null && nearestExpiryDays > 0 && nearestExpiryDays <= 30) {
-                const lvl = nearestExpiryDays <= 7 ? 'critical' as const : 'warning' as const;
-                list.push({ level: lvl, text: `The earliest lock expires in ${nearestExpiryDays} day${nearestExpiryDays !== 1 ? 's' : ''}. After expiry the team can withdraw that portion of liquidity, making selling difficult or impossible.` });
-              } else if (nearestExpiryDays !== null && nearestExpiryDays <= 0) {
-                list.push({ level: 'critical', text: 'A liquidity lock has already expired. The team can withdraw that portion right now.' });
+              // ── 2. Per-lock entry: specific platform + date ─────────────
+              for (const entry of lockEntries) {
+                if (entry.burned) {
+                  if (entry.pct >= 5) {
+                    list.push({ level: 'safe', text: `${entry.pct.toFixed(1)}% of LP has been permanently burned (sent to a dead address). This portion is locked forever — no one can ever withdraw it.` });
+                  }
+                  continue;
+                }
+
+                if (entry.earliestExpiry !== null) {
+                  const daysLeft  = Math.ceil((entry.earliestExpiry * 1000 - Date.now()) / 86_400_000);
+                  const dateLabel = fmtDate(entry.earliestExpiry);
+                  const platform  = entry.platform || 'Unknown locker';
+
+                  if (daysLeft <= 0) {
+                    list.push({ level: 'critical', text: `The ${platform} lock covering ${entry.pct.toFixed(1)}% of LP has ALREADY EXPIRED (expiry: ${dateLabel}). The team can now withdraw this liquidity at any time with no notice.` });
+                  } else if (daysLeft <= 7) {
+                    list.push({ level: 'critical', text: `The ${platform} lock (${entry.pct.toFixed(1)}% of LP) expires in just ${daysLeft} day${daysLeft !== 1 ? 's' : ''} on ${dateLabel}. After this, the team can pull this liquidity with no warning — consider exiting before then.` });
+                  } else if (daysLeft <= 30) {
+                    list.push({ level: 'warning', text: `The ${platform} lock (${entry.pct.toFixed(1)}% of LP) expires on ${dateLabel} — ${daysLeft} days from now. After this date the team can remove that liquidity, which could make selling very difficult.` });
+                  } else if (daysLeft <= 90) {
+                    list.push({ level: 'caution', text: `The ${platform} lock (${entry.pct.toFixed(1)}% of LP) expires on ${dateLabel} (${daysLeft} days). Keep an eye on this date — after expiry the team can remove liquidity.` });
+                  } else if (entry.pct >= 20) {
+                    // Only mention stable locks if they cover a significant chunk
+                    const months = Math.floor(daysLeft / 30);
+                    list.push({ level: 'safe', text: `The ${platform} lock covers ${entry.pct.toFixed(1)}% of LP and is secured until ${dateLabel} (${months} month${months !== 1 ? 's' : ''} from now). Trading is protected for the foreseeable future.` });
+                  }
+                } else {
+                  // No expiry date recorded
+                  if (entry.pct >= 10) {
+                    list.push({ level: 'caution', text: `The ${entry.platform || 'locker'} holds ${entry.pct.toFixed(1)}% of LP but has no expiry date recorded. Verify directly on ${entry.platform || 'the locker platform'} to confirm this is genuinely time-locked.` });
+                  }
+                }
               }
 
-              if (burnedPct > 0) {
-                list.push({ level: 'safe', text: `${burnedPct.toFixed(1)}% of LP tokens have been permanently burned — that portion of liquidity can never be removed, even by the team.` });
+              // ── 3. Significant unlocked holders ────────────────────────
+              for (const h of summary.unlockedHolders) {
+                if (h.pct < 5) continue;
+                const label = h.tag
+                  ? h.tag
+                  : `${h.address.slice(0, 6)}…${h.address.slice(-4)}`;
+                const lvl = h.pct >= 20 ? 'critical' as const : h.pct >= 10 ? 'warning' as const : 'caution' as const;
+                const who = h.isContract ? 'contract' : 'wallet';
+                list.push({ level: lvl, text: `${label} (${who}) holds ${h.pct.toFixed(1)}% of LP with NO lock — this ${who} can withdraw that liquidity at any time, instantly reducing trading depth.` });
               }
 
               return <SectionInsight insights={list} className="mt-2" />;

@@ -207,36 +207,76 @@ function ContractRow({ chain, address }: ContractAddress) {
             {/* ── Plain English insight ─────────────────────────────── */}
             {(() => {
               const list: Insight[] = [];
+              const transfer = data.simulationResult?.transferTax ?? 0;
 
+              // ── Honeypot / simulation verdict ─────────────────────────
               if (isHoneypot) {
-                list.push({ level: 'critical', text: 'HONEYPOT CONFIRMED: You can buy this token but cannot sell it. Any funds you put in are permanently trapped in the contract — do not buy.' });
+                list.push({ level: 'critical', text: `HONEYPOT CONFIRMED: You can buy this token but you cannot sell it. Every dollar you put in is permanently trapped — the contract blocks selling entirely.${data.honeypotResult.honeypotReason ? ` Reason: ${data.honeypotResult.honeypotReason}.` : ''}` });
               } else if (simFailed) {
-                list.push({ level: 'warning', text: 'Buy/sell simulation failed. This may mean the contract actively blocks simulation tools — a tactic sometimes used in scam contracts.' });
+                list.push({ level: 'warning', text: 'The buy/sell simulation failed to complete. This can indicate the contract actively blocks simulation tools — a common red flag used by scams to hide sell restrictions before launch.' });
+              } else if (sell === 0 && buy === 0 && transfer === 0) {
+                list.push({ level: 'safe', text: 'Simulation passed with 0% buy tax, 0% sell tax, and 0% transfer tax. The contract allows free trading with no fees deducted.' });
               } else {
-                list.push({ level: 'safe', text: 'Simulation passed. The contract allows both buying and selling without blocking your exit.' });
+                list.push({ level: 'safe', text: 'Simulation passed. The contract allows both buying and selling — no outright sell block detected.' });
               }
 
-              if (data.simulationResult) {
-                if (sell > 20) {
-                  list.push({ level: 'critical', text: `Sell tax is ${sell.toFixed(1)}% — you'd lose $${(sell / 100 * 1000).toFixed(0)} on every $1,000 sold. This makes profitable trading economically impossible.` });
+              // ── Sell tax ──────────────────────────────────────────────
+              if (data.simulationResult && !isHoneypot) {
+                if (sell > 50) {
+                  list.push({ level: 'critical', text: `Sell tax is ${sell.toFixed(1)}% — you'd receive only $${((1 - sell / 100) * 1000).toFixed(0)} from a $1,000 sell. This is so extreme that the token is effectively unsellable for any profit.` });
+                } else if (sell > 20) {
+                  list.push({ level: 'critical', text: `Sell tax is ${sell.toFixed(1)}% — you lose $${(sell / 100 * 1000).toFixed(0)} on every $1,000 sold. The price must rise more than ${sell.toFixed(0)}% above your entry just for you to break even.` });
                 } else if (sell > 10) {
-                  list.push({ level: 'warning', text: `Sell tax is ${sell.toFixed(1)}% — you pay $${(sell / 100 * 1000).toFixed(0)} in fees on every $1,000 sold.` });
+                  list.push({ level: 'warning', text: `Sell tax is ${sell.toFixed(1)}% — you pay $${(sell / 100 * 1000).toFixed(0)} in fees on every $1,000 sold. This significantly erodes profits and makes short-term trading very costly.` });
                 } else if (sell > 5) {
-                  list.push({ level: 'caution', text: `Sell tax is ${sell.toFixed(1)}% — you pay $${(sell / 100 * 1000).toFixed(0)} in fees on every $1,000 sold.` });
+                  list.push({ level: 'caution', text: `Sell tax is ${sell.toFixed(1)}% — you pay $${(sell / 100 * 1000).toFixed(0)} in fees on every $1,000 sold. Factor this into your exit planning.` });
+                } else if (sell > 0) {
+                  list.push({ level: 'caution', text: `Sell tax is ${sell.toFixed(1)}% — a small fee ($${(sell / 100 * 1000).toFixed(0)} per $1,000) is taken on every sale.` });
                 }
 
-                if (buy > 5) {
-                  const lvl: InsightLevel = buy > 20 ? 'critical' : buy > 10 ? 'warning' : 'caution';
-                  list.push({ level: lvl, text: `Buy tax is ${buy.toFixed(1)}% — you pay $${(buy / 100 * 1000).toFixed(0)} extra to enter a $1,000 position.` });
+                // ── Buy tax ────────────────────────────────────────────
+                if (buy > 20) {
+                  list.push({ level: 'critical', text: `Buy tax is ${buy.toFixed(1)}% — you immediately lose $${(buy / 100 * 1000).toFixed(0)} the moment you buy $1,000 worth. Your position starts ${buy.toFixed(0)}% in the red.` });
+                } else if (buy > 10) {
+                  list.push({ level: 'warning', text: `Buy tax is ${buy.toFixed(1)}% — you pay $${(buy / 100 * 1000).toFixed(0)} extra to enter a $1,000 position, which means you start at an immediate loss.` });
+                } else if (buy > 5) {
+                  list.push({ level: 'caution', text: `Buy tax is ${buy.toFixed(1)}% — you pay $${(buy / 100 * 1000).toFixed(0)} in fees to enter a $1,000 position.` });
+                } else if (buy > 0) {
+                  list.push({ level: 'caution', text: `Buy tax is ${buy.toFixed(1)}% — a small entry fee ($${(buy / 100 * 1000).toFixed(0)} per $1,000 invested).` });
+                }
+
+                // ── Transfer tax ───────────────────────────────────────
+                if (transfer > 10) {
+                  list.push({ level: 'warning', text: `Transfer tax is ${transfer.toFixed(1)}% — you lose $${(transfer / 100 * 1000).toFixed(0)} every time you move $1,000 worth of tokens between wallets, including to exchanges.` });
+                } else if (transfer > 0) {
+                  list.push({ level: 'caution', text: `Transfer tax is ${transfer.toFixed(1)}% — a fee is taken on every wallet-to-wallet move, including to/from exchanges.` });
+                }
+
+                // ── Combined buy+sell round-trip cost ──────────────────
+                if (buy > 0 && sell > 0 && buy + sell > 15) {
+                  const roundTrip = buy + sell;
+                  list.push({ level: roundTrip > 40 ? 'critical' as const : 'warning' as const, text: `Combined round-trip cost is ${roundTrip.toFixed(1)}% (${buy.toFixed(1)}% buy + ${sell.toFixed(1)}% sell). On a $1,000 trade you'd pay $${(roundTrip / 100 * 1000).toFixed(0)} total in fees — the price must rise ${roundTrip.toFixed(0)}%+ for you to profit.` });
                 }
               }
 
+              // ── Holder failure rate ────────────────────────────────────
               if (data.holderAnalysis) {
                 const failed = parseInt(data.holderAnalysis.failed);
                 const total  = parseInt(data.holderAnalysis.holders);
                 if (failed > 0 && total > 0) {
                   const pct = ((failed / total) * 100).toFixed(0);
-                  list.push({ level: 'critical', text: `${failed} out of ${total} holders (${pct}%) were unable to sell their tokens — a strong signal of a sell trap beyond just taxes.` });
+                  const lvl = failed / total > 0.3 ? 'critical' as const : 'warning' as const;
+                  list.push({ level: lvl, text: `${failed} out of ${total} sampled holders (${pct}%) were UNABLE to sell their tokens during simulation. This is a very strong indicator of a sell trap — even if taxes appear low, the contract is blocking exits.` });
+                } else if (total > 0) {
+                  list.push({ level: 'safe', text: `All ${total} sampled holders were able to sell successfully — no hidden sell restrictions detected in holder simulation.` });
+                }
+              }
+
+              // ── If high tax but also highest-tax holder flagged ────────
+              if (data.holderAnalysis && data.holderAnalysis.highestTax > sell) {
+                const maxTax = data.holderAnalysis.highestTax;
+                if (maxTax > 20) {
+                  list.push({ level: 'critical', text: `The highest sell tax experienced by any holder was ${maxTax.toFixed(1)}% — significantly worse than the average. Some wallets are being charged much higher fees than advertised.` });
                 }
               }
 
