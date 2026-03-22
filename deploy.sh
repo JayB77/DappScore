@@ -13,7 +13,7 @@ set -euo pipefail
 REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 FRONTEND_DIR="$REPO_DIR/dappscore"
 API_DIR="$REPO_DIR/dappscore/functions"
-WEB_ROOT="/var/www/dappscore"
+WEB_ROOT="/var/www/dappscore/dappscore"
 
 echo "==> Pulling latest code..."
 git -C "$REPO_DIR" pull origin claude/migrate-firebase-to-vps-BnAvD

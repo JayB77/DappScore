@@ -7,7 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "deploy": "npm run build && rsync -a --delete out/ /var/www/dappscore/out/",
+    "deploy": "npm run build && rsync -a --delete out/ /var/www/dappscore/dappscore/out/",
     "deploy:preview": "npm run build"
   },
   "dependencies": {
