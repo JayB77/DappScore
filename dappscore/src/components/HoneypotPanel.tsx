@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { AlertTriangle, CheckCircle, Loader2, XCircle, ShieldAlert, ExternalLink } from 'lucide-react';
+import SectionInsight, { type Insight, type InsightLevel } from '@/components/SectionInsight';
 import { useFeatureFlag } from '@/lib/featureFlags';
 import { getChainConfig } from '@/lib/chainAdapters';
 
@@ -202,6 +203,45 @@ function ContractRow({ chain, address }: ContractAddress) {
                 </span>
               </div>
             )}
+
+            {/* ── Plain English insight ─────────────────────────────── */}
+            {(() => {
+              const list: Insight[] = [];
+
+              if (isHoneypot) {
+                list.push({ level: 'critical', text: 'HONEYPOT CONFIRMED: You can buy this token but cannot sell it. Any funds you put in are permanently trapped in the contract — do not buy.' });
+              } else if (simFailed) {
+                list.push({ level: 'warning', text: 'Buy/sell simulation failed. This may mean the contract actively blocks simulation tools — a tactic sometimes used in scam contracts.' });
+              } else {
+                list.push({ level: 'safe', text: 'Simulation passed. The contract allows both buying and selling without blocking your exit.' });
+              }
+
+              if (data.simulationResult) {
+                if (sell > 20) {
+                  list.push({ level: 'critical', text: `Sell tax is ${sell.toFixed(1)}% — you'd lose $${(sell / 100 * 1000).toFixed(0)} on every $1,000 sold. This makes profitable trading economically impossible.` });
+                } else if (sell > 10) {
+                  list.push({ level: 'warning', text: `Sell tax is ${sell.toFixed(1)}% — you pay $${(sell / 100 * 1000).toFixed(0)} in fees on every $1,000 sold.` });
+                } else if (sell > 5) {
+                  list.push({ level: 'caution', text: `Sell tax is ${sell.toFixed(1)}% — you pay $${(sell / 100 * 1000).toFixed(0)} in fees on every $1,000 sold.` });
+                }
+
+                if (buy > 5) {
+                  const lvl: InsightLevel = buy > 20 ? 'critical' : buy > 10 ? 'warning' : 'caution';
+                  list.push({ level: lvl, text: `Buy tax is ${buy.toFixed(1)}% — you pay $${(buy / 100 * 1000).toFixed(0)} extra to enter a $1,000 position.` });
+                }
+              }
+
+              if (data.holderAnalysis) {
+                const failed = parseInt(data.holderAnalysis.failed);
+                const total  = parseInt(data.holderAnalysis.holders);
+                if (failed > 0 && total > 0) {
+                  const pct = ((failed / total) * 100).toFixed(0);
+                  list.push({ level: 'critical', text: `${failed} out of ${total} holders (${pct}%) were unable to sell their tokens — a strong signal of a sell trap beyond just taxes.` });
+                }
+              }
+
+              return <SectionInsight insights={list} className="mt-2" />;
+            })()}
           </div>
         );
       })()}

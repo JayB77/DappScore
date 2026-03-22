@@ -5,6 +5,7 @@ import {
   ShieldAlert, CheckCircle, XCircle, AlertTriangle, Loader2,
   HelpCircle, Info,
 } from 'lucide-react';
+import SectionInsight, { type Insight, type InsightLevel } from '@/components/SectionInsight';
 import { useFeatureFlag } from '@/lib/featureFlags';
 import { getChainConfig } from '@/lib/chainAdapters';
 
@@ -1018,6 +1019,49 @@ function ContractRow({ chain, address }: ContractAddress) {
               </div>
             </div>
           )}
+
+          {/* ── Plain English insight ───────────────────────────────────────── */}
+          {(() => {
+            const { flags, allClear, heuristics } = state.data;
+            const list: Insight[] = [];
+
+            if (allClear) {
+              list.push({ level: 'safe', text: 'No security flags found. This contract passed all automated checks for common rug-pull tactics and malicious functions.' });
+            } else {
+              // Lead with the most severe flags (up to 3)
+              const topFlags = flags
+                .filter(f => f.severity === 'critical' || f.severity === 'high')
+                .slice(0, 3);
+
+              for (const flag of topFlags) {
+                const lvl: InsightLevel = flag.severity === 'critical' ? 'critical' : 'warning';
+                list.push({ level: lvl, text: flag.why });
+              }
+
+              // Fall back to medium flags if no critical/high
+              if (topFlags.length === 0) {
+                for (const flag of flags.filter(f => f.severity === 'medium').slice(0, 2)) {
+                  list.push({ level: 'caution', text: flag.why });
+                }
+              }
+            }
+
+            // Tax insight from heuristic detail string (e.g. "Currently 5.0% buy / 10.0% sell")
+            const taxH = heuristics.find(h => h.key === 'adjustable-taxes');
+            if (taxH?.active && taxH.detail) {
+              const m = taxH.detail.match(/(\d+\.?\d*)%.*?(\d+\.?\d*)%/);
+              if (m) {
+                const bTax = parseFloat(m[1]);
+                const sTax = parseFloat(m[2]);
+                if (sTax > 5 || bTax > 5) {
+                  const lvl: InsightLevel = sTax > 20 || bTax > 20 ? 'critical' : sTax > 10 || bTax > 10 ? 'warning' : 'caution';
+                  list.push({ level: lvl, text: `Taxes are currently ${bTax.toFixed(1)}% buy / ${sTax.toFixed(1)}% sell. On a $1,000 sell you'd pay $${(sTax / 100 * 1000).toFixed(0)} in fees.` });
+                }
+              }
+            }
+
+            return list.length > 0 ? <SectionInsight insights={list} className="mt-1" /> : null;
+          })()}
         </>
       )}
     </div>

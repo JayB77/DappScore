@@ -5,6 +5,7 @@ import {
   Fish, ArrowUpRight, ArrowDownRight, ExternalLink,
   Loader2, AlertTriangle, Activity, TrendingUp,
 } from 'lucide-react';
+import SectionInsight, { type Insight } from '@/components/SectionInsight';
 import { useFeatureFlag } from '@/lib/featureFlags';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -258,6 +259,34 @@ function ChainRow({ chain, address }: ContractAddress) {
                 <span>No large transfers in the last 24 hours</span>
               </div>
             )}
+
+            {/* ── Plain English insight ─────────────────────────────────── */}
+            {(() => {
+              const list: Insight[] = [];
+              const { transferCount, totalVolume, avgTransferSize } = analysis.last24h;
+
+              if (analysis.trend === 'high_activity') {
+                list.push({ level: 'warning', text: `${transferCount} large transfers totalling ${fmtAmount(totalVolume)} tokens in the last 24 hours. High whale activity can signal an incoming price move — often downward if insiders are exiting.` });
+              } else if (analysis.trend === 'moderate') {
+                list.push({ level: 'caution', text: `Moderate whale activity — ${transferCount} notable transfers averaging ${fmtAmount(avgTransferSize)} tokens each over the last 24 hours. Worth monitoring.` });
+              } else {
+                list.push({ level: 'safe', text: `Low whale activity in the last 24 hours (${transferCount} large transfers). No unusual distribution patterns detected.` });
+              }
+
+              if (recentLarge.length > 0) {
+                const largest = recentLarge[0];
+                if (largest.value && largest.value > 0) {
+                  const burnTo = largest.to && isBurnAddress(largest.to);
+                  if (burnTo) {
+                    list.push({ level: 'safe', text: `The largest single transfer (${fmtAmount(largest.value)} tokens) was sent to a burn address — this reduces supply and is generally positive.` });
+                  } else {
+                    list.push({ level: 'caution', text: `The largest single transfer was ${fmtAmount(largest.value)} tokens. Large moves between wallets can precede exchange deposits and selling pressure.` });
+                  }
+                }
+              }
+
+              return list.length > 0 ? <SectionInsight insights={list} className="mt-3" /> : null;
+            })()}
           </div>
         );
       })()}

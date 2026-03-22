@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { Users, AlertTriangle, CheckCircle, Loader2, ExternalLink } from 'lucide-react';
+import SectionInsight, { type Insight } from '@/components/SectionInsight';
 import { useFeatureFlag } from '@/lib/featureFlags';
 
 // ── Unified chain config ───────────────────────────────────────────────────────
@@ -417,6 +418,33 @@ function ContractRow({ chain, address }: ContractAddress) {
                 );
               })}
             </div>
+
+            {/* ── Plain English insight ─────────────────────────────────── */}
+            {(() => {
+              const list: Insight[] = [];
+              const top1  = holders[0]?.share ?? 0;
+              const top3  = holders.slice(0, 3).reduce((s, h) => s + h.share, 0);
+              const top10 = holders.reduce((s, h) => s + h.share, 0);
+
+              if (top1 > 50) {
+                list.push({ level: 'critical', text: `A single wallet controls ${top1.toFixed(1)}% of the total supply. If this holder sells, the price would collapse almost immediately.` });
+              } else if (top3 > 60) {
+                list.push({ level: 'critical', text: `The top 3 wallets hold ${top3.toFixed(1)}% of the supply. Coordinated selling by these wallets could wipe out the price.` });
+              } else if (top10 > 80) {
+                list.push({ level: 'warning', text: `The top 10 wallets hold ${top10.toFixed(1)}% of the supply — heavily concentrated. A few large sells could move the price dramatically.` });
+              } else if (top10 > 50) {
+                list.push({ level: 'caution', text: `The top 10 wallets hold ${top10.toFixed(1)}% of supply. Moderate concentration — large holders selling could have noticeable price impact.` });
+              } else {
+                list.push({ level: 'safe', text: `Top 10 wallets hold ${top10.toFixed(1)}% of supply — reasonably distributed. No single wallet dominates the supply.` });
+              }
+
+              if (fakeBurns.length > 0) {
+                const fakePct = fakeBurns.reduce((s, h) => s + h.share, 0).toFixed(1);
+                list.push({ level: 'warning', text: `${fakeBurns.length} wallet${fakeBurns.length > 1 ? 's resemble' : ' resembles'} a burn address but ${fakeBurns.length > 1 ? 'are' : 'is'} not provably unspendable. The ${fakePct}% of supply held there may still be accessible to the team.` });
+              }
+
+              return <SectionInsight insights={list} className="mt-3" />;
+            })()}
           </div>
         );
       })()}
