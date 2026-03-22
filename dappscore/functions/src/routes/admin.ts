@@ -285,6 +285,99 @@ router.put('/reports/:id', async (req, res) => {
   }
 });
 
+// ── Disputes Management ───────────────────────────────────────────────────────
+
+/** GET /api/v1/admin/disputes?status=pending&limit=50 */
+router.get('/disputes', async (req, res) => {
+  try {
+    const { status } = req.query;
+    const limit = Math.min(parseInt(req.query.limit as string) || 50, 200);
+    const params: unknown[] = [limit];
+    let where = '';
+    if (typeof status === 'string') {
+      params.push(status);
+      where = `WHERE status = $2`;
+    }
+    const { rows } = await db.query(
+      `SELECT id, project_id, submitter, category, description,
+              evidence_urls, status, votes_for, votes_against,
+              admin_notes, resolved_by, created_at, updated_at, resolved_at
+       FROM disputes ${where}
+       ORDER BY created_at DESC
+       LIMIT $1`,
+      params,
+    );
+    res.json({ success: true, data: { disputes: rows } });
+  } catch (err) {
+    console.error('[admin] GET /disputes', err);
+    res.status(500).json({ success: false, error: 'Failed to fetch disputes.' });
+  }
+});
+
+const disputeDecisionSchema = z.object({
+  status:        z.enum(['under_review', 'upheld', 'rejected']),
+  adminNotes:    z.string().max(1000).optional(),
+  /** When true and status='upheld', automatically clear scam_flag in project_overrides. */
+  clearScamFlag: z.boolean().optional(),
+});
+
+/** PUT /api/v1/admin/disputes/:id */
+router.put('/disputes/:id', async (req, res) => {
+  const parsed = disputeDecisionSchema.safeParse(req.body);
+  if (!parsed.success) {
+    return res.status(422).json({
+      success: false,
+      error:   'Invalid fields.',
+      details: parsed.error.flatten(),
+    });
+  }
+
+  const { status, adminNotes, clearScamFlag } = parsed.data;
+  const disputeId = parseInt(req.params.id, 10);
+  if (isNaN(disputeId)) {
+    return res.status(400).json({ success: false, error: 'Invalid dispute ID.' });
+  }
+
+  try {
+    const { rows: dispute, rowCount } = await db.query<{ project_id: string; status: string }>(
+      `UPDATE disputes
+       SET status       = $1,
+           admin_notes  = COALESCE($2, admin_notes),
+           resolved_by  = $3,
+           resolved_at  = CASE WHEN $1 IN ('upheld','rejected') THEN NOW() ELSE resolved_at END,
+           updated_at   = NOW()
+       WHERE id = $4
+       RETURNING project_id, status`,
+      [status, adminNotes ?? null, 'admin', disputeId],
+    );
+
+    if (rowCount === 0) {
+      return res.status(404).json({ success: false, error: 'Dispute not found.' });
+    }
+
+    const projectId = dispute[0].project_id;
+
+    if (status === 'upheld' && clearScamFlag) {
+      await db.query(
+        `INSERT INTO project_overrides (project_id, scam_flag, scam_reason, updated_at)
+         VALUES ($1, FALSE, NULL, NOW())
+         ON CONFLICT (project_id) DO UPDATE SET
+           scam_flag   = FALSE,
+           scam_reason = NULL,
+           updated_at  = NOW()`,
+        [projectId],
+      );
+      await audit('override.scam_flag_cleared_by_dispute', { projectId, disputeId });
+    }
+
+    await audit('dispute.decision', { disputeId, projectId, status, adminNotes, clearScamFlag });
+    res.json({ success: true, message: `Dispute ${status}.` });
+  } catch (err) {
+    console.error('[admin] PUT /disputes/:id', err);
+    res.status(500).json({ success: false, error: 'Failed to update dispute.' });
+  }
+});
+
 // ── Audit Log ─────────────────────────────────────────────────────────────────
 
 /** GET /api/v1/admin/audit?limit=50 */

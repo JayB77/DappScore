@@ -7,8 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "deploy": "npm run build && pm2 reload ecosystem.config.js --only dappscore-frontend",
-    "deploy:preview": "npm run build"
+    "deploy": "npm run build && pm2 reload ecosystem.config.js --only dappscore-frontend"
   },
   "dependencies": {
     "@rainbow-me/rainbowkit": "^2.2.10",
