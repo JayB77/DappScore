@@ -12,12 +12,17 @@ import HoneypotPanel from '@/components/HoneypotPanel';
 import DexLiquidityPanel from '@/components/DexLiquidityPanel';
 import TokenDistributionPanel from '@/components/TokenDistributionPanel';
 import DeployerHistoryPanel from '@/components/DeployerHistoryPanel';
+import { SerialRuggerBanner } from '@/components/SerialRuggerBanner';
+import type { DeployerRisk } from '@/components/SerialRuggerBanner';
 import LiquidityLockPanel from '@/components/LiquidityLockPanel';
 import AuditBadgePanel from '@/components/AuditBadgePanel';
 import SocialProofPanel from '@/components/SocialProofPanel';
 import TokenSalePanel from '@/components/TokenSalePanel';
 import WhaleTrackerPanel from '@/components/WhaleTrackerPanel';
 import TokenSecurityPanel from '@/components/TokenSecurityPanel';
+import ApprovalSecurityPanel from '@/components/ApprovalSecurityPanel';
+import TonJettonPanel from '@/components/TonJettonPanel';
+import DisputePanel from '@/components/DisputePanel';
 import type { SaleData } from '@/types/sale';
 import { useProjectSignals } from '@/lib/useProjectSignals';
 import { useFeatureFlag } from '@/lib/featureFlags';
@@ -41,6 +46,8 @@ import {
   Edit3,
   Loader2,
   Gift,
+  Bell,
+  BellOff,
 } from 'lucide-react';
 
 // Mock project data
@@ -186,6 +193,53 @@ export default function ProjectDetail() {
   const trustScore = Math.round((project.upvotes / (project.upvotes + project.downvotes)) * 100);
   const isOwner = address?.toLowerCase() === project.ownerAddress?.toLowerCase();
 
+  // Watchlist state
+  const [watching, setWatching]         = useState(false);
+  const [watchLoading, setWatchLoading] = useState(false);
+  const apiBase = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001';
+
+  useEffect(() => {
+    if (!address) return;
+    fetch(`${apiBase}/api/v1/watchlist`, { headers: { 'x-user-id': address } })
+      .then(r => r.json())
+      .then(json => {
+        if (json.success) {
+          const watched = (json.data as { project_id: string }[]).some(
+            w => w.project_id === String(project.id),
+          );
+          setWatching(watched);
+        }
+      })
+      .catch(() => {});
+  }, [address, project.id, apiBase]);
+
+  const toggleWatch = async () => {
+    if (!address || watchLoading) return;
+    setWatchLoading(true);
+    try {
+      if (watching) {
+        await fetch(`${apiBase}/api/v1/watchlist/${project.id}`, {
+          method: 'DELETE',
+          headers: { 'x-user-id': address },
+        });
+        setWatching(false);
+      } else {
+        await fetch(`${apiBase}/api/v1/watchlist`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'x-user-id': address },
+          body: JSON.stringify({
+            projectId:    String(project.id),
+            tokenAddress: project.contractAddresses?.[0] ?? null,
+            network:      project.chain?.toLowerCase().includes('base') ? 'base' : 'mainnet',
+          }),
+        });
+        setWatching(true);
+      }
+    } catch {/* ignore */} finally {
+      setWatchLoading(false);
+    }
+  };
+
   // Unified signal fetching — shared across all three signal panels
   const signals = useProjectSignals(
     project.websiteUrl,
@@ -196,6 +250,9 @@ export default function ProjectDetail() {
   // Feature flags — controlled via /admin
   const showDappScore  = useFeatureFlag('dappScore', true);
   const showContracts  = useFeatureFlag('contractFingerprint', true);
+
+  // Deployer risk — set by DeployerHistoryPanel once DB cross-reference resolves
+  const [deployerRisk, setDeployerRisk] = useState<DeployerRisk | null>(null);
 
   // On-chain voting + SCORE rewards
   const {
@@ -251,6 +308,11 @@ export default function ProjectDetail() {
   return (
     <div className="min-h-screen py-8">
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+        {/* Serial rugger banner — shown before everything else when deployer is known bad actor */}
+        {deployerRisk && (
+          <SerialRuggerBanner risk={deployerRisk} />
+        )}
+
         {/* Header */}
         <div className="bg-gray-800 rounded-xl p-6 mb-8">
           {/* Premium Badge */}
@@ -258,7 +320,7 @@ export default function ProjectDetail() {
             <div className="bg-yellow-500 text-black text-sm font-bold text-center py-1 -mt-6 -mx-6 mb-6 rounded-t-xl flex items-center justify-center space-x-2">
               <Crown className="h-4 w-4" />
               <span>FEATURED PROJECT</span>
-              <span className="text-yellow-800">• {Math.ceil((project.premiumExpiresAt - Date.now() / 1000) / 86400)} days left</span>
+              <span suppressHydrationWarning className="text-yellow-800">• {Math.ceil((project.premiumExpiresAt - Date.now() / 1000) / 86400)} days left</span>
             </div>
           )}
 
@@ -307,6 +369,26 @@ export default function ProjectDetail() {
                 <FileText className="h-4 w-4" />
                 <span>Whitepaper</span>
               </a>
+              {isConnected && (
+                <button
+                  onClick={toggleWatch}
+                  disabled={watchLoading}
+                  className={`px-4 py-2 rounded-lg font-semibold transition-colors flex items-center space-x-2 ${
+                    watching
+                      ? 'bg-yellow-500/20 border border-yellow-500 text-yellow-400 hover:bg-yellow-500/30'
+                      : 'border border-gray-600 hover:border-yellow-500 transition-colors'
+                  }`}
+                >
+                  {watchLoading ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : watching ? (
+                    <BellOff className="h-4 w-4" />
+                  ) : (
+                    <Bell className="h-4 w-4" />
+                  )}
+                  <span>{watching ? 'Watching' : 'Watch'}</span>
+                </button>
+              )}
               {isOwner && (
                 <Link
                   href={`/projects/${project.id}/edit`}
@@ -512,7 +594,7 @@ export default function ProjectDetail() {
                               </span>
                             </div>
                             <span className="text-xs text-gray-500">
-                              {new Date(c.timestamp).toLocaleDateString()}
+                              {new Date(c.timestamp).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
                             </span>
                           </div>
                           <p className="text-gray-300">{c.content}</p>
@@ -709,6 +791,12 @@ export default function ProjectDetail() {
               </div>
             </div>
 
+            {/* Approval Risk — wallet drainer / permit abuse / setApprovalForAll detection */}
+            <ApprovalSecurityPanel contractAddresses={project.contractAddresses} />
+
+            {/* TON Jetton Analysis — admin address, mintability, verification */}
+            <TonJettonPanel contractAddresses={project.contractAddresses} />
+
             {/* External Signals */}
             <ExternalSignalsPanel
               websiteUrl={project.websiteUrl}
@@ -770,7 +858,13 @@ export default function ProjectDetail() {
 
             {/* Deployer Wallet History */}
             <div>
-              <DeployerHistoryPanel contractAddresses={project.contractAddresses} />
+              <DeployerHistoryPanel
+                  contractAddresses={project.contractAddresses}
+                  onRisk={risk => setDeployerRisk(prev =>
+                    // Merge risks from multiple chains — take the worst
+                    prev && prev.scamCount >= risk.scamCount ? prev : risk
+                  )}
+                />
               <div className="flex justify-end mt-2">
                 <Link href={`/projects/${id}/analysis#deployer`} className="text-xs text-yellow-500/70 hover:text-yellow-400 transition-colors">
                   Full Analysis →
@@ -797,6 +891,12 @@ export default function ProjectDetail() {
                 </Link>
               </div>
             </div>
+
+            {/* Dispute & Appeals */}
+            <DisputePanel
+              projectId={String(project.id)}
+              trustLevel={project.trustLevel}
+            />
 
             {/* Report Button */}
             <button className="w-full py-3 border border-red-500/50 text-red-400 rounded-lg hover:bg-red-500/10 flex items-center justify-center space-x-2">

@@ -1,10 +1,17 @@
 /**
  * Alert Service
  *
- * Manages user alerts for watchlist items, scam detections, and whale activity
+ * PostgreSQL-backed alert storage with immediate delivery via Telegram and
+ * user-configured webhooks. No batching or queuing — each alert is persisted
+ * and dispatched as soon as it is created.
+ *
+ * Previously alerts were queued and delivered in a 5-minute cron batch (capped
+ * at 50) to limit Firebase read/write costs. That constraint no longer applies.
  */
 
+import { Resend } from 'resend';
 import { logger } from './logger';
+import { db } from '../lib/db';
 
 export interface Alert {
   id: string;
@@ -36,326 +43,417 @@ export interface AlertPreferences {
   minSeverity: 'low' | 'medium' | 'high' | 'critical';
 }
 
-// In-memory storage (use Redis/DB in production)
-const alerts: Map<string, Alert[]> = new Map();
-const preferences: Map<string, AlertPreferences> = new Map();
-const pendingAlerts: Alert[] = [];
+const SEVERITY_RANK: Record<Alert['severity'], number> = {
+  low: 0, medium: 1, high: 2, critical: 3,
+};
+
+function rowToAlert(row: Record<string, any>): Alert {
+  const data = row.data ?? {};
+  return {
+    id:        row.id,
+    userId:    row.user_id,
+    type:      row.type,
+    projectId: data.projectId ?? undefined,
+    title:     row.title,
+    message:   row.message,
+    severity:  row.severity,
+    read:      row.read,
+    createdAt: row.created_at instanceof Date ? row.created_at : new Date(row.created_at),
+    metadata:  data.metadata ?? undefined,
+  };
+}
+
+function rowToPrefs(row: Record<string, any>): AlertPreferences {
+  return {
+    userId:              row.user_id,
+    email:               row.email_address ?? undefined,
+    telegram:            row.telegram_chat_id ?? undefined,
+    webhook:             row.webhook_url ?? undefined,
+    enableEmail:         row.enable_email,
+    enableTelegram:      row.enable_telegram,
+    enableWebhook:       row.enable_webhook,
+    enablePush:          row.enable_push,
+    trustChangeAlerts:   row.trust_change_alerts,
+    scamFlagAlerts:      row.scam_flag_alerts,
+    whaleActivityAlerts: row.whale_activity_alerts,
+    voteThresholdAlerts: row.vote_threshold_alerts,
+    marketAlerts:        row.market_alerts,
+    minSeverity:         row.min_severity,
+  };
+}
 
 export class AlertService {
   /**
-   * Create a new alert for a user
+   * Persist an alert to PostgreSQL and immediately dispatch it through any
+   * enabled delivery channels (Telegram, webhook).
    */
   async createAlert(alert: Omit<Alert, 'id' | 'read' | 'createdAt'>): Promise<Alert> {
-    const newAlert: Alert = {
-      ...alert,
-      id: `alert-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-      read: false,
-      createdAt: new Date(),
+    const data = {
+      projectId: alert.projectId,
+      metadata:  alert.metadata,
     };
 
-    // Add to user's alerts
-    const userAlerts = alerts.get(alert.userId) || [];
-    userAlerts.unshift(newAlert);
+    const { rows } = await db.query<{ id: string; created_at: Date }>(
+      `INSERT INTO alerts (user_id, type, title, message, severity, data, read)
+       VALUES ($1, $2, $3, $4, $5, $6, FALSE)
+       RETURNING id, created_at`,
+      [alert.userId, alert.type, alert.title, alert.message, alert.severity,
+       JSON.stringify(data)],
+    );
 
-    // Keep only last 100 alerts
-    if (userAlerts.length > 100) {
-      userAlerts.pop();
-    }
-
-    alerts.set(alert.userId, userAlerts);
-
-    // Queue for delivery
-    pendingAlerts.push(newAlert);
+    const newAlert: Alert = {
+      ...alert,
+      id:        rows[0].id,
+      read:      false,
+      createdAt: rows[0].created_at,
+    };
 
     logger.info(`Alert created for user ${alert.userId}`, {
-      type: alert.type,
-      severity: alert.severity,
+      type: alert.type, severity: alert.severity,
     });
+
+    // Deliver immediately — fire-and-forget so callers are never blocked.
+    this.deliver(newAlert).catch(err =>
+      logger.error('Alert delivery error', err as Error),
+    );
 
     return newAlert;
   }
 
   /**
-   * Get alerts for a user
+   * Deliver a single alert through all channels the user has enabled.
+   * Called immediately after DB insert — no delay, no batching.
    */
+  private async deliver(alert: Alert): Promise<void> {
+    let prefs: AlertPreferences | null;
+    try {
+      prefs = await this.getPreferences(alert.userId);
+    } catch {
+      return; // No prefs row = user hasn't configured notifications
+    }
+    if (!prefs) return;
+
+    // Severity gate
+    if (SEVERITY_RANK[alert.severity] < SEVERITY_RANK[prefs.minSeverity]) return;
+
+    // Alert type gate
+    const shouldSend =
+      (alert.type === 'trust_change'      && prefs.trustChangeAlerts) ||
+      (alert.type === 'scam_flag'         && prefs.scamFlagAlerts) ||
+      (alert.type === 'whale_activity'    && prefs.whaleActivityAlerts) ||
+      (alert.type === 'vote_threshold'    && prefs.voteThresholdAlerts) ||
+      (alert.type === 'market_resolution' && prefs.marketAlerts) ||
+      (alert.type === 'contract_event'    && prefs.scamFlagAlerts) ||
+       alert.type === 'premium_expiry';
+
+    if (!shouldSend) return;
+
+    const jobs: Promise<void>[] = [];
+    if (prefs.enableTelegram && prefs.telegram) {
+      jobs.push(this.sendTelegram(prefs.telegram, alert));
+    }
+    if (prefs.enableWebhook && prefs.webhook) {
+      jobs.push(this.sendWebhook(prefs.webhook, alert));
+    }
+    // Email: placeholder — integrate SendGrid/SES when ready
+    if (prefs.enableEmail && prefs.email) {
+      jobs.push(this.sendEmail(prefs.email, alert));
+    }
+
+    await Promise.allSettled(jobs);
+  }
+
+  // ── Read operations ────────────────────────────────────────────────────────
+
   async getAlerts(
     userId: string,
-    options: { unreadOnly?: boolean; type?: string; limit?: number; offset?: number } = {}
+    options: { unreadOnly?: boolean; type?: string; limit?: number; offset?: number } = {},
   ): Promise<{ alerts: Alert[]; total: number }> {
-    let userAlerts = alerts.get(userId) || [];
+    const conditions: string[] = ['user_id = $1'];
+    const params: unknown[] = [userId];
+    let p = 2;
 
     if (options.unreadOnly) {
-      userAlerts = userAlerts.filter(a => !a.read);
+      conditions.push(`read = FALSE`);
     }
-
     if (options.type) {
-      userAlerts = userAlerts.filter(a => a.type === options.type);
+      conditions.push(`type = $${p++}`);
+      params.push(options.type);
     }
 
-    const total = userAlerts.length;
-    const offset = options.offset || 0;
-    const limit = options.limit || 20;
+    const where = conditions.join(' AND ');
+    const limit  = options.limit  ?? 20;
+    const offset = options.offset ?? 0;
+
+    const [dataRes, countRes] = await Promise.all([
+      db.query(
+        `SELECT id, user_id, type, title, message, severity, data, read, created_at
+         FROM alerts WHERE ${where}
+         ORDER BY created_at DESC
+         LIMIT $${p} OFFSET $${p + 1}`,
+        [...params, limit, offset],
+      ),
+      db.query<{ count: string }>(
+        `SELECT COUNT(*) FROM alerts WHERE ${where}`,
+        params,
+      ),
+    ]);
 
     return {
-      alerts: userAlerts.slice(offset, offset + limit),
-      total,
+      alerts: dataRes.rows.map(rowToAlert),
+      total:  parseInt(countRes.rows[0].count, 10),
     };
   }
 
-  /**
-   * Mark alert as read
-   */
   async markAsRead(userId: string, alertId: string): Promise<boolean> {
-    const userAlerts = alerts.get(userId);
-    if (!userAlerts) return false;
-
-    const alert = userAlerts.find(a => a.id === alertId);
-    if (alert) {
-      alert.read = true;
-      return true;
-    }
-
-    return false;
+    const { rowCount } = await db.query(
+      `UPDATE alerts SET read = TRUE, read_at = NOW()
+       WHERE id = $1 AND user_id = $2 AND read = FALSE`,
+      [alertId, userId],
+    );
+    return (rowCount ?? 0) > 0;
   }
 
-  /**
-   * Mark all alerts as read
-   */
   async markAllAsRead(userId: string): Promise<number> {
-    const userAlerts = alerts.get(userId);
-    if (!userAlerts) return 0;
-
-    let count = 0;
-    for (const alert of userAlerts) {
-      if (!alert.read) {
-        alert.read = true;
-        count++;
-      }
-    }
-
-    return count;
+    const { rowCount } = await db.query(
+      `UPDATE alerts SET read = TRUE, read_at = NOW()
+       WHERE user_id = $1 AND read = FALSE`,
+      [userId],
+    );
+    return rowCount ?? 0;
   }
 
-  /**
-   * Delete an alert
-   */
   async deleteAlert(userId: string, alertId: string): Promise<boolean> {
-    const userAlerts = alerts.get(userId);
-    if (!userAlerts) return false;
-
-    const index = userAlerts.findIndex(a => a.id === alertId);
-    if (index >= 0) {
-      userAlerts.splice(index, 1);
-      return true;
-    }
-
-    return false;
+    const { rowCount } = await db.query(
+      `DELETE FROM alerts WHERE id = $1 AND user_id = $2`,
+      [alertId, userId],
+    );
+    return (rowCount ?? 0) > 0;
   }
 
-  /**
-   * Get unread count
-   */
   async getUnreadCount(userId: string): Promise<number> {
-    const userAlerts = alerts.get(userId) || [];
-    return userAlerts.filter(a => !a.read).length;
+    const { rows } = await db.query<{ count: string }>(
+      `SELECT COUNT(*) FROM alerts WHERE user_id = $1 AND read = FALSE`,
+      [userId],
+    );
+    return parseInt(rows[0].count, 10);
   }
 
-  /**
-   * Set user preferences
-   */
+  // ── Preferences ────────────────────────────────────────────────────────────
+
   async setPreferences(prefs: AlertPreferences): Promise<void> {
-    preferences.set(prefs.userId, prefs);
+    await db.query(
+      `INSERT INTO alert_preferences
+         (user_id, enable_email, enable_telegram, enable_webhook, enable_push,
+          trust_change_alerts, scam_flag_alerts, whale_activity_alerts,
+          vote_threshold_alerts, market_alerts, min_severity,
+          telegram_chat_id, webhook_url, email_address, updated_at)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,NOW())
+       ON CONFLICT (user_id) DO UPDATE SET
+         enable_email          = EXCLUDED.enable_email,
+         enable_telegram       = EXCLUDED.enable_telegram,
+         enable_webhook        = EXCLUDED.enable_webhook,
+         enable_push           = EXCLUDED.enable_push,
+         trust_change_alerts   = EXCLUDED.trust_change_alerts,
+         scam_flag_alerts      = EXCLUDED.scam_flag_alerts,
+         whale_activity_alerts = EXCLUDED.whale_activity_alerts,
+         vote_threshold_alerts = EXCLUDED.vote_threshold_alerts,
+         market_alerts         = EXCLUDED.market_alerts,
+         min_severity          = EXCLUDED.min_severity,
+         telegram_chat_id      = EXCLUDED.telegram_chat_id,
+         webhook_url           = EXCLUDED.webhook_url,
+         email_address         = EXCLUDED.email_address,
+         updated_at            = NOW()`,
+      [
+        prefs.userId,
+        prefs.enableEmail,   prefs.enableTelegram,
+        prefs.enableWebhook, prefs.enablePush,
+        prefs.trustChangeAlerts,   prefs.scamFlagAlerts,
+        prefs.whaleActivityAlerts, prefs.voteThresholdAlerts,
+        prefs.marketAlerts,        prefs.minSeverity,
+        prefs.telegram ?? null,    prefs.webhook ?? null,
+        prefs.email ?? null,
+      ],
+    );
     logger.info(`Alert preferences updated for user ${prefs.userId}`);
   }
 
-  /**
-   * Get user preferences
-   */
   async getPreferences(userId: string): Promise<AlertPreferences | null> {
-    return preferences.get(userId) || null;
+    const { rows } = await db.query(
+      `SELECT * FROM alert_preferences WHERE user_id = $1`,
+      [userId],
+    );
+    return rows.length > 0 ? rowToPrefs(rows[0]) : null;
   }
 
-  /**
-   * Process pending alerts (called by cron job)
-   */
-  async processPendingAlerts(): Promise<void> {
-    if (pendingAlerts.length === 0) return;
+  // ── Delivery channels ──────────────────────────────────────────────────────
 
-    const toProcess = pendingAlerts.splice(0, 50);
-    logger.info(`Processing ${toProcess.length} pending alerts`);
-
-    for (const alert of toProcess) {
-      const prefs = preferences.get(alert.userId);
-      if (!prefs) continue;
-
-      // Check severity threshold
-      const severityLevels = { low: 0, medium: 1, high: 2, critical: 3 };
-      if (severityLevels[alert.severity] < severityLevels[prefs.minSeverity]) {
-        continue;
-      }
-
-      // Check alert type preferences
-      const shouldSend =
-        (alert.type === 'trust_change'    && prefs.trustChangeAlerts) ||
-        (alert.type === 'scam_flag'       && prefs.scamFlagAlerts) ||
-        (alert.type === 'whale_activity'  && prefs.whaleActivityAlerts) ||
-        (alert.type === 'vote_threshold'  && prefs.voteThresholdAlerts) ||
-        (alert.type === 'market_resolution' && prefs.marketAlerts) ||
-        (alert.type === 'contract_event'  && prefs.scamFlagAlerts) || // routed through scam alerts
-        alert.type === 'premium_expiry';
-
-      if (!shouldSend) continue;
-
-      // Deliver through enabled channels
-      if (prefs.enableEmail && prefs.email) {
-        await this.sendEmail(prefs.email, alert);
-      }
-
-      if (prefs.enableTelegram && prefs.telegram) {
-        await this.sendTelegram(prefs.telegram, alert);
-      }
-
-      if (prefs.enableWebhook && prefs.webhook) {
-        await this.sendWebhook(prefs.webhook, alert);
-      }
-    }
-  }
-
-  /**
-   * Send email notification (placeholder)
-   */
-  private async sendEmail(email: string, alert: Alert): Promise<void> {
-    // In production, integrate with SendGrid, AWS SES, etc.
-    logger.info(`Would send email to ${email}`, { alertId: alert.id });
-  }
-
-  /**
-   * Send Telegram notification
-   */
   private async sendTelegram(chatId: string, alert: Alert): Promise<void> {
     const botToken = process.env.TELEGRAM_BOT_TOKEN;
     if (!botToken) return;
 
+    const emoji: Record<Alert['type'], string> = {
+      trust_change:      '📊',
+      scam_flag:         '🚨',
+      whale_activity:    '🐋',
+      vote_threshold:    '🗳️',
+      premium_expiry:    '⏰',
+      market_resolution: '🎲',
+      contract_event:    '⛓️',
+    };
+    const severityEmoji: Record<Alert['severity'], string> = {
+      low: '🟢', medium: '🟡', high: '🟠', critical: '🔴',
+    };
+
+    const text = `${emoji[alert.type]} ${severityEmoji[alert.severity]} *${alert.title}*\n\n${alert.message}`;
+
     try {
-      const emoji = {
-        trust_change: '📊',
-        scam_flag: '🚨',
-        whale_activity: '🐋',
-        vote_threshold: '🗳️',
-        premium_expiry: '⏰',
-        market_resolution: '🎲',
-        contract_event: '⛓️',
-      }[alert.type];
-
-      const severityEmoji = {
-        low: '🟢',
-        medium: '🟡',
-        high: '🟠',
-        critical: '🔴',
-      }[alert.severity];
-
-      const message = `${emoji} ${severityEmoji} *${alert.title}*\n\n${alert.message}`;
-
-      await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
+      const res = await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          chat_id: chatId,
-          text: message,
-          parse_mode: 'Markdown',
-        }),
+        body: JSON.stringify({ chat_id: chatId, text, parse_mode: 'Markdown' }),
       });
-
-      logger.info(`Sent Telegram alert to ${chatId}`, { alertId: alert.id });
+      if (!res.ok) {
+        logger.warn(`Telegram delivery failed (${res.status})`, { alertId: alert.id });
+      } else {
+        logger.info(`Telegram alert sent to ${chatId}`, { alertId: alert.id });
+      }
     } catch (error) {
       logger.error('Failed to send Telegram alert', error as Error);
     }
   }
 
-  /**
-   * Send webhook notification
-   */
   private async sendWebhook(url: string, alert: Alert): Promise<void> {
     try {
-      await fetch(url, {
+      const res = await fetch(url, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          event: 'dappscore.alert',
+          event:     'dappscore.alert',
           timestamp: alert.createdAt.toISOString(),
-          data: alert,
+          data:      alert,
         }),
       });
-
-      logger.info(`Sent webhook to ${url}`, { alertId: alert.id });
+      if (!res.ok) {
+        logger.warn(`Webhook delivery failed (${res.status})`, { alertId: alert.id, url });
+      } else {
+        logger.info(`Webhook alert sent to ${url}`, { alertId: alert.id });
+      }
     } catch (error) {
       logger.error('Failed to send webhook', error as Error);
     }
   }
 
-  /**
-   * Create trust change alert
-   */
+  private async sendEmail(email: string, alert: Alert): Promise<void> {
+    const apiKey = process.env.RESEND_API_KEY;
+    if (!apiKey) {
+      logger.warn('RESEND_API_KEY not configured — skipping email delivery', { alertId: alert.id });
+      return;
+    }
+
+    const from = process.env.FROM_EMAIL ?? 'alerts@dappscore.io';
+    const resend = new Resend(apiKey);
+
+    const severityEmoji: Record<Alert['severity'], string> = {
+      low: '🟢', medium: '🟡', high: '🟠', critical: '🔴',
+    };
+    const typeLabel: Record<Alert['type'], string> = {
+      trust_change:      'Trust Level Change',
+      scam_flag:         'Scam Alert',
+      whale_activity:    'Whale Activity',
+      vote_threshold:    'Vote Milestone',
+      premium_expiry:    'Premium Expiry',
+      market_resolution: 'Market Resolved',
+      contract_event:    'Contract Event',
+    };
+
+    const subject = `${severityEmoji[alert.severity]} ${alert.title} — DappScore Alert`;
+    const projectLink = alert.projectId
+      ? `<p><a href="https://app.dappscore.io/projects/${alert.projectId}" style="color:#f59e0b">View project →</a></p>`
+      : '';
+
+    const html = `
+<!DOCTYPE html>
+<html>
+<body style="background:#111827;color:#f9fafb;font-family:sans-serif;padding:32px 0;margin:0">
+  <div style="max-width:520px;margin:0 auto;background:#1f2937;border-radius:12px;overflow:hidden">
+    <div style="background:#f59e0b;padding:12px 24px">
+      <span style="font-weight:700;font-size:16px;color:#000">DappScore</span>
+    </div>
+    <div style="padding:24px">
+      <p style="margin:0 0 4px;font-size:12px;color:#9ca3af;text-transform:uppercase;letter-spacing:.05em">
+        ${typeLabel[alert.type]} &nbsp;·&nbsp; ${severityEmoji[alert.severity]} ${alert.severity.toUpperCase()}
+      </p>
+      <h2 style="margin:4px 0 12px;font-size:20px;color:#f9fafb">${alert.title}</h2>
+      <p style="margin:0 0 16px;color:#d1d5db;line-height:1.5">${alert.message}</p>
+      ${projectLink}
+      <p style="font-size:11px;color:#6b7280;margin:24px 0 0">
+        ${new Date(alert.createdAt).toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short' })}
+        &nbsp;·&nbsp;
+        <a href="https://app.dappscore.io/dashboard?tab=notifications" style="color:#6b7280">Manage alerts</a>
+      </p>
+    </div>
+  </div>
+</body>
+</html>`;
+
+    try {
+      const { error } = await resend.emails.send({ from, to: email, subject, html });
+      if (error) {
+        logger.warn('Resend delivery failed', { error, alertId: alert.id });
+      } else {
+        logger.info(`Email alert sent to ${email}`, { alertId: alert.id });
+      }
+    } catch (err) {
+      logger.error('Failed to send email alert', err as Error);
+    }
+  }
+
+  // ── Convenience helpers ────────────────────────────────────────────────────
+
   async alertTrustChange(
-    userId: string,
-    projectId: string,
-    projectName: string,
-    oldLevel: number,
-    newLevel: number
+    userId: string, projectId: string, projectName: string,
+    oldLevel: number, newLevel: number,
   ): Promise<Alert> {
     const levelNames = ['New Listing', 'Trusted', 'Neutral', 'Suspicious', 'Suspected Scam', 'Probable Scam'];
-    const severity = newLevel >= 4 ? 'high' : newLevel >= 3 ? 'medium' : 'low';
-
+    const severity: Alert['severity'] = newLevel >= 4 ? 'high' : newLevel >= 3 ? 'medium' : 'low';
     return this.createAlert({
-      userId,
-      type: 'trust_change',
-      projectId,
-      title: `Trust Level Changed: ${projectName}`,
+      userId, type: 'trust_change', projectId, severity,
+      title:   `Trust Level Changed: ${projectName}`,
       message: `${projectName} trust level changed from ${levelNames[oldLevel]} to ${levelNames[newLevel]}`,
-      severity,
       metadata: { oldLevel, newLevel },
     });
   }
 
-  /**
-   * Create scam flag alert
-   */
   async alertScamFlag(
-    userId: string,
-    projectId: string,
-    projectName: string,
-    reason: string
+    userId: string, projectId: string, projectName: string, reason: string,
   ): Promise<Alert> {
     return this.createAlert({
-      userId,
-      type: 'scam_flag',
-      projectId,
-      title: `Scam Alert: ${projectName}`,
+      userId, type: 'scam_flag', projectId, severity: 'critical',
+      title:   `Scam Alert: ${projectName}`,
       message: `${projectName} has been flagged as a potential scam. Reason: ${reason}`,
-      severity: 'critical',
       metadata: { reason },
     });
   }
 
-  /**
-   * Create whale activity alert
-   */
   async alertWhaleActivity(
-    userId: string,
-    projectId: string,
-    projectName: string,
-    activityType: string,
-    details: Record<string, any>
+    userId: string, projectId: string, projectName: string,
+    activityType: string, details: Record<string, any>,
   ): Promise<Alert> {
     return this.createAlert({
-      userId,
-      type: 'whale_activity',
-      projectId,
-      title: `Whale Activity: ${projectName}`,
+      userId, type: 'whale_activity', projectId, severity: 'medium',
+      title:   `Whale Activity: ${projectName}`,
       message: `Large ${activityType} detected for ${projectName}`,
-      severity: 'medium',
       metadata: details,
     });
+  }
+
+  /**
+   * No-op — kept for interface compatibility. Delivery is now instant.
+   * @deprecated
+   */
+  async processPendingAlerts(): Promise<void> {
+    // Delivery happens immediately in createAlert(). Nothing to process here.
   }
 }
 

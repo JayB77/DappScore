@@ -54,7 +54,7 @@ app.use('/api/v1/webhooks',  webhookRoutes);
 app.use('/api/v1/scam',      scamRoutes);
 app.use('/api/v1/whales',    whaleRoutes);
 app.use('/api/v1/wallet',    walletRoutes);
-app.use('/api/v1/verify',     verifyRoutes);
+app.use('/api/v1/verify',    verifyRoutes);
 app.use('/api/v1/disputes',  disputeRoutes);
 app.use('/api/v1/api-keys',  apiKeyRoutes);
 app.use('/api/v1/admin',     adminRoutes);

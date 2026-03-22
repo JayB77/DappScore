@@ -294,10 +294,12 @@ router.get('/disputes', async (req, res) => {
     const limit = Math.min(parseInt(req.query.limit as string) || 50, 200);
     const params: unknown[] = [limit];
     let where = '';
+
     if (typeof status === 'string') {
       params.push(status);
       where = `WHERE status = $2`;
     }
+
     const { rows } = await db.query(
       `SELECT id, project_id, submitter, category, description,
               evidence_urls, status, votes_for, votes_against,
@@ -315,8 +317,8 @@ router.get('/disputes', async (req, res) => {
 });
 
 const disputeDecisionSchema = z.object({
-  status:        z.enum(['under_review', 'upheld', 'rejected']),
-  adminNotes:    z.string().max(1000).optional(),
+  status:     z.enum(['under_review', 'upheld', 'rejected']),
+  adminNotes: z.string().max(1000).optional(),
   /** When true and status='upheld', automatically clear scam_flag in project_overrides. */
   clearScamFlag: z.boolean().optional(),
 });
@@ -327,7 +329,7 @@ router.put('/disputes/:id', async (req, res) => {
   if (!parsed.success) {
     return res.status(422).json({
       success: false,
-      error:   'Invalid fields.',
+      error: 'Invalid fields.',
       details: parsed.error.flatten(),
     });
   }
@@ -339,7 +341,9 @@ router.put('/disputes/:id', async (req, res) => {
   }
 
   try {
-    const { rows: dispute, rowCount } = await db.query<{ project_id: string; status: string }>(
+    const { rows: dispute, rowCount } = await db.query<{
+      project_id: string; status: string;
+    }>(
       `UPDATE disputes
        SET status       = $1,
            admin_notes  = COALESCE($2, admin_notes),
@@ -357,6 +361,7 @@ router.put('/disputes/:id', async (req, res) => {
 
     const projectId = dispute[0].project_id;
 
+    // When upheld: optionally clear the scam flag in project_overrides
     if (status === 'upheld' && clearScamFlag) {
       await db.query(
         `INSERT INTO project_overrides (project_id, scam_flag, scam_reason, updated_at)

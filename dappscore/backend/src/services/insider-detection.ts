@@ -104,7 +104,7 @@ export async function detectInsiderWallets(
           `${apiBase}?module=account&action=tokentx` +
           `&contractaddress=${pairAddress}&sort=asc&page=1&offset=10`,
         );
-        const data = await res.json();
+        const data: any = await res.json();
         const firstMint = (data?.result as TxRecord[] ?? []).find(
           tx => tx.from === '0x0000000000000000000000000000000000000000',
         );
@@ -117,7 +117,7 @@ export async function detectInsiderWallets(
         `${apiBase}?module=account&action=tokentx` +
         `&contractaddress=${tokenAddress}&sort=asc&page=1&offset=1`,
       );
-      const data = await res.json();
+      const data: any = await res.json();
       const first = (data?.result as TxRecord[] ?? [])[0];
       if (first) launchBlock = parseInt(first.blockNumber, 10);
     }
@@ -131,7 +131,7 @@ export async function detectInsiderWallets(
       `${apiBase}?module=account&action=tokentx` +
       `&contractaddress=${tokenAddress}&sort=asc&page=1&offset=200`,
     );
-    const earlyData = await earlyRes.json();
+    const earlyData: any = await earlyRes.json();
     const earlyTxs: TxRecord[] = Array.isArray(earlyData?.result)
       ? earlyData.result
       : [];
@@ -183,7 +183,7 @@ export async function detectInsiderWallets(
             `${apiBase}?module=account&action=txlist` +
             `&address=${wallet}&sort=asc&page=1&offset=5`,
           );
-          const data = await res.json();
+          const data: any = await res.json();
           const txs: TxRecord[] = Array.isArray(data?.result) ? data.result : [];
           // First transaction where this wallet RECEIVED ETH = its funding source
           const fundingTx = txs.find(
@@ -226,7 +226,7 @@ export async function detectInsiderWallets(
             `${apiBase}?module=account&action=txlist` +
             `&address=${wallet}&sort=asc&page=1&offset=50`,
           );
-          const data = await res.json();
+          const data: any = await res.json();
           const txs: TxRecord[] = Array.isArray(data?.result) ? data.result : [];
 
           const interaction = txs.find(tx =>
@@ -273,7 +273,7 @@ export async function detectInsiderWallets(
       summary: buildSummary(sameBlockBuyers, walletClusters, preLaunchInteractors),
     };
   } catch (error) {
-    logger.error('[InsiderDetection] detectInsiderWallets error:', error);
+    logger.error('[InsiderDetection] detectInsiderWallets error:', error as Error);
     return emptyResult('Analysis failed');
   }
 }
