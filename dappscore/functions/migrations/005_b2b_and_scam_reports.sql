@@ -50,7 +50,7 @@ CREATE TABLE IF NOT EXISTS b2b_query_logs (
 );
 CREATE INDEX IF NOT EXISTS idx_b2b_logs_account     ON b2b_query_logs(account_id, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_b2b_logs_address     ON b2b_query_logs(address);
-CREATE INDEX IF NOT EXISTS idx_b2b_logs_month       ON b2b_query_logs(account_id, DATE_TRUNC('month', created_at));
+-- monthly billing queries use idx_b2b_logs_account (account_id, created_at DESC)
 
 -- ── Community Scam Reports ────────────────────────────────────────────────────
 -- Public reports submitted via form or B2B integration
