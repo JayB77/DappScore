@@ -7,6 +7,14 @@ import "@openzeppelin/contracts/access/AccessControl.sol";
 import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 
 /**
+ * @notice Minimal interface for contracts that react to confirmed scam projects.
+ *         Implement and register via `addScamListener` to receive notifications.
+ */
+interface IScamListener {
+    function onProjectScamConfirmed(uint256 projectId) external;
+}
+
+/**
  * @title ProjectRegistry
  * @notice Registry for ICO/crypto project listings
  * @dev UUPS upgradeable proxy pattern via OpenZeppelin Initializable + UUPSUpgradeable.
@@ -16,6 +24,7 @@ import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
  *   DEFAULT_ADMIN_ROLE  — upgrade authority, full admin
  *   OPERATOR_ROLE       — can verify/suspend/blacklist projects, update fees
  *   VOTING_ENGINE_ROLE  — can call setTrustLevel (granted to VotingEngine)
+ *   DISPUTE_ROLE        — can call setTrustLevel (granted to DisputeResolution)
  *
  * Bug fixes vs v1:
  *   - Date validation is now optional (allows non-sale projects with 0 dates).
@@ -25,6 +34,7 @@ import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 contract ProjectRegistry is Initializable, UUPSUpgradeable, AccessControl, ReentrancyGuard {
     bytes32 public constant OPERATOR_ROLE       = keccak256("OPERATOR_ROLE");
     bytes32 public constant VOTING_ENGINE_ROLE  = keccak256("VOTING_ENGINE_ROLE");
+    bytes32 public constant DISPUTE_ROLE        = keccak256("DISPUTE_ROLE");
 
     enum ProjectStatus {
         Pending,     // Awaiting review
@@ -86,8 +96,13 @@ contract ProjectRegistry is Initializable, UUPSUpgradeable, AccessControl, Reent
 
     address public treasury;
 
-    // Storage gap for future upgrade variables
-    uint256[44] private __gap;
+    /// @dev Contracts notified when a project reaches ProbableScam trust level.
+    ///      Capped at MAX_SCAM_LISTENERS to bound gas cost in setTrustLevel.
+    address[] public scamListeners;
+    uint256 public constant MAX_SCAM_LISTENERS = 5;
+
+    // Storage gap for future upgrade variables (reduced by 1 for scamListeners array)
+    uint256[43] private __gap;
 
     // ============ Events ============
 
@@ -100,6 +115,9 @@ contract ProjectRegistry is Initializable, UUPSUpgradeable, AccessControl, Reent
     event VerificationFeeUpdated(uint256 newFee);
     event TreasuryUpdated(address indexed treasury);
     event VotingEngineSet(address indexed engine);
+    event DisputeResolutionSet(address indexed disputeResolution);
+    event ScamListenerAdded(address indexed listener);
+    event ScamListenerRemoved(address indexed listener);
 
     // ============ Constructor / Initializer ============
 
@@ -236,18 +254,29 @@ contract ProjectRegistry is Initializable, UUPSUpgradeable, AccessControl, Reent
     }
 
     /**
-     * @notice Update project trust level — callable by VOTING_ENGINE_ROLE or OPERATOR_ROLE
+     * @notice Update project trust level.
+     *         Callable by VOTING_ENGINE_ROLE, DISPUTE_ROLE, or OPERATOR_ROLE.
+     *         When level reaches ProbableScam, registered scam listeners are notified.
      */
     function setTrustLevel(uint256 _projectId, TrustLevel _level) external {
         require(
-            hasRole(VOTING_ENGINE_ROLE, msg.sender) || hasRole(OPERATOR_ROLE, msg.sender),
+            hasRole(VOTING_ENGINE_ROLE, msg.sender) ||
+            hasRole(DISPUTE_ROLE,       msg.sender) ||
+            hasRole(OPERATOR_ROLE,      msg.sender),
             "Unauthorized"
         );
         Project storage project = projects[_projectId];
         require(project.id != 0, "Project not found");
+
+        TrustLevel prev = project.trustLevel;
         project.trustLevel = _level;
         project.updatedAt = block.timestamp;
         emit ProjectTrustLevelChanged(_projectId, _level);
+
+        // Notify scam listeners only on the first transition to ProbableScam
+        if (_level == TrustLevel.ProbableScam && prev != TrustLevel.ProbableScam) {
+            _notifyScamListeners(_projectId);
+        }
     }
 
     // ============ Admin Functions ============
@@ -268,6 +297,52 @@ contract ProjectRegistry is Initializable, UUPSUpgradeable, AccessControl, Reent
         _revokeRole(VOTING_ENGINE_ROLE, _engine);
     }
 
+    /**
+     * @notice Grant DISPUTE_ROLE to the DisputeResolution contract.
+     */
+    function setDisputeResolution(address _dr) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        require(_dr != address(0), "Invalid address");
+        _grantRole(DISPUTE_ROLE, _dr);
+        emit DisputeResolutionSet(_dr);
+    }
+
+    /**
+     * @notice Revoke DISPUTE_ROLE from a DisputeResolution contract.
+     */
+    function revokeDisputeResolution(address _dr) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        _revokeRole(DISPUTE_ROLE, _dr);
+    }
+
+    /**
+     * @notice Register a contract to receive onProjectScamConfirmed callbacks.
+     *         Max MAX_SCAM_LISTENERS listeners; duplicates rejected.
+     */
+    function addScamListener(address _listener) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        require(_listener != address(0), "Invalid address");
+        require(scamListeners.length < MAX_SCAM_LISTENERS, "Max listeners reached");
+        for (uint256 i = 0; i < scamListeners.length; i++) {
+            require(scamListeners[i] != _listener, "Already registered");
+        }
+        scamListeners.push(_listener);
+        emit ScamListenerAdded(_listener);
+    }
+
+    /**
+     * @notice Unregister a scam listener.
+     */
+    function removeScamListener(address _listener) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        uint256 len = scamListeners.length;
+        for (uint256 i = 0; i < len; i++) {
+            if (scamListeners[i] == _listener) {
+                scamListeners[i] = scamListeners[len - 1];
+                scamListeners.pop();
+                emit ScamListenerRemoved(_listener);
+                return;
+            }
+        }
+        revert("Listener not found");
+    }
+
     function setListingFee(uint256 _fee) external onlyRole(OPERATOR_ROLE) {
         listingFee = _fee;
         emit ListingFeeUpdated(_fee);
@@ -284,10 +359,28 @@ contract ProjectRegistry is Initializable, UUPSUpgradeable, AccessControl, Reent
         emit TreasuryUpdated(_treasury);
     }
 
+    // ============ Internal ============
+
+    function _notifyScamListeners(uint256 _projectId) internal {
+        uint256 len = scamListeners.length;
+        for (uint256 i = 0; i < len; i++) {
+            // Use try-catch so a broken listener never blocks trust level updates.
+            try IScamListener(scamListeners[i]).onProjectScamConfirmed(_projectId) {} catch {}
+        }
+    }
+
     // ============ View Functions ============
 
     function getProject(uint256 _projectId) external view returns (Project memory) {
         return projects[_projectId];
+    }
+
+    function projectExists(uint256 _projectId) external view returns (bool) {
+        return projects[_projectId].id != 0;
+    }
+
+    function getScamListeners() external view returns (address[] memory) {
+        return scamListeners;
     }
 
     function getOwnerProjects(address _owner) external view returns (uint256[] memory) {

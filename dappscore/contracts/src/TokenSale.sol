@@ -8,6 +8,23 @@ import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "./ScoreToken.sol";
 
 /**
+ * @dev Minimal Chainlink AggregatorV3 interface.
+ *      Feed returns prices with 8 decimals; we divide by 100 to get 6-decimal USD.
+ */
+interface AggregatorV3Interface {
+    function latestRoundData()
+        external
+        view
+        returns (
+            uint80  roundId,
+            int256  answer,
+            uint256 startedAt,
+            uint256 updatedAt,
+            uint80  answeredInRound
+        );
+}
+
+/**
  * @title TokenSale
  * @notice DappScore's fair launch token sale with 3 stages
  * @dev Features:
@@ -59,7 +76,16 @@ contract TokenSale is Ownable2Step, ReentrancyGuard {
 
     mapping(Stage => StageConfig) public stageConfigs;
 
-    uint256 public ethPriceUsd; // 6 decimals (e.g., 3000_000000 = $3000)
+    uint256 public ethPriceUsd; // 6 decimals (e.g., 3000_000000 = $3000) — manual fallback
+
+    /**
+     * @dev Chainlink ETH/USD price feed.
+     *      Set to a non-zero address to use the oracle; leave zero to use the manual fallback.
+     */
+    AggregatorV3Interface public ethUsdPriceFeed;
+
+    /// @dev Maximum age (in seconds) for an oracle price answer to be considered fresh.
+    uint256 public constant ORACLE_STALENESS_THRESHOLD = 1 hours;
 
     uint256 public minPurchaseUsd; // Minimum per transaction
     uint256 public maxPurchaseUsd; // Maximum per wallet
@@ -92,6 +118,7 @@ contract TokenSale is Ownable2Step, ReentrancyGuard {
     event StageExtended(Stage stage, uint256 newEndTime);
     event LimitsUpdated(uint256 minUsd, uint256 maxUsd);
     event EthPriceUpdated(uint256 newPrice);
+    event EthOracleSet(address indexed feed);
     event ClaimEnabled();
 
     // ============ Constructor ============
@@ -151,7 +178,7 @@ contract TokenSale is Ownable2Step, ReentrancyGuard {
         require(block.timestamp >= config.startTime, "Stage not started");
         require(block.timestamp <= config.endTime, "Stage ended");
 
-        uint256 usdValue = (msg.value * ethPriceUsd) / 1 ether;
+        uint256 usdValue = (msg.value * _getEthPriceUsd()) / 1 ether;
         uint256 tokenAmount = _processPurchase(usdValue, config);
 
         (bool sent,) = treasury.call{value: msg.value}("");
@@ -432,7 +459,7 @@ contract TokenSale is Ownable2Step, ReentrancyGuard {
 
     function calculateTokensForEth(uint256 ethAmount) external view returns (uint256) {
         if (currentStage == Stage.NotStarted || currentStage == Stage.Ended) return 0;
-        uint256 usdValue = (ethAmount * ethPriceUsd) / 1 ether;
+        uint256 usdValue = (ethAmount * _getEthPriceUsd()) / 1 ether;
         return _calculateTokens(usdValue, stageConfigs[currentStage].tokenPriceUsd);
     }
 
@@ -450,5 +477,48 @@ contract TokenSale is Ownable2Step, ReentrancyGuard {
 
     receive() external payable {
         revert("Use buyWithEth()");
+    }
+
+    // ============ Internal Helpers ============
+
+    /**
+     * @dev Returns the current ETH/USD price with 6 decimals.
+     *      Tries the Chainlink oracle first; falls back to the manually set value if:
+     *        - No oracle is configured (address(0))
+     *        - The oracle call reverts
+     *        - The price is non-positive
+     *        - The answer is stale (older than ORACLE_STALENESS_THRESHOLD)
+     */
+    function _getEthPriceUsd() internal view returns (uint256) {
+        if (address(ethUsdPriceFeed) != address(0)) {
+            try ethUsdPriceFeed.latestRoundData() returns (
+                uint80,
+                int256 answer,
+                uint256,
+                uint256 updatedAt,
+                uint80
+            ) {
+                if (
+                    answer > 0 &&
+                    block.timestamp - updatedAt <= ORACLE_STALENESS_THRESHOLD
+                ) {
+                    // Chainlink feeds return 8 decimals; divide by 100 to get 6 decimals
+                    return uint256(answer) / 100;
+                }
+            } catch {}
+        }
+        return ethPriceUsd; // manual fallback
+    }
+
+    // ============ Oracle Admin ============
+
+    /**
+     * @notice Set (or unset) the Chainlink ETH/USD price feed.
+     *         Pass address(0) to disable oracle and use the manual price only.
+     * @param _feed Address of the AggregatorV3-compatible feed.
+     */
+    function setEthOracle(address _feed) external onlyOwner {
+        ethUsdPriceFeed = AggregatorV3Interface(_feed);
+        emit EthOracleSet(_feed);
     }
 }

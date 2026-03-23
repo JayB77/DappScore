@@ -3,6 +3,7 @@ pragma solidity ^0.8.24;
 
 import "forge-std/Script.sol";
 import "forge-std/console.sol";
+import "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 
 // Core contracts
 import "../src/ScoreToken.sol";
@@ -17,22 +18,31 @@ import "../src/ReputationSystem.sol";
 import "../src/PredictionMarket.sol";
 import "../src/BountySystem.sol";
 import "../src/InsurancePool.sol";
+import "../src/DisputeResolution.sol";
 import "../src/Watchlist.sol";
 import "../src/AffiliateProgram.sol";
 
 /**
  * @title Deploy
- * @notice Deploys all DappScore contracts to Base Sepolia
+ * @notice Deploys all DappScore contracts to Base Sepolia.
+ *
+ * UUPS proxy contracts (impl + ERC1967Proxy):
+ *   ProjectRegistry, VotingEngine, ReputationSystem,
+ *   InsurancePool, BountySystem, DisputeResolution
+ *
+ * Direct-deploy contracts (Ownable / Ownable2Step):
+ *   ScoreToken, TokenSale, PremiumListings, CuratorNFT,
+ *   PredictionMarket, Watchlist, AffiliateProgram
  *
  * Usage:
  *   forge script script/Deploy.s.sol:Deploy --rpc-url base_sepolia --broadcast --verify
  *
  * Required env vars:
- *   PRIVATE_KEY - Deployer private key
- *   TREASURY_ADDRESS - Treasury wallet for fees
- *   USDC_ADDRESS - USDC token address (Base Sepolia: 0x036CbD53842c5426634e7929541eC2318f3dCF7e)
- *   USDT_ADDRESS - USDT token address (or use USDC address if no USDT on testnet)
- *   NFT_BASE_URI - Base URI for NFT metadata (e.g., "ipfs://QmXXX/")
+ *   PRIVATE_KEY        — Deployer private key
+ *   TREASURY_ADDRESS   — Treasury wallet for fees
+ *   USDC_ADDRESS       — USDC token address (Base Sepolia: 0x036CbD53842c5426634e7929541eC2318f3dCF7e)
+ *   USDT_ADDRESS       — USDT token address (optional, defaults to USDC)
+ *   NFT_BASE_URI       — Base URI for NFT metadata (optional)
  */
 contract Deploy is Script {
     // Core contracts
@@ -48,20 +58,20 @@ contract Deploy is Script {
     PredictionMarket public predictionMarket;
     BountySystem public bountySystem;
     InsurancePool public insurancePool;
+    DisputeResolution public disputeResolution;
     Watchlist public watchlist;
     AffiliateProgram public affiliateProgram;
 
     // Configuration
-    uint256 public listingFee = 0; // Free listings on testnet
-    uint256 public verificationFee = 0.001 ether; // Small fee for verification
+    uint256 public listingFee = 0;             // Free listings on testnet
+    uint256 public verificationFee = 0.001 ether;
 
     function run() external {
-        // Load configuration from environment
         uint256 deployerPrivateKey = vm.envUint("PRIVATE_KEY");
         address deployer = vm.addr(deployerPrivateKey);
         address treasury = vm.envOr("TREASURY_ADDRESS", deployer);
-        address usdc = vm.envAddress("USDC_ADDRESS");
-        address usdt = vm.envOr("USDT_ADDRESS", usdc); // Default to USDC if no USDT
+        address usdc     = vm.envAddress("USDC_ADDRESS");
+        address usdt     = vm.envOr("USDT_ADDRESS", usdc);
         string memory nftBaseUri = vm.envOr("NFT_BASE_URI", string("https://dappscore.io/nft/"));
 
         console.log("=== DappScore Full Deployment ===");
@@ -75,90 +85,135 @@ contract Deploy is Script {
         // ============ CORE CONTRACTS ============
         console.log("--- Deploying Core Contracts ---");
 
-        // 1. Deploy ScoreToken
+        // 1. ScoreToken (Ownable2Step — direct deploy)
         console.log("1. Deploying ScoreToken...");
         scoreToken = new ScoreToken(deployer);
         console.log("   ScoreToken:", address(scoreToken));
 
-        // 2. Deploy ProjectRegistry
+        // 2. ProjectRegistry (UUPS proxy)
         console.log("2. Deploying ProjectRegistry...");
-        projectRegistry = new ProjectRegistry(
-            deployer,
-            treasury,
-            listingFee,
-            verificationFee
-        );
+        {
+            ProjectRegistry impl = new ProjectRegistry();
+            projectRegistry = ProjectRegistry(
+                address(new ERC1967Proxy(
+                    address(impl),
+                    abi.encodeCall(
+                        ProjectRegistry.initialize,
+                        (deployer, treasury, listingFee, verificationFee)
+                    )
+                ))
+            );
+        }
         console.log("   ProjectRegistry:", address(projectRegistry));
 
-        // 3. Deploy VotingEngine
+        // 3. VotingEngine (UUPS proxy)
         console.log("3. Deploying VotingEngine...");
-        votingEngine = new VotingEngine(
-            deployer,
-            address(scoreToken),
-            address(projectRegistry)
-        );
+        {
+            VotingEngine impl = new VotingEngine();
+            votingEngine = VotingEngine(
+                address(new ERC1967Proxy(
+                    address(impl),
+                    abi.encodeCall(
+                        VotingEngine.initialize,
+                        (deployer, address(scoreToken), address(projectRegistry))
+                    )
+                ))
+            );
+        }
         console.log("   VotingEngine:", address(votingEngine));
 
-        // 4. Deploy TokenSale
+        // 4. TokenSale (Ownable2Step — direct deploy)
         console.log("4. Deploying TokenSale...");
-        tokenSale = new TokenSale(
-            deployer,
-            address(scoreToken),
-            usdc,
-            usdt,
-            treasury
-        );
+        tokenSale = new TokenSale(deployer, address(scoreToken), usdc, usdt, treasury);
         console.log("   TokenSale:", address(tokenSale));
 
-        // 5. Deploy PremiumListings
+        // 5. PremiumListings (Ownable — direct deploy)
         console.log("5. Deploying PremiumListings...");
-        premiumListings = new PremiumListings(
-            deployer,
-            usdc,
-            treasury
-        );
+        premiumListings = new PremiumListings(deployer, usdc, treasury);
         console.log("   PremiumListings:", address(premiumListings));
 
-        // 6. Deploy CuratorNFT
+        // 6. CuratorNFT (Ownable2Step — direct deploy)
         console.log("6. Deploying CuratorNFT...");
-        curatorNFT = new CuratorNFT(
-            deployer,
-            address(scoreToken),
-            nftBaseUri
-        );
+        curatorNFT = new CuratorNFT(deployer, address(scoreToken), nftBaseUri);
         console.log("   CuratorNFT:", address(curatorNFT));
 
         // ============ FEATURE CONTRACTS ============
         console.log("");
         console.log("--- Deploying Feature Contracts ---");
 
-        // 7. Deploy ReputationSystem
+        // 7. ReputationSystem (UUPS proxy)
         console.log("7. Deploying ReputationSystem...");
-        reputationSystem = new ReputationSystem(deployer);
+        {
+            ReputationSystem impl = new ReputationSystem();
+            reputationSystem = ReputationSystem(
+                address(new ERC1967Proxy(
+                    address(impl),
+                    abi.encodeCall(ReputationSystem.initialize, (deployer))
+                ))
+            );
+        }
         console.log("   ReputationSystem:", address(reputationSystem));
 
-        // 8. Deploy PredictionMarket
+        // 8. PredictionMarket (Ownable — direct deploy)
         console.log("8. Deploying PredictionMarket...");
         predictionMarket = new PredictionMarket(deployer, address(scoreToken));
         console.log("   PredictionMarket:", address(predictionMarket));
 
-        // 9. Deploy BountySystem
+        // 9. BountySystem (UUPS proxy)
         console.log("9. Deploying BountySystem...");
-        bountySystem = new BountySystem(deployer, address(scoreToken), treasury);
+        {
+            BountySystem impl = new BountySystem();
+            bountySystem = BountySystem(
+                address(new ERC1967Proxy(
+                    address(impl),
+                    abi.encodeCall(
+                        BountySystem.initialize,
+                        (deployer, address(scoreToken), treasury)
+                    )
+                ))
+            );
+        }
         console.log("   BountySystem:", address(bountySystem));
 
-        // 10. Deploy InsurancePool
+        // 10. InsurancePool (UUPS proxy)
         console.log("10. Deploying InsurancePool...");
-        insurancePool = new InsurancePool(deployer, address(scoreToken));
+        {
+            InsurancePool impl = new InsurancePool();
+            insurancePool = InsurancePool(
+                address(new ERC1967Proxy(
+                    address(impl),
+                    abi.encodeCall(
+                        InsurancePool.initialize,
+                        (deployer, address(scoreToken))
+                    )
+                ))
+            );
+        }
         console.log("   InsurancePool:", address(insurancePool));
 
-        // 11. Deploy Watchlist
-        console.log("11. Deploying Watchlist...");
+        // 11. DisputeResolution (UUPS proxy)
+        console.log("11. Deploying DisputeResolution...");
+        {
+            DisputeResolution impl = new DisputeResolution();
+            disputeResolution = DisputeResolution(
+                address(new ERC1967Proxy(
+                    address(impl),
+                    abi.encodeCall(
+                        DisputeResolution.initialize,
+                        (deployer, address(scoreToken), address(projectRegistry), treasury)
+                    )
+                ))
+            );
+        }
+        console.log("   DisputeResolution:", address(disputeResolution));
+
+        // 12. Watchlist (Ownable — direct deploy)
+        console.log("12. Deploying Watchlist...");
         watchlist = new Watchlist(deployer);
         console.log("   Watchlist:", address(watchlist));
 
-        // 12. Deploy AffiliateProgram
-        console.log("12. Deploying AffiliateProgram...");
+        // 13. AffiliateProgram (Ownable2Step — direct deploy)
+        console.log("13. Deploying AffiliateProgram...");
         affiliateProgram = new AffiliateProgram(deployer, address(scoreToken));
         console.log("   AffiliateProgram:", address(affiliateProgram));
 
@@ -166,34 +221,54 @@ contract Deploy is Script {
         console.log("");
         console.log("--- Configuring Contracts ---");
 
-        // Configure ScoreToken
+        // ScoreToken: authorise VotingEngine to mint rewards
         console.log("Configuring ScoreToken...");
         scoreToken.setRewardsPool(address(votingEngine));
         scoreToken.setTreasury(treasury);
 
-        // Configure ProjectRegistry
+        // ProjectRegistry: grant VOTING_ENGINE_ROLE to VotingEngine
         console.log("Configuring ProjectRegistry...");
         projectRegistry.setVotingEngine(address(votingEngine));
 
-        // Initialize PremiumListings tiers
+        // ProjectRegistry: grant DISPUTE_ROLE to DisputeResolution
+        projectRegistry.setDisputeResolution(address(disputeResolution));
+
+        // ProjectRegistry: register InsurancePool + BountySystem as scam listeners
+        projectRegistry.addScamListener(address(insurancePool));
+        projectRegistry.addScamListener(address(bountySystem));
+
+        // InsurancePool: grant OPERATOR_ROLE to ProjectRegistry (enables onProjectScamConfirmed)
+        console.log("Configuring InsurancePool...");
+        insurancePool.grantRole(insurancePool.OPERATOR_ROLE(), address(projectRegistry));
+
+        // BountySystem: grant OPERATOR_ROLE to ProjectRegistry
+        console.log("Configuring BountySystem...");
+        bountySystem.grantRole(bountySystem.OPERATOR_ROLE(), address(projectRegistry));
+
+        // PremiumListings: initialise tier pricing
         console.log("Initializing PremiumListings tiers...");
         premiumListings.initializeTiers();
 
-        // Configure ReputationSystem - authorize VotingEngine
+        // ReputationSystem: grant UPDATER_ROLE to VotingEngine (fix: was setAuthorizedUpdater)
         console.log("Configuring ReputationSystem...");
-        reputationSystem.setAuthorizedUpdater(address(votingEngine), true);
+        reputationSystem.setUpdater(address(votingEngine), true);
 
-        // Configure PredictionMarket - set resolver
+        // VotingEngine: wire in ReputationSystem + CuratorNFT
+        console.log("Configuring VotingEngine...");
+        votingEngine.setReputationSystem(address(reputationSystem));
+        votingEngine.setCuratorNFT(address(curatorNFT));
+
+        // PredictionMarket: set deployer as resolver
         console.log("Configuring PredictionMarket...");
         predictionMarket.setResolver(deployer, true);
 
-        // Configure InsurancePool - set claim approver
-        console.log("Configuring InsurancePool...");
-        insurancePool.setClaimApprover(deployer, true);
-
-        // Configure AffiliateProgram - authorize ProjectRegistry
+        // AffiliateProgram: authorise ProjectRegistry as referral recorder
         console.log("Configuring AffiliateProgram...");
         affiliateProgram.setAuthorizedRecorder(address(projectRegistry), true);
+
+        // DisputeResolution: grant ARBITRATOR_ROLE to deployer (add real arbitrators later)
+        console.log("Configuring DisputeResolution...");
+        disputeResolution.grantRole(disputeResolution.ARBITRATOR_ROLE(), deployer);
 
         vm.stopBroadcast();
 
@@ -216,6 +291,7 @@ contract Deploy is Script {
         console.log("PREDICTION_MARKET:", address(predictionMarket));
         console.log("BOUNTY_SYSTEM:", address(bountySystem));
         console.log("INSURANCE_POOL:", address(insurancePool));
+        console.log("DISPUTE_RESOLUTION:", address(disputeResolution));
         console.log("WATCHLIST:", address(watchlist));
         console.log("AFFILIATE_PROGRAM:", address(affiliateProgram));
         console.log("");
@@ -223,5 +299,7 @@ contract Deploy is Script {
         console.log("1. Run Setup.s.sol to mint initial tokens");
         console.log("2. Update dappscore/src/config/wagmi.ts with addresses above");
         console.log("3. Verify contracts on BaseScan if not auto-verified");
+        console.log("4. Add additional ARBITRATOR_ROLE addresses to DisputeResolution");
+        console.log("5. Set Chainlink ETH/USD oracle: tokenSale.setEthOracle(<feed-address>)");
     }
 }

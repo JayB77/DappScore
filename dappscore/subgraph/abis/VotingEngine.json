@@ -1,9 +1,14 @@
 [
-  {"type":"event","name":"Voted","inputs":[{"name":"projectId","type":"uint256","indexed":true},{"name":"voter","type":"address","indexed":true},{"name":"voteType","type":"uint8","indexed":false}],"anonymous":false},
-  {"type":"event","name":"VoteChanged","inputs":[{"name":"projectId","type":"uint256","indexed":true},{"name":"voter","type":"address","indexed":true},{"name":"newVoteType","type":"uint8","indexed":false}],"anonymous":false},
+  {"type":"event","name":"Voted","inputs":[{"name":"projectId","type":"uint256","indexed":true},{"name":"voter","type":"address","indexed":true},{"name":"voteType","type":"uint8","indexed":false},{"name":"weightBps","type":"uint256","indexed":false}],"anonymous":false},
+  {"type":"event","name":"VoteChanged","inputs":[{"name":"projectId","type":"uint256","indexed":true},{"name":"voter","type":"address","indexed":true},{"name":"newVoteType","type":"uint8","indexed":false},{"name":"weightBps","type":"uint256","indexed":false}],"anonymous":false},
   {"type":"event","name":"RewardsClaimed","inputs":[{"name":"user","type":"address","indexed":true},{"name":"amount","type":"uint256","indexed":false}],"anonymous":false},
   {"type":"event","name":"Staked","inputs":[{"name":"user","type":"address","indexed":true},{"name":"amount","type":"uint256","indexed":false}],"anonymous":false},
   {"type":"event","name":"Unstaked","inputs":[{"name":"user","type":"address","indexed":true},{"name":"amount","type":"uint256","indexed":false}],"anonymous":false},
   {"type":"event","name":"ProjectFlagged","inputs":[{"name":"projectId","type":"uint256","indexed":true}],"anonymous":false},
-  {"type":"event","name":"ProjectMarkedScam","inputs":[{"name":"projectId","type":"uint256","indexed":true}],"anonymous":false}
+  {"type":"event","name":"ProjectMarkedScam","inputs":[{"name":"projectId","type":"uint256","indexed":true}],"anonymous":false},
+  {"type":"event","name":"ReputationSystemSet","inputs":[{"name":"system","type":"address","indexed":true}],"anonymous":false},
+  {"type":"event","name":"CuratorNFTSet","inputs":[{"name":"nft","type":"address","indexed":true}],"anonymous":false},
+  {"type":"event","name":"AccuracyRecorded","inputs":[{"name":"projectId","type":"uint256","indexed":true},{"name":"voterCount","type":"uint256","indexed":false}],"anonymous":false},
+  {"type":"function","name":"getProjectVotes","stateMutability":"view","inputs":[{"name":"_projectId","type":"uint256"}],"outputs":[{"name":"","type":"tuple","components":[{"name":"upvotes","type":"uint256"},{"name":"downvotes","type":"uint256"},{"name":"totalVoters","type":"uint256"},{"name":"weightedUpvotes","type":"uint256"},{"name":"weightedDownvotes","type":"uint256"}]}]},
+  {"type":"function","name":"getUserVote","stateMutability":"view","inputs":[{"name":"_projectId","type":"uint256"},{"name":"_user","type":"address"}],"outputs":[{"name":"","type":"tuple","components":[{"name":"voteType","type":"uint8"},{"name":"timestamp","type":"uint256"},{"name":"commentIpfsHash","type":"string"}]}]}
 ]

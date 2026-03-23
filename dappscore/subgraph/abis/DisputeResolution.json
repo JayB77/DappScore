@@ -1,0 +1,9 @@
+[
+  {"type":"event","name":"DisputeFiled","inputs":[{"name":"disputeId","type":"uint256","indexed":true},{"name":"projectId","type":"uint256","indexed":true},{"name":"filer","type":"address","indexed":true},{"name":"reasonIpfsHash","type":"string","indexed":false},{"name":"votingDeadline","type":"uint256","indexed":false}],"anonymous":false},
+  {"type":"event","name":"VoteCast","inputs":[{"name":"disputeId","type":"uint256","indexed":true},{"name":"arbitrator","type":"address","indexed":true},{"name":"uphold","type":"bool","indexed":false}],"anonymous":false},
+  {"type":"event","name":"DisputeResolved","inputs":[{"name":"disputeId","type":"uint256","indexed":true},{"name":"projectId","type":"uint256","indexed":true},{"name":"outcome","type":"uint8","indexed":false}],"anonymous":false},
+  {"type":"event","name":"DisputeCancelled","inputs":[{"name":"disputeId","type":"uint256","indexed":true},{"name":"cancelledBy","type":"address","indexed":true}],"anonymous":false},
+  {"type":"function","name":"getDispute","stateMutability":"view","inputs":[{"name":"disputeId","type":"uint256"}],"outputs":[{"name":"","type":"tuple","components":[{"name":"projectId","type":"uint256"},{"name":"filer","type":"address"},{"name":"reasonIpfsHash","type":"string"},{"name":"filedAt","type":"uint256"},{"name":"votingDeadline","type":"uint256"},{"name":"upholdVotes","type":"uint256"},{"name":"dismissVotes","type":"uint256"},{"name":"status","type":"uint8"}]}]},
+  {"type":"function","name":"activeDisputeForProject","stateMutability":"view","inputs":[{"name":"","type":"uint256"}],"outputs":[{"name":"","type":"uint256"}]},
+  {"type":"function","name":"nextDisputeId","stateMutability":"view","inputs":[],"outputs":[{"name":"","type":"uint256"}]}
+]
