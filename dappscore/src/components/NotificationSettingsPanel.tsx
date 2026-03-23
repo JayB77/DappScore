@@ -68,7 +68,7 @@ export default function NotificationSettingsPanel({ walletAddress }: { walletAdd
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    fetch(`${API_BASE}/api/v1/alerts/preferences`, {
+    fetch(`${API_BASE}/v1/alerts/preferences`, {
       headers: { 'x-user-id': walletAddress },
     })
       .then(r => r.json())
@@ -86,7 +86,7 @@ export default function NotificationSettingsPanel({ walletAddress }: { walletAdd
     setSaving(true);
     setError(null);
     try {
-      const res = await fetch(`${API_BASE}/api/v1/alerts/preferences`, {
+      const res = await fetch(`${API_BASE}/v1/alerts/preferences`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json', 'x-user-id': walletAddress },
         body: JSON.stringify(prefs),

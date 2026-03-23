@@ -289,7 +289,7 @@ function SubmitForm({
 
     setSubmitting(true);
     try {
-      const res = await fetch(`${API_BASE}/api/v1/disputes/project/${projectId}`, {
+      const res = await fetch(`${API_BASE}/v1/disputes/project/${projectId}`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -444,7 +444,7 @@ export default function DisputePanel({ projectId, trustLevel }: Props) {
     setLoading(true);
     setError(false);
     try {
-      const res = await fetch(`${API_BASE}/api/v1/disputes/project/${projectId}`);
+      const res = await fetch(`${API_BASE}/v1/disputes/project/${projectId}`);
       if (!res.ok) throw new Error('fetch failed');
       const data = await res.json();
       setDisputes(data.data?.disputes ?? []);
@@ -464,7 +464,7 @@ export default function DisputePanel({ projectId, trustLevel }: Props) {
 
   async function handleVote(disputeId: number, support: boolean) {
     if (!walletAddress) return;
-    const res = await fetch(`${API_BASE}/api/v1/disputes/${disputeId}/vote`, {
+    const res = await fetch(`${API_BASE}/v1/disputes/${disputeId}/vote`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'x-user-id': walletAddress },
       body: JSON.stringify({ support }),
@@ -481,7 +481,7 @@ export default function DisputePanel({ projectId, trustLevel }: Props) {
 
   async function handleWithdraw(disputeId: number) {
     if (!walletAddress) return;
-    const res = await fetch(`${API_BASE}/api/v1/disputes/${disputeId}`, {
+    const res = await fetch(`${API_BASE}/v1/disputes/${disputeId}`, {
       method: 'DELETE',
       headers: { 'x-user-id': walletAddress },
     });

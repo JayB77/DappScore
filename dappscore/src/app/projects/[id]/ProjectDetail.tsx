@@ -182,7 +182,11 @@ export default function ProjectDetail() {
     if (idx !== -1 && parts[idx + 1]) setId(parts[idx + 1]);
   }, []);
 
-  const { isConnected, address } = useAccount();
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
+
+  const { isConnected: _isConnected, address } = useAccount();
+  const isConnected = mounted && _isConnected;
   const [userVote, setUserVote] = useState<'up' | 'down' | null>(null);
   const [comment, setComment] = useState('');
   const [commentImage, setCommentImage] = useState<string>('');
@@ -200,7 +204,7 @@ export default function ProjectDetail() {
 
   useEffect(() => {
     if (!address) return;
-    fetch(`${apiBase}/api/v1/watchlist`, { headers: { 'x-user-id': address } })
+    fetch(`${apiBase}/v1/watchlist`, { headers: { 'x-user-id': address } })
       .then(r => r.json())
       .then(json => {
         if (json.success) {
@@ -218,13 +222,13 @@ export default function ProjectDetail() {
     setWatchLoading(true);
     try {
       if (watching) {
-        await fetch(`${apiBase}/api/v1/watchlist/${project.id}`, {
+        await fetch(`${apiBase}/v1/watchlist/${project.id}`, {
           method: 'DELETE',
           headers: { 'x-user-id': address },
         });
         setWatching(false);
       } else {
-        await fetch(`${apiBase}/api/v1/watchlist`, {
+        await fetch(`${apiBase}/v1/watchlist`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', 'x-user-id': address },
           body: JSON.stringify({
