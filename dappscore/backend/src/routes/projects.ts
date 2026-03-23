@@ -51,6 +51,54 @@ router.get('/', async (req, res) => {
   }
 });
 
+// POST /api/projects/by-addresses - Batch lookup by contract address array
+// Called by DeployerHistoryPanel to cross-reference deployed contracts against DB.
+// Must be declared before /:id to avoid route collision.
+const byAddressesSchema = z.object({
+  addresses: z
+    .array(z.string().regex(/^0x[a-fA-F0-9]{40}$/, 'Invalid address'))
+    .min(1)
+    .max(50),
+});
+
+router.post('/by-addresses', async (req, res) => {
+  const parsed = byAddressesSchema.safeParse(req.body);
+  if (!parsed.success) {
+    return res.status(400).json({ error: parsed.error.format() });
+  }
+  try {
+    const projects = await graphql.getProjectsByAddresses(parsed.data.addresses);
+    // Return as {address → project} map for O(1) lookups on the client
+    const data: Record<string, any> = {};
+    for (const p of projects) {
+      if (p.contractAddress) data[p.contractAddress.toLowerCase()] = p;
+    }
+    res.json({ data });
+  } catch (error) {
+    console.error('Error in by-addresses lookup:', error);
+    res.status(500).json({ error: 'Lookup failed' });
+  }
+});
+
+// GET /api/projects/by-address/:address - Look up project by contract address
+// Must be declared before /:id to avoid route collision
+router.get('/by-address/:address', async (req, res) => {
+  const { address } = req.params;
+  if (!/^0x[a-fA-F0-9]{40}$/.test(address)) {
+    return res.status(400).json({ error: 'Invalid contract address' });
+  }
+  try {
+    const project = await graphql.getProjectByAddress(address);
+    if (!project) {
+      return res.status(404).json({ error: 'Project not found' });
+    }
+    res.json({ data: project });
+  } catch (error) {
+    console.error('Error fetching project by address:', error);
+    res.status(500).json({ error: 'Failed to fetch project' });
+  }
+});
+
 // GET /api/projects/:id - Get project details
 router.get('/:id', async (req, res) => {
   try {

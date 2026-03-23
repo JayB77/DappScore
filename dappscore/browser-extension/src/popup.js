@@ -1,7 +1,7 @@
 // DappScore Browser Extension - Popup Script
 
-const API_URL = 'https://api.dappscore.io'; // Update with actual API URL
-const WEBSITE_URL = 'https://dappscore.io';
+const API_URL = 'https://api.dappscore.io/api/v1';
+const WEBSITE_URL = 'https://app.dappscore.io';
 
 const TRUST_LEVELS = {
   0: { label: 'New Listing', class: 'new', color: '#6B7280' },
@@ -62,14 +62,22 @@ async function performSearch(query) {
 
     let response;
     if (isAddress) {
-      response = await fetch(`${API_URL}/api/projects?address=${query}`);
+      response = await fetch(`${API_URL}/projects/by-address/${query}`);
     } else {
-      response = await fetch(`${API_URL}/api/projects?query=${encodeURIComponent(query)}`);
+      response = await fetch(`${API_URL}/projects?query=${encodeURIComponent(query)}`);
     }
 
     const data = await response.json();
 
-    if (data.data && data.data.length > 0) {
+    if (isAddress) {
+      // by-address returns { data: project } (single object, not array)
+      if (data.data) {
+        showProjectDetails(data.data);
+        saveRecentCheck(data.data);
+      } else {
+        showNotFound(query);
+      }
+    } else if (data.data && data.data.length > 0) {
       if (data.data.length === 1) {
         showProjectDetails(data.data[0]);
         saveRecentCheck(data.data[0]);
@@ -259,7 +267,7 @@ async function saveRecentCheck(project) {
 window.selectProject = async (projectId) => {
   showLoading();
   try {
-    const response = await fetch(`${API_URL}/api/projects/${projectId}`);
+    const response = await fetch(`${API_URL}/projects/${projectId}`);
     const data = await response.json();
     if (data.data) {
       showProjectDetails(data.data);

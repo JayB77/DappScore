@@ -10,7 +10,7 @@ import type { SaleData } from '@/types/sale';
 function fmtCurrency(n: number, symbol: string): string {
   if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(2)}M ${symbol}`;
   if (n >= 1_000) return `${(n / 1_000).toFixed(1)}K ${symbol}`;
-  return `${n.toLocaleString()} ${symbol}`;
+  return `${n.toLocaleString('en-US')} ${symbol}`;
 }
 
 function getSaleStatus(data: SaleData): 'upcoming' | 'live' | 'ended' {
@@ -21,9 +21,11 @@ function getSaleStatus(data: SaleData): 'upcoming' | 'live' | 'ended' {
 }
 
 function useCountdown(targetTs: number) {
-  const [diff, setDiff] = useState(targetTs - Math.floor(Date.now() / 1000));
+  // Initialize to 0 so server and client render identically; set real value after mount.
+  const [diff, setDiff] = useState(0);
 
   useEffect(() => {
+    setDiff(targetTs - Math.floor(Date.now() / 1000));
     const id = setInterval(() => setDiff(targetTs - Math.floor(Date.now() / 1000)), 1000);
     return () => clearInterval(id);
   }, [targetTs]);
@@ -75,8 +77,11 @@ export default function TokenSalePanel({ projectId, mockData }: Props) {
   const enabled = useFeatureFlag('tokenSale', true);
   const [data, setData] = useState<SaleData | null>(mockData ?? null);
   const [loading, setLoading] = useState(!mockData);
+  // Defer status to after mount so server and client render identically.
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => { setMounted(true); }, []);
 
-  const status = data ? getSaleStatus(data) : null;
+  const status = (mounted && data) ? getSaleStatus(data) : null;
   const countdown = useCountdown(data ? (status === 'upcoming' ? data.startDate : data.endDate) : 0);
 
   useEffect(() => {
@@ -145,7 +150,7 @@ export default function TokenSalePanel({ projectId, mockData }: Props) {
       <div className="grid grid-cols-2 gap-3 mb-4">
         <div className="bg-gray-700/40 rounded-lg p-3">
           <p className="text-xs text-gray-400 mb-1">Token Price</p>
-          <p className="text-white font-medium">${data.tokenPrice.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 6 })}</p>
+          <p className="text-white font-medium">${data.tokenPrice.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 6 })}</p>
         </div>
         <div className="bg-gray-700/40 rounded-lg p-3">
           <p className="text-xs text-gray-400 mb-1 flex items-center gap-1">
@@ -177,7 +182,7 @@ export default function TokenSalePanel({ projectId, mockData }: Props) {
           <span>Network: <span className="text-gray-300">{data.network}</span></span>
           {data.updatedAt && (
             <span className="ml-auto">
-              Updated {new Date(data.updatedAt * 1000).toLocaleDateString()}
+              Updated {new Date(data.updatedAt * 1000).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
             </span>
           )}
         </div>

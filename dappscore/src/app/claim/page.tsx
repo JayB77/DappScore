@@ -12,7 +12,7 @@ import { getFeatureEnabled } from '@/lib/featureFlags';
 
 // ── Config ────────────────────────────────────────────────────────────────────
 
-const ADMIN_WALLET = '0x0cC77C9d660f2E7D10783014e0e3D510f7307A50'.toLowerCase();
+const ADMIN_WALLET = '0x80361876199e2318d6993A07e37177cFd21B64a7'.toLowerCase();
 const API_BASE     = process.env.NEXT_PUBLIC_API_URL ?? '/api';
 const CLAIM_KEY    = process.env.NEXT_PUBLIC_CLAIM_KEY ?? '';
 

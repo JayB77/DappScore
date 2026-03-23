@@ -152,10 +152,10 @@ export default function ExternalSignalsPanel({ websiteUrl, githubUrl, twitterUrl
                       {githubState.data.status === 'public' && (
                         <div className="flex items-center space-x-3 mt-1.5">
                           {githubState.data.stars !== undefined && (
-                            <span className="flex items-center space-x-1 text-xs text-gray-400"><Star className="h-3 w-3" /><span>{githubState.data.stars.toLocaleString()}</span></span>
+                            <span className="flex items-center space-x-1 text-xs text-gray-400"><Star className="h-3 w-3" /><span>{githubState.data.stars.toLocaleString('en-US')}</span></span>
                           )}
                           {githubState.data.forks !== undefined && (
-                            <span className="flex items-center space-x-1 text-xs text-gray-400"><GitFork className="h-3 w-3" /><span>{githubState.data.forks.toLocaleString()}</span></span>
+                            <span className="flex items-center space-x-1 text-xs text-gray-400"><GitFork className="h-3 w-3" /><span>{githubState.data.forks.toLocaleString('en-US')}</span></span>
                           )}
                           {githubState.data.isForked && (
                             <span className="px-1.5 py-0.5 bg-yellow-500/20 text-yellow-400 rounded text-xs">Forked repo</span>

@@ -222,7 +222,7 @@ export async function monitorContractEvents(
       analyzedAt: new Date(),
     };
   } catch (error) {
-    logger.error('[EventMonitor] monitorContractEvents error:', error);
+    logger.error('[EventMonitor] monitorContractEvents error:', error as Error);
     return {
       contractAddress,
       events: [],

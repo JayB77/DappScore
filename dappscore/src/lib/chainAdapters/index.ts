@@ -7,6 +7,7 @@ import { fetchEvmContractInfo } from './evm';
 import { fetchSolanaContractInfo } from './solana';
 import { fetchTronContractInfo } from './tron';
 import { fetchTonContractInfo } from './ton';
+import { fetchSuiContractInfo } from './sui';
 
 /**
  * Fetch contract/program info for any supported chain.
@@ -29,6 +30,8 @@ export async function fetchContractInfo(
       return fetchTronContractInfo(address);
     case 'ton':
       return fetchTonContractInfo(address);
+    case 'sui':
+      return fetchSuiContractInfo(address);
   }
 }
 
@@ -48,6 +51,8 @@ export function getExplorerUrl(chain: string, address: string): string | null {
       return `${config.explorerBase}/#/contract/${address}`;
     case 'ton':
       return `${config.explorerBase}/address/${address}`;
+    case 'sui':
+      return `${config.explorerBase}/object/${address}`;
   }
 }
 
@@ -55,6 +60,8 @@ export function getExplorerUrl(chain: string, address: string): string | null {
 export function hasApiSupport(chain: string): boolean {
   const config = getChainConfig(chain);
   if (!config) return false;
+  // SUI contract info not yet supported (security via GoPlus only)
+  if (config.family === 'sui') return false;
   // Non-EVM families always have their own fetchers; EVM needs apiBase
   return config.family !== 'evm' || !!config.apiBase;
 }
