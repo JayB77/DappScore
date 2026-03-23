@@ -2,39 +2,9 @@
 
 import { useEffect, useState } from 'react';
 import { AlertTriangle, CheckCircle, Loader2, XCircle, ShieldAlert, ExternalLink } from 'lucide-react';
+import SectionInsight, { type Insight, type InsightLevel } from '@/components/SectionInsight';
 import { useFeatureFlag } from '@/lib/featureFlags';
-
-// ── Chain ID map ──────────────────────────────────────────────────────────────
-// honeypot.is uses numeric EVM chain IDs
-
-const HONEYPOT_CHAIN_IDS: Record<string, number> = {
-  ethereum: 1,        eth: 1,
-  bsc: 56,            bnb: 56,            'bnb smart chain': 56,  opbnb: 204,
-  polygon: 137,       matic: 137,         'polygon zkevm': 1101,
-  arbitrum: 42161,    'arbitrum one': 42161,  'arbitrum nova': 42170,
-  optimism: 10,       'op mainnet': 10,
-  base: 8453,
-  blast: 81457,
-  linea: 59144,
-  scroll: 534352,
-  'zksync era': 324,  zksync: 324,
-  mantle: 5000,
-  mode: 34443,
-  taiko: 167000,
-  fraxtal: 252,
-  avalanche: 43114,   avax: 43114,
-  fantom: 250,        ftm: 250,
-  sonic: 146,
-  cronos: 25,         cro: 25,
-  gnosis: 100,        xdai: 100,
-  celo: 42220,
-  moonbeam: 1284,     glmr: 1284,
-  moonriver: 1285,    movr: 1285,
-  kava: 2222,
-  aurora: 1313161554,
-  core: 1116,         'core dao': 1116,
-  kaia: 8217,         klaytn: 8217,
-};
+import { getChainConfig } from '@/lib/chainAdapters';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -92,7 +62,7 @@ function taxBadge(pct: number): string | null {
   return null;
 }
 
-async function fetchHoneypot(address: string, chainId: number): Promise<HoneypotData> {
+async function fetchHoneypot(address: string, chainId: string | number): Promise<HoneypotData> {
   const res = await fetch(
     `https://api.honeypot.is/v2/IsHoneypot?address=${address}&chainID=${chainId}`,
     { headers: { Accept: 'application/json' } },
@@ -105,7 +75,9 @@ async function fetchHoneypot(address: string, chainId: number): Promise<Honeypot
 
 function ContractRow({ chain, address }: ContractAddress) {
   const [state, setState] = useState<State>({ status: 'idle' });
-  const chainId = HONEYPOT_CHAIN_IDS[chain.toLowerCase()];
+  const config   = getChainConfig(chain);
+  const isSolana = config?.family === 'solana';
+  const chainId  = isSolana ? 'solana' : config?.honeypotId;
 
   useEffect(() => {
     if (!chainId) { setState({ status: 'unsupported' }); return; }
@@ -231,6 +203,85 @@ function ContractRow({ chain, address }: ContractAddress) {
                 </span>
               </div>
             )}
+
+            {/* ── Plain English insight ─────────────────────────────── */}
+            {(() => {
+              const list: Insight[] = [];
+              const transfer = data.simulationResult?.transferTax ?? 0;
+
+              // ── Honeypot / simulation verdict ─────────────────────────
+              if (isHoneypot) {
+                list.push({ level: 'critical', text: `HONEYPOT CONFIRMED: You can buy this token but you cannot sell it. Every dollar you put in is permanently trapped — the contract blocks selling entirely.${data.honeypotResult.honeypotReason ? ` Reason: ${data.honeypotResult.honeypotReason}.` : ''}` });
+              } else if (simFailed) {
+                list.push({ level: 'warning', text: 'The buy/sell simulation failed to complete. This can indicate the contract actively blocks simulation tools — a common red flag used by scams to hide sell restrictions before launch.' });
+              } else if (sell === 0 && buy === 0 && transfer === 0) {
+                list.push({ level: 'safe', text: 'Simulation passed with 0% buy tax, 0% sell tax, and 0% transfer tax. The contract allows free trading with no fees deducted.' });
+              } else {
+                list.push({ level: 'safe', text: 'Simulation passed. The contract allows both buying and selling — no outright sell block detected.' });
+              }
+
+              // ── Sell tax ──────────────────────────────────────────────
+              if (data.simulationResult && !isHoneypot) {
+                if (sell > 50) {
+                  list.push({ level: 'critical', text: `Sell tax is ${sell.toFixed(1)}% — you'd receive only $${((1 - sell / 100) * 1000).toFixed(0)} from a $1,000 sell. This is so extreme that the token is effectively unsellable for any profit.` });
+                } else if (sell > 20) {
+                  list.push({ level: 'critical', text: `Sell tax is ${sell.toFixed(1)}% — you lose $${(sell / 100 * 1000).toFixed(0)} on every $1,000 sold. The price must rise more than ${sell.toFixed(0)}% above your entry just for you to break even.` });
+                } else if (sell > 10) {
+                  list.push({ level: 'warning', text: `Sell tax is ${sell.toFixed(1)}% — you pay $${(sell / 100 * 1000).toFixed(0)} in fees on every $1,000 sold. This significantly erodes profits and makes short-term trading very costly.` });
+                } else if (sell > 5) {
+                  list.push({ level: 'caution', text: `Sell tax is ${sell.toFixed(1)}% — you pay $${(sell / 100 * 1000).toFixed(0)} in fees on every $1,000 sold. Factor this into your exit planning.` });
+                } else if (sell > 0) {
+                  list.push({ level: 'caution', text: `Sell tax is ${sell.toFixed(1)}% — a small fee ($${(sell / 100 * 1000).toFixed(0)} per $1,000) is taken on every sale.` });
+                }
+
+                // ── Buy tax ────────────────────────────────────────────
+                if (buy > 20) {
+                  list.push({ level: 'critical', text: `Buy tax is ${buy.toFixed(1)}% — you immediately lose $${(buy / 100 * 1000).toFixed(0)} the moment you buy $1,000 worth. Your position starts ${buy.toFixed(0)}% in the red.` });
+                } else if (buy > 10) {
+                  list.push({ level: 'warning', text: `Buy tax is ${buy.toFixed(1)}% — you pay $${(buy / 100 * 1000).toFixed(0)} extra to enter a $1,000 position, which means you start at an immediate loss.` });
+                } else if (buy > 5) {
+                  list.push({ level: 'caution', text: `Buy tax is ${buy.toFixed(1)}% — you pay $${(buy / 100 * 1000).toFixed(0)} in fees to enter a $1,000 position.` });
+                } else if (buy > 0) {
+                  list.push({ level: 'caution', text: `Buy tax is ${buy.toFixed(1)}% — a small entry fee ($${(buy / 100 * 1000).toFixed(0)} per $1,000 invested).` });
+                }
+
+                // ── Transfer tax ───────────────────────────────────────
+                if (transfer > 10) {
+                  list.push({ level: 'warning', text: `Transfer tax is ${transfer.toFixed(1)}% — you lose $${(transfer / 100 * 1000).toFixed(0)} every time you move $1,000 worth of tokens between wallets, including to exchanges.` });
+                } else if (transfer > 0) {
+                  list.push({ level: 'caution', text: `Transfer tax is ${transfer.toFixed(1)}% — a fee is taken on every wallet-to-wallet move, including to/from exchanges.` });
+                }
+
+                // ── Combined buy+sell round-trip cost ──────────────────
+                if (buy > 0 && sell > 0 && buy + sell > 15) {
+                  const roundTrip = buy + sell;
+                  list.push({ level: roundTrip > 40 ? 'critical' as const : 'warning' as const, text: `Combined round-trip cost is ${roundTrip.toFixed(1)}% (${buy.toFixed(1)}% buy + ${sell.toFixed(1)}% sell). On a $1,000 trade you'd pay $${(roundTrip / 100 * 1000).toFixed(0)} total in fees — the price must rise ${roundTrip.toFixed(0)}%+ for you to profit.` });
+                }
+              }
+
+              // ── Holder failure rate ────────────────────────────────────
+              if (data.holderAnalysis) {
+                const failed = parseInt(data.holderAnalysis.failed);
+                const total  = parseInt(data.holderAnalysis.holders);
+                if (failed > 0 && total > 0) {
+                  const pct = ((failed / total) * 100).toFixed(0);
+                  const lvl = failed / total > 0.3 ? 'critical' as const : 'warning' as const;
+                  list.push({ level: lvl, text: `${failed} out of ${total} sampled holders (${pct}%) were UNABLE to sell their tokens during simulation. This is a very strong indicator of a sell trap — even if taxes appear low, the contract is blocking exits.` });
+                } else if (total > 0) {
+                  list.push({ level: 'safe', text: `All ${total} sampled holders were able to sell successfully — no hidden sell restrictions detected in holder simulation.` });
+                }
+              }
+
+              // ── If high tax but also highest-tax holder flagged ────────
+              if (data.holderAnalysis && data.holderAnalysis.highestTax > sell) {
+                const maxTax = data.holderAnalysis.highestTax;
+                if (maxTax > 20) {
+                  list.push({ level: 'critical', text: `The highest sell tax experienced by any holder was ${maxTax.toFixed(1)}% — significantly worse than the average. Some wallets are being charged much higher fees than advertised.` });
+                }
+              }
+
+              return <SectionInsight insights={list} className="mt-2" />;
+            })()}
           </div>
         );
       })()}
@@ -248,9 +299,10 @@ export default function HoneypotPanel({ contractAddresses }: Props) {
   const enabled = useFeatureFlag('honeypotDetector', false);
   if (!enabled) return null;
 
-  const supported = contractAddresses.filter(
-    ({ chain }) => !!HONEYPOT_CHAIN_IDS[chain.toLowerCase()],
-  );
+  const supported = contractAddresses.filter(({ chain }) => {
+    const cfg = getChainConfig(chain);
+    return cfg?.family === 'solana' || !!cfg?.honeypotId;
+  });
   if (supported.length === 0) return null;
 
   return (

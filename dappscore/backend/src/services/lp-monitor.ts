@@ -97,7 +97,7 @@ export async function detectLpMovements(
       `${apiBase}?module=account&action=tokentx` +
       `&contractaddress=${pairAddress}&sort=desc&page=1&offset=200`,
     );
-    const data = await res.json();
+    const data: any = await res.json();
     const allTxs: TokenTxRecord[] = Array.isArray(data?.result) ? data.result : [];
 
     const cutoffTs  = Date.now() / 1000 - lookbackDays * 86_400;
@@ -212,7 +212,7 @@ export async function detectLpMovements(
       ),
     };
   } catch (error) {
-    logger.error('[LpMonitor] detectLpMovements error:', error);
+    logger.error('[LpMonitor] detectLpMovements error:', error as Error);
     return {
       pairAddress: pair,
       alerts: [],

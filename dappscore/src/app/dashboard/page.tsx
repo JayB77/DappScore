@@ -37,8 +37,9 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { useFeatureFlag } from '@/lib/featureFlags';
 import ApiKeysPanel from '@/components/ApiKeysPanel';
+import NotificationSettingsPanel from '@/components/NotificationSettingsPanel';
 
-type TabType = 'overview' | 'votes' | 'nfts' | 'projects' | 'settings' | 'apikeys';
+type TabType = 'overview' | 'votes' | 'nfts' | 'projects' | 'settings' | 'apikeys' | 'notifications';
 
 export default function DashboardPage() {
   const { isConnected, address } = useAccount();
@@ -230,6 +231,7 @@ export default function DashboardPage() {
             { id: 'votes', label: 'Voting History', icon: Vote },
             { id: 'nfts', label: 'NFT Collection', icon: Award },
             { id: 'projects', label: 'My Projects', icon: Flame },
+            { id: 'notifications', label: 'Notifications', icon: Bell },
             { id: 'settings', label: 'Settings', icon: Settings },
             { id: 'apikeys', label: 'API Keys', icon: Key },
           ].map((tab) => (
@@ -640,6 +642,12 @@ export default function DashboardPage() {
                 </div>
               )}
             </div>
+          </div>
+        )}
+
+        {activeTab === 'notifications' && (
+          <div className="max-w-2xl">
+            <NotificationSettingsPanel walletAddress={address!} />
           </div>
         )}
 

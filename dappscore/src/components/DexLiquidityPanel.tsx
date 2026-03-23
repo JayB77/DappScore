@@ -6,38 +6,7 @@ import {
   DollarSign, BarChart2, Droplets, ExternalLink, Minus,
 } from 'lucide-react';
 import { useFeatureFlag } from '@/lib/featureFlags';
-
-// ── DexScreener chain ID map ──────────────────────────────────────────────────
-
-const DS_CHAIN: Record<string, string> = {
-  ethereum: 'ethereum',   eth: 'ethereum',
-  bsc: 'bsc',             bnb: 'bsc',             'bnb smart chain': 'bsc',   opbnb: 'opbnb',
-  polygon: 'polygon',     matic: 'polygon',        'polygon zkevm': 'polygonzkevm',
-  arbitrum: 'arbitrum',   'arbitrum one': 'arbitrum',  'arbitrum nova': 'arbitrumnova',
-  optimism: 'optimism',   'op mainnet': 'optimism',
-  base: 'base',
-  blast: 'blast',
-  linea: 'linea',
-  scroll: 'scroll',
-  'zksync era': 'zksync', zksync: 'zksync',
-  mantle: 'mantle',
-  mode: 'mode',
-  taiko: 'taiko',
-  fraxtal: 'fraxtal',
-  avalanche: 'avalanche', avax: 'avalanche',
-  fantom: 'fantom',       ftm: 'fantom',           sonic: 'sonic',
-  cronos: 'cronos',       cro: 'cronos',
-  gnosis: 'gnosis',       xdai: 'gnosis',
-  celo: 'celo',
-  moonbeam: 'moonbeam',   glmr: 'moonbeam',
-  moonriver: 'moonriver', movr: 'moonriver',
-  kava: 'kava',
-  aurora: 'aurora',
-  core: 'core',           'core dao': 'core',
-  kaia: 'kaia',           klaytn: 'kaia',
-  metis: 'metis',
-  boba: 'boba',
-};
+import { getChainConfig } from '@/lib/chainAdapters';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -141,7 +110,7 @@ async function fetchPairs(address: string, dsChainId: string): Promise<DSPair[]>
 
 function ContractRow({ chain, address }: ContractAddress) {
   const [state, setState] = useState<State>({ status: 'idle' });
-  const dsChainId = DS_CHAIN[chain.toLowerCase()];
+  const dsChainId = getChainConfig(chain)?.dexscreenerId;
 
   useEffect(() => {
     if (!dsChainId) { setState({ status: 'none' }); return; }
@@ -296,7 +265,7 @@ export default function DexLiquidityPanel({ contractAddresses }: Props) {
   const enabled = useFeatureFlag('dexLiquidity', false);
   if (!enabled) return null;
 
-  const supported = contractAddresses.filter(({ chain }) => !!DS_CHAIN[chain.toLowerCase()]);
+  const supported = contractAddresses.filter(({ chain }) => !!getChainConfig(chain)?.dexscreenerId);
   if (supported.length === 0) return null;
 
   return (
