@@ -47,3 +47,20 @@ This is a secret **you create**. Generate a random string, then:
 
 ## Branch convention
 Feature branches follow: `claude/<feature-name>-<SESSION_ID>`
+
+---
+
+## VPS Deployment
+
+- **Web root / Next.js app:** `/var/www/dappscore/dappscore`
+- **Git repo root:** `/var/www/dappscore` (one level up)
+- The proxy blocks direct pushes to `main` — always push to a `claude/` branch and open a PR on GitHub, then merge it to get changes onto the server.
+- After merging to `main`, on the server:
+  ```bash
+  cd /var/www/dappscore
+  git pull origin main
+  cd dappscore && npm install && npm run build
+  cd backend && npm install && npm run build
+  pm2 restart all
+  psql $DATABASE_URL -f functions/migrations/004_ensure_all_tables.sql
+  ```
