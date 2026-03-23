@@ -77,7 +77,7 @@ export function Footer() {
             <ul className="space-y-2">
               <li>
                 <Link href="/developer" className="text-gray-400 hover:text-yellow-500 transition-colors">
-                  B2B Scam API
+                  B2B API
                 </Link>
               </li>
               <li>

@@ -72,7 +72,7 @@ export default function SectionInsight({ insights, className = '' }: Props) {
         <div className="flex items-center gap-2">
           <Info className="h-3.5 w-3.5 flex-shrink-0" />
           <span className="text-xs font-semibold uppercase tracking-wide">
-            Plain English — {styles.label}
+            {styles.label}
           </span>
         </div>
         {open
