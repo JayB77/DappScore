@@ -59,7 +59,7 @@ export function AlertsBell({ walletAddress }: { walletAddress: string }) {
 
   const refreshCount = useCallback(async () => {
     try {
-      const res = await fetch(`${API_BASE}/v1/alerts/unread-count`, { headers });
+      const res = await fetch(`${API_BASE}/alerts/unread-count`, { headers });
       if (!res.ok) return;
       const json = await res.json();
       setUnread(json.data?.count ?? 0);
@@ -77,7 +77,7 @@ export function AlertsBell({ walletAddress }: { walletAddress: string }) {
   useEffect(() => {
     if (!open) return;
     setLoading(true);
-    fetch(`${API_BASE}/v1/alerts?limit=15`, { headers })
+    fetch(`${API_BASE}/alerts?limit=15`, { headers })
       .then(r => r.json())
       .then(json => setAlerts(json.data?.alerts ?? []))
       .catch(() => {})
@@ -99,13 +99,13 @@ export function AlertsBell({ walletAddress }: { walletAddress: string }) {
   // ── Actions ───────────────────────────────────────────────────────────────
 
   async function markAllRead() {
-    await fetch(`${API_BASE}/v1/alerts/read-all`, { method: 'POST', headers });
+    await fetch(`${API_BASE}/alerts/read-all`, { method: 'POST', headers });
     setAlerts(prev => prev.map(a => ({ ...a, read: true })));
     setUnread(0);
   }
 
   async function markRead(alertId: string) {
-    await fetch(`${API_BASE}/v1/alerts/${alertId}/read`, { method: 'POST', headers });
+    await fetch(`${API_BASE}/alerts/${alertId}/read`, { method: 'POST', headers });
     setAlerts(prev => prev.map(a => a.id === alertId ? { ...a, read: true } : a));
     setUnread(prev => Math.max(0, prev - 1));
   }
