@@ -19,6 +19,7 @@ import apiKeyRoutes from './routes/api-keys';
 import { watchlistRoutes } from './routes/watchlist';
 import { rugMonitorRoutes } from './routes/rug-monitor';
 import txGraphRoutes from './routes/tx-graph';
+import { disputeRoutes } from './routes/disputes';
 
 import whaleTrackingService from './services/whale-tracking';
 import { runAndAlert } from './services/event-monitor';
@@ -144,6 +145,7 @@ app.use('/api/v1/api-keys', apiKeyRoutes);
 app.use('/api/v1/watchlist', watchlistRoutes);
 app.use('/api/v1/rug-monitor', rugMonitorRoutes);
 app.use('/api/v1/tx-graph',   txGraphRoutes);
+app.use('/api/v1/disputes',   disputeRoutes);
 
 // Error handler
 app.use((err: Error, req: express.Request, res: express.Response, next: express.NextFunction) => {

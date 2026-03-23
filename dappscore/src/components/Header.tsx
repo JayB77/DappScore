@@ -61,7 +61,10 @@ function ToolsDropdown() {
 }
 
 export function Header() {
-  const { isConnected, address } = useAccount();
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
+  const { isConnected: _isConnected, address } = useAccount();
+  const isConnected = mounted && _isConnected;
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [mobileToolsOpen, setMobileToolsOpen] = useState(false);
 
