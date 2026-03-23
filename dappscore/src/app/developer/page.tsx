@@ -582,7 +582,7 @@ export default function DeveloperPage() {
               <p className="text-gray-400">
                 Fill in the form below. We review all applications manually and respond within 1–2 business days.
                 For urgent or enterprise inquiries, email{' '}
-                <a href="mailto:api@dappscore.io" className="text-yellow-500 hover:text-yellow-400">api@dappscore.io</a>.
+                <a href="mailto:admin@dappscore.io" className="text-yellow-500 hover:text-yellow-400">admin@dappscore.io</a>.
               </p>
             </div>
             <div className="bg-gray-900 border border-gray-800 rounded-2xl p-6">
