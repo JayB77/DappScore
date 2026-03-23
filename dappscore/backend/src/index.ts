@@ -20,6 +20,8 @@ import { watchlistRoutes } from './routes/watchlist';
 import { rugMonitorRoutes } from './routes/rug-monitor';
 import txGraphRoutes from './routes/tx-graph';
 import { disputeRoutes } from './routes/disputes';
+import b2bRoutes from './routes/b2b';
+import adminB2bRoutes from './routes/admin-b2b';
 
 import whaleTrackingService from './services/whale-tracking';
 import { runAndAlert } from './services/event-monitor';
@@ -59,16 +61,14 @@ rugDetectorEvents.on('rug_alert', (signal) => {
 
 // ── Real-time proxy upgrade alerts ────────────────────────────────────────────
 proxyUpgradeEvents.on('upgrade', async (evt: ProxyUpgradeEvent) => {
-  // 1. Broadcast to all connected WS clients immediately
   const wsPayload = JSON.stringify({ type: 'proxy_upgrade', event: {
     ...evt,
-    blockNumber: evt.blockNumber.toString(), // bigint → string for JSON
+    blockNumber: evt.blockNumber.toString(),
   }});
   for (const client of wss.clients) {
     if (client.readyState === WebSocket.OPEN) client.send(wsPayload);
   }
 
-  // 2. Persist + deliver alert to every user who is watching this contract
   try {
     const { rows } = await db.query<{ user_id: string; project_id: string }>(
       `SELECT DISTINCT user_id, project_id
@@ -99,9 +99,7 @@ proxyUpgradeEvents.on('upgrade', async (evt: ProxyUpgradeEvent) => {
     }
 
     if (rows.length > 0) {
-      logger.warn(
-        `[ProxyUpgrade] Alerted ${rows.length} user(s) for upgrade on ${evt.contractAddress}`,
-      );
+      logger.warn(`[ProxyUpgrade] Alerted ${rows.length} user(s) for upgrade on ${evt.contractAddress}`);
     }
   } catch (err) {
     logger.error('[ProxyUpgrade] Alert delivery error', err as Error);
@@ -118,7 +116,6 @@ const ALLOWED_ORIGINS = new Set(
 );
 app.use(cors({
   origin: (origin, cb) => {
-    // Allow server-to-server calls (no Origin header) and listed origins
     if (!origin || ALLOWED_ORIGINS.has(origin)) return cb(null, true);
     cb(new Error(`CORS: origin ${origin} not allowed`));
   },
@@ -133,19 +130,21 @@ app.get('/health', (req, res) => {
 });
 
 // API Routes
-app.use('/api/v1/projects', projectRoutes);
-app.use('/api/v1/users', userRoutes);
-app.use('/api/v1/stats', statsRoutes);
-app.use('/api/v1/alerts', alertRoutes);
-app.use('/api/v1/share', shareRoutes);
+app.use('/api/v1/projects',    projectRoutes);
+app.use('/api/v1/users',       userRoutes);
+app.use('/api/v1/stats',       statsRoutes);
+app.use('/api/v1/alerts',      alertRoutes);
+app.use('/api/v1/share',       shareRoutes);
 app.use('/api/v1/scam-detection', scamDetectionRoutes);
-app.use('/api/v1/whales', whaleRoutes);
-app.use('/api/v1/webhooks', webhookRoutes);
-app.use('/api/v1/api-keys', apiKeyRoutes);
-app.use('/api/v1/watchlist', watchlistRoutes);
+app.use('/api/v1/whales',      whaleRoutes);
+app.use('/api/v1/webhooks',    webhookRoutes);
+app.use('/api/v1/api-keys',    apiKeyRoutes);
+app.use('/api/v1/watchlist',   watchlistRoutes);
 app.use('/api/v1/rug-monitor', rugMonitorRoutes);
-app.use('/api/v1/tx-graph',   txGraphRoutes);
-app.use('/api/v1/disputes',   disputeRoutes);
+app.use('/api/v1/tx-graph',    txGraphRoutes);
+app.use('/api/v1/disputes',    disputeRoutes);
+app.use('/api/v1/b2b',         b2bRoutes);
+app.use('/api/v1/admin/b2b',   adminB2bRoutes);
 
 // Error handler
 app.use((err: Error, req: express.Request, res: express.Response, next: express.NextFunction) => {
@@ -154,50 +153,20 @@ app.use((err: Error, req: express.Request, res: express.Response, next: express.
 });
 
 // Cron jobs
-// Scam pattern + event monitoring — runs every hour.
-// To activate event monitoring for a project, call runAndAlert() with the
-// contract address, project ID, and subscribed user IDs.  The watched
-// address list should come from a DB/cache layer once that is in place;
-// for now the route GET /api/scam-detection/events handles on-demand checks.
 cron.schedule('0 * * * *', async () => {
   logger.info('Hourly scam pattern + event monitor sweep');
-  // Run LP-drop checks for all watchlisted tokens
-  runWatchlistMonitor().catch(err =>
-    logger.error('Watchlist monitor error', err as Error),
-  );
-  // Proxy Upgraded events are now handled in real-time by proxyUpgradeWatcher.
-  // The cron here handles other event types (ownership transfers, LP events).
-  // TODO: load watched contract addresses from DB for ownership/LP event monitoring:
-  //   const contracts = await db.getWatchedContracts();
-  //   for (const c of contracts) {
-  //     await runAndAlert(c.address, c.projectId, c.subscribedUserIds, c.pairAddress);
-  //   }
-  void runAndAlert; // imported — linter suppression until DB integration
+  runWatchlistMonitor().catch(err => logger.error('Watchlist monitor error', err as Error));
+  void runAndAlert;
 });
 
-// Update whale wallets daily
 cron.schedule('0 0 * * *', async () => {
   logger.info('Updating whale wallet data...');
-  // Whale tracking service runs on-demand via API
 });
 
 // ── Rug-in-Progress sweep — every 5 minutes ───────────────────────────────────
-// Loads all watchlisted tokens from DB and runs combined rug detection.
-// Any token scoring ≥ 25 is broadcast to WS clients automatically.
 cron.schedule('*/5 * * * *', async () => {
   logger.info('[RugMonitor] Running 5-min rug detection sweep...');
-  // TODO: load watchlisted tokens from DB once watchlist stores pair/deployer addresses:
-  //   const tokens = await db.getWatchlistTokensWithMeta();
-  //   for (const t of tokens) {
-  //     await runAndBroadcast({
-  //       tokenAddress:    t.tokenAddress,
-  //       pairAddress:     t.pairAddress,
-  //       deployerAddress: t.deployerAddress,
-  //       explorerApiBase: t.explorerApiBase,
-  //       chainId:         t.chainId,
-  //     });
-  //   }
-  void runAndBroadcast; // imported — linter suppression until DB integration
+  void runAndBroadcast;
 });
 
 // ── Startup: subscribe to proxy upgrades for all currently-watched contracts ──
@@ -226,7 +195,6 @@ async function initProxyUpgradeWatcher(): Promise<void> {
 httpServer.listen(PORT, () => {
   logger.info(`DappScore Backend running on port ${PORT}`);
   logger.info(`WebSocket server listening at ws://localhost:${PORT}/ws`);
-  // Start real-time proxy upgrade subscriptions after the event loop is ready
   initProxyUpgradeWatcher().catch(err =>
     logger.error('[ProxyUpgrade] Init error', err as Error),
   );

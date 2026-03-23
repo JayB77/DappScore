@@ -5,6 +5,7 @@
 import { Router, Request, Response } from 'express';
 import { analyzeContract, analyzeTokenomics, getFingerprint, type ScamAnalysis } from '../services/scam-patterns';
 import { monitorContractEvents } from '../services/event-monitor';
+import { cacheGet, cacheSet } from '../lib/cache';
 
 const router = Router();
 
@@ -23,10 +24,18 @@ router.post('/analyze', async (req: Request, res: Response) => {
       });
     }
 
+    const cacheKey = `scam:analyze:${network}:${contractAddress.toLowerCase()}`;
+    const cached = await cacheGet<object>(cacheKey);
+    if (cached) {
+      return res.json({ success: true, cached: true, data: cached });
+    }
+
     const analysis = await analyzeContract(contractAddress, network);
+    await cacheSet(cacheKey, analysis, 600); // 10 min cache
 
     res.json({
       success: true,
+      cached: false,
       data: analysis,
     });
   } catch (error: any) {
@@ -53,10 +62,18 @@ router.post('/tokenomics', async (req: Request, res: Response) => {
       });
     }
 
+    const cacheKey = `scam:tokenomics:${network}:${tokenAddress.toLowerCase()}`;
+    const cached = await cacheGet<object>(cacheKey);
+    if (cached) {
+      return res.json({ success: true, cached: true, data: cached });
+    }
+
     const analysis = await analyzeTokenomics(tokenAddress, network);
+    await cacheSet(cacheKey, analysis, 600);
 
     res.json({
       success: true,
+      cached: false,
       data: analysis,
     });
   } catch (error: any) {
@@ -272,10 +289,18 @@ router.post('/fingerprint', async (req: Request, res: Response) => {
       });
     }
 
+    const cacheKey = `scam:fingerprint:${network}:${contractAddress.toLowerCase()}`;
+    const cached = await cacheGet<object>(cacheKey);
+    if (cached) {
+      return res.json({ success: true, cached: true, data: cached });
+    }
+
     const fingerprint = await getFingerprint(contractAddress, network);
+    await cacheSet(cacheKey, fingerprint, 1800); // 30 min — bytecode doesn't change
 
     res.json({
       success: true,
+      cached: false,
       data: fingerprint,
     });
   } catch (error: any) {
